@@ -74,13 +74,6 @@ jobs:
       matrix:
         python_version: ["3.11", "3.12", "3.13"]
         pytorch_version: ["release/2.7", "release/2.9"]
-        include:
-          - pytorch_version: release/2.7
-            pytorch_patchset: rocm_2.7
-          - pytorch_version: release/2.9
-            pytorch_patchset: rocm_2.9
-          - pytorch_version: nightly
-            pytorch_patchset: nightly
 
     uses: ROCm/TheRock/.github/workflows/build_portable_linux_pytorch_wheels.yml@main
     with:
@@ -93,6 +86,5 @@ jobs:
       cloudfront_staging_url: ${{ inputs.cloudfront_staging_url }}
       rocm_version: ${{ inputs.rocm_version }}
       pytorch_version: ${{ matrix.pytorch_version }}
-      pytorch_patchset: ${{ matrix.pytorch_patchset }}
       repository: "ROCm/TheRock"
       ref: ${{ inputs.ref || '' }}
