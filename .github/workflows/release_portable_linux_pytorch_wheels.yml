@@ -60,6 +60,7 @@ on:
       ref:
         description: "Branch, tag or SHA to checkout. Otherwise, uses the default branch."
         type: string
+        default: release/therock-7.11
 
 
 permissions:
@@ -79,10 +80,8 @@ jobs:
             pytorch_patchset: rocm_2.7
           - pytorch_version: release/2.9
             pytorch_patchset: rocm_2.9
-          - pytorch_version: nightly
-            pytorch_patchset: nightly
 
-    uses: ROCm/TheRock/.github/workflows/build_portable_linux_pytorch_wheels.yml@main
+    uses: ROCm/TheRock/.github/workflows/build_portable_linux_pytorch_wheels.yml@release/therock-7.11
     with:
       amdgpu_family: ${{ inputs.amdgpu_family }}
       python_version: ${{ matrix.python_version }}
