@@ -58,6 +58,7 @@ on:
       ref:
         description: "Branch, tag or SHA to checkout. Otherwise, uses the default branch."
         type: string
+        default: release/therock-7.11
 
 
 permissions:
@@ -73,7 +74,7 @@ jobs:
         python_version: ["3.11", "3.12", "3.13"]
         pytorch_version: ["release/2.9", "nightly"]
 
-    uses: ROCm/TheRock/.github/workflows/build_windows_pytorch_wheels.yml@main
+    uses: ROCm/TheRock/.github/workflows/build_windows_pytorch_wheels.yml@release/therock-7.11
     with:
       amdgpu_family: ${{ inputs.amdgpu_family }}
       python_version: ${{ matrix.python_version }}
