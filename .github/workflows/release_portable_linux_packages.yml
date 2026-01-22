@@ -5,7 +5,7 @@ on:
   workflow_dispatch:
     inputs:
       release_type:
-        description: The type of build version to produce ("nightly", "prerelease", or "dev")
+        description: The type of release to build ("dev", "nightly", or "prerelease"). All developer-triggered jobs should use "dev"!
         type: choice
         options:
           - dev
@@ -29,7 +29,7 @@ on:
           - v3/whl-staging
         default: v2-staging
       families:
-        description: "Comma separated list of AMD GPU families, e.g. `gfx94X,gfx950,gfx1151`"
+        description: "Comma separated list of AMD GPU families, e.g. `gfx94X,gfx103x`"
         type: string
       prerelease_version:
         description: "(Optional) Number of the prerelease"
@@ -46,20 +46,22 @@ on:
 permissions:
   contents: read
 
+run-name: Release portable Linux packages (${{ inputs.families || 'default' }}, ${{ inputs.release_type }})
+
 jobs:
   linux_packages:
     name: Build
     uses: ROCm/TheRock/.github/workflows/release_portable_linux_packages.yml@release/therock-7.11
     secrets: inherit
     with:
-      release_type: ${{ inputs.release_type || 'nightly' }}
-      package_suffix: ""
-      s3_subdir: ${{ inputs.s3_subdir || 'v2' }}
-      s3_staging_subdir: ${{ inputs.s3_staging_subdir || 'v2-staging' }}
+      release_type: ${{ inputs.release_type }}
+      package_suffix: ${{ inputs.package_suffix || '' }}
+      s3_subdir: ${{ inputs.s3_subdir }}
+      s3_staging_subdir: ${{ inputs.s3_staging_subdir }}
       families: ${{ inputs.families || '' }}
       prerelease_version: ${{ inputs.prerelease_version || '' }}
       repository: "ROCm/TheRock"
-      ref: ${{ inputs.ref || '' }}
+      ref: ${{ inputs.ref }}
     permissions:
       actions: write
       contents: write
