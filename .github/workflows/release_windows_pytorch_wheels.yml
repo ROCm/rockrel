@@ -71,7 +71,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        python_version: ["3.11", "3.12", "3.13"]
+        python_git_ref: ["3.11", "3.12", "3.13"]
         pytorch_version: ["release/2.9"]
 
     uses: ROCm/TheRock/.github/workflows/build_windows_pytorch_wheels.yml@release/therock-7.11
