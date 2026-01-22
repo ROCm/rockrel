@@ -86,6 +86,6 @@ jobs:
       cloudfront_url: ${{ inputs.cloudfront_url }}
       cloudfront_staging_url: ${{ inputs.cloudfront_staging_url }}
       rocm_version: ${{ inputs.rocm_version }}
-      pytorch_version: ${{ matrix.pytorch_version }}
+      pytorch_git_ref: ${{ matrix.pytorch_git_ref }}
       repository: "ROCm/TheRock"
       ref: ${{ inputs.ref || '' }}
