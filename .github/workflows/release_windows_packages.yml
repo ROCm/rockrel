@@ -5,7 +5,7 @@ on:
   workflow_dispatch:
     inputs:
       release_type:
-        description: The type of build version to produce ("nightly", "prerelease", or "dev")
+        description: The type of release to build ("dev", "nightly", or "prerelease"). All developer-triggered jobs should use "dev"!
         type: choice
         options:
           - dev
@@ -15,7 +15,7 @@ on:
       package_suffix:
         type: string
       s3_subdir:
-        description: "Subdirectory to push the packages"
+        description: "Subdirectory to push the Python packages"
         type: choice
         options:
           - v2
@@ -29,10 +29,13 @@ on:
           - v3/whl-staging
         default: v2-staging
       families:
-        description: "Comma separated list of AMD GPU families, e.g. `gfx115X`"
+        description: "A comma separated list of AMD GPU families, e.g. `gfx94X,gfx103x`, or empty for the default list"
         type: string
       prerelease_version:
         description: "(Optional) Number of the prerelease"
+        type: string
+      extra_cmake_options:
+        description: "Extra options to pass to the CMake configure command"
         type: string
       ref:
         description: "Branch, tag or SHA to checkout. Otherwise, uses the default branch."
@@ -45,20 +48,23 @@ on:
 permissions:
   contents: read
 
+run-name: Release Windows packages (${{ inputs.families || 'default' }}, ${{ inputs.release_type || 'nightly' }})
+
 jobs:
   linux_packages:
     name: Build
     uses: ROCm/TheRock/.github/workflows/release_windows_packages.yml@main
     secrets: inherit
     with:
-      release_type: ${{ inputs.release_type || 'nightly' }}
-      package_suffix: ""
-      s3_subdir: ${{ inputs.s3_subdir || 'v2' }}
-      s3_staging_subdir: ${{ inputs.s3_staging_subdir || 'v2-staging' }}
+      release_type: ${{ inputs.release_type }}
+      package_suffix: ${{ inputs.package_suffix || '' }}
+      s3_subdir: ${{ inputs.s3_subdir }}
+      s3_staging_subdir: ${{ inputs.s3_staging_subdir }}
       families: ${{ inputs.families || '' }}
       prerelease_version: ${{ inputs.prerelease_version || '' }}
+      extra_cmake_options: ${{ inputs.extra_cmake_options || '' }}
       repository: "ROCm/TheRock"
-      ref: ${{ inputs.ref || '' }}
+      ref: ${{ inputs.ref }}
     permissions:
       actions: write
       contents: write
