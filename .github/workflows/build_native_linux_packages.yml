@@ -49,10 +49,11 @@ jobs:
     uses: ROCm/TheRock/.github/workflows/build_native_linux_packages.yml@main
     with:
       artifact_group: ${{ inputs.artifact_group }}
-      release_type: ${{ inputs.release_type }}
-      rocm_version: ${{ inputs.rocm_version }}
       artifact_run_id: ${{ github.run_id }}
+      rocm_version: ${{ inputs.rocm_version }}
       native_package_type: ${{ inputs.native_package_type }}
+      package_suffix: ${{ inputs.package_suffix || '' }}
+      release_type: ${{ inputs.release_type }}
       repository: "ROCm/TheRock"
       ref: ${{ inputs.ref }}
     permissions:
