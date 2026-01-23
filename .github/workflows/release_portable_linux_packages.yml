@@ -5,7 +5,7 @@ on:
   workflow_dispatch:
     inputs:
       release_type:
-        description: The type of build version to produce ("nightly", "prerelease", or "dev")
+        description: The type of release to build ("dev", "nightly", or "prerelease"). All developer-triggered jobs should use "dev"!
         type: choice
         options:
           - dev
@@ -29,7 +29,7 @@ on:
           - v3/whl-staging
         default: v2-staging
       families:
-        description: "Comma separated list of AMD GPU families, e.g. `gfx94X,gfx950,gfx1151`"
+        description: "Comma separated list of AMD GPU families, e.g. `gfx94X,gfx103x`"
         type: string
       prerelease_version:
         description: "(Optional) Number of the prerelease"
@@ -37,6 +37,7 @@ on:
       ref:
         description: "Branch, tag or SHA to checkout. Otherwise, uses the default branch."
         type: string
+        default: ''
 #   # Trigger on a schedule to build nightly release candidates.
 #   schedule:
 #     # Runs at 04:00 AM UTC, which is 8:00 PM PST (UTC-8)
@@ -45,6 +46,8 @@ on:
 permissions:
   contents: read
 
+run-name: Release portable Linux packages (${{ inputs.families || 'default' }}, ${{ inputs.release_type }})
+
 jobs:
   linux_packages:
     name: Build
@@ -52,7 +55,7 @@ jobs:
     secrets: inherit
     with:
       release_type: ${{ inputs.release_type || 'nightly' }}
-      package_suffix: ""
+      package_suffix: ${{ inputs.package_suffix || '' }}
       s3_subdir: ${{ inputs.s3_subdir || 'v2' }}
       s3_staging_subdir: ${{ inputs.s3_staging_subdir || 'v2-staging' }}
       families: ${{ inputs.families || '' }}
