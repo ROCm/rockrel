@@ -46,7 +46,7 @@ jobs:
     strategy:
       fail-fast: false
 
-    uses: ROCm/TheRock/.github/workflows/build_native_linux_packages.yml@release/therock-7.11
+    uses: ROCm/TheRock/.github/workflows/build_native_linux_packages.yml@users/nunnikri/rel-7.11
     with:
       artifact_group: ${{ inputs.artifact_group }}
       artifact_run_id: ${{ github.run_id }}
