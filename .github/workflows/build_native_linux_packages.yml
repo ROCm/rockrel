@@ -49,7 +49,7 @@ jobs:
     uses: ROCm/TheRock/.github/workflows/build_native_linux_packages.yml@users/nunnikri/rel-7.11
     with:
       artifact_group: ${{ inputs.artifact_group }}
-      artifact_run_id: ${{ inputs.run_id }}
+      artifact_run_id: ${{ inputs.artifact_run_id }}
       rocm_version: ${{ inputs.rocm_version }}
       native_package_type: ${{ inputs.native_package_type }}
       package_suffix: ${{ inputs.package_suffix || '' }}
