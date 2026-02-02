@@ -72,3 +72,79 @@ wget https://rocm.prereleases.amd.com/tarball/therock-dist-linux-gfx1151-7.9.0rc
 mkdir install
 tar -xf *.tar.gz -C install
 ```
+#### Installing from Native Linux Packages
+
+AMD provides prerelease ROCm packages for both Debian-based and RPM-based Linux distributions.
+
+Repository base URL:
+
+```
+https://rocm.prereleases.amd.com/packages/
+```
+
+---
+
+##### Installing Packages on Debian-Based Systems
+
+###### Import the ROCm GPG Key
+
+```bash
+curl -fsSL https://rocm.prereleases.amd.com/packages/gpg/rocm.gpg \
+| sudo gpg --dearmor -o /usr/share/keyrings/rocm-archive-keyring.gpg
+```
+
+---
+
+###### Add the ROCm Repository
+
+Replace `<os_profile>` with the appropriate distribution profile  
+(e.g. `debian12`, `ubuntu22.04`).
+
+```bash
+echo "deb [arch=amd64 signed-by=/usr/share/keyrings/rocm-archive-keyring.gpg] \
+https://rocm.prereleases.amd.com/packages/<os_profile>/ main" \
+| sudo tee /etc/apt/sources.list.d/rocm.list
+```
+
+---
+
+###### Install ROCm
+
+```bash
+sudo apt update
+sudo apt install rocm
+```
+
+---
+
+##### Installing Packages on RPM-Based Systems
+
+###### Import the ROCm GPG Key
+
+```bash
+sudo rpm --import https://rocm.prereleases.amd.com/packages/gpg/rocm.gpg
+```
+
+---
+
+###### Add the ROCm Repository
+
+```bash
+sudo tee /etc/yum.repos.d/rocm.repo <<'EOF'
+[rocm]
+name=ROCm Prerelease Repository
+baseurl=https://rocm.prereleases.amd.com/packages/rpm/
+enabled=1
+gpgcheck=1
+gpgkey=https://rocm.prereleases.amd.com/packages/gpg/rocm.gpg
+EOF
+```
+
+---
+
+###### Install ROCm
+
+```bash
+sudo dnf install rocm
+```
+
