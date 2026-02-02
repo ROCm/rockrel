@@ -112,7 +112,7 @@ https://rocm.prereleases.amd.com/packages/<os_profile>/ main" \
 
 ```bash
 sudo apt update
-sudo apt install rocm
+sudo apt install amdrocm-gfx94x # Change the gfx arch based on your machine.
 ```
 
 ---
@@ -145,6 +145,6 @@ EOF
 ###### Install ROCm
 
 ```bash
-sudo dnf install rocm
+sudo dnf install amdrocm-gfx94x # Change the gfx arch based on your machine.
 ```
 
