@@ -89,8 +89,9 @@ https://rocm.prereleases.amd.com/packages/
 ###### Import the ROCm GPG Key
 
 ```bash
-curl -fsSL https://rocm.prereleases.amd.com/packages/gpg/rocm.gpg \
-| sudo gpg --dearmor -o /usr/share/keyrings/rocm-archive-keyring.gpg
+sudo mkdir --parents --mode=0755 /etc/apt/keyrings
+wget https://rocm.prereleases.amd.com/packages/gpg/rocm.gpg -O - \
+| gpg --dearmor | sudo tee /etc/apt/keyrings/rocm.gpg > /dev/null
 ```
 
 ---
@@ -98,12 +99,13 @@ curl -fsSL https://rocm.prereleases.amd.com/packages/gpg/rocm.gpg \
 ###### Add the ROCm Repository
 
 Replace `<os_profile>` with the appropriate distribution profile  
-(e.g. `debian12`, `ubuntu22.04`).
+(e.g. `debian12`, `ubuntu2404`).
 
 ```bash
-echo "deb [arch=amd64 signed-by=/usr/share/keyrings/rocm-archive-keyring.gpg] \
-https://rocm.prereleases.amd.com/packages/<os_profile>/ main" \
-| sudo tee /etc/apt/sources.list.d/rocm.list
+sudo tee /etc/apt/sources.list.d/rocm.list << EOF
+deb [arch=amd64 signed-by=/etc/apt/keyrings/rocm.gpg] https://rocm.prereleases.amd.com/packages/<os_profile> stable main
+EOF
+sudo apt update
 ```
 
 ---
@@ -111,7 +113,6 @@ https://rocm.prereleases.amd.com/packages/<os_profile>/ main" \
 ###### Install ROCm
 
 ```bash
-sudo apt update
 sudo apt install amdrocm-gfx94x # Change the gfx arch based on your machine.
 ```
 
@@ -119,25 +120,21 @@ sudo apt install amdrocm-gfx94x # Change the gfx arch based on your machine.
 
 ##### Installing Packages on RPM-Based Systems
 
-###### Import the ROCm GPG Key
-
-```bash
-sudo rpm --import https://rocm.prereleases.amd.com/packages/gpg/rocm.gpg
-```
-
----
-
 ###### Add the ROCm Repository
 
+Replace `<os_profile>` with the appropriate distribution profile  
+(e.g. `rhel8`, `sles16`).
+
 ```bash
-sudo tee /etc/yum.repos.d/rocm.repo <<'EOF'
+sudo tee /etc/yum.repos.d/rocm.repo << EOF
 [rocm]
 name=ROCm Prerelease Repository
-baseurl=https://rocm.prereleases.amd.com/packages/rpm/
+baseurl=https://rocm.prereleases.amd.com/packages/<os_profile>/x86_64/
 enabled=1
 gpgcheck=1
 gpgkey=https://rocm.prereleases.amd.com/packages/gpg/rocm.gpg
 EOF
+sudo dnf update
 ```
 
 ---
