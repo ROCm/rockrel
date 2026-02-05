@@ -134,7 +134,7 @@ enabled=1
 gpgcheck=1
 gpgkey=https://rocm.prereleases.amd.com/packages/gpg/rocm.gpg
 EOF
-sudo dnf update
+sudo dnf clean all
 ```
 
 ---
