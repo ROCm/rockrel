@@ -72,3 +72,76 @@ wget https://rocm.prereleases.amd.com/tarball/therock-dist-linux-gfx1151-7.9.0rc
 mkdir install
 tar -xf *.tar.gz -C install
 ```
+#### Installing from Native Linux Packages
+
+AMD provides prerelease ROCm packages for both Debian-based and RPM-based Linux distributions.
+
+Repository base URL:
+
+```
+https://rocm.prereleases.amd.com/packages/
+```
+
+---
+
+##### Installing Packages on Debian-Based Systems
+
+###### Import the ROCm GPG Key
+
+```bash
+sudo mkdir --parents --mode=0755 /etc/apt/keyrings
+wget https://rocm.prereleases.amd.com/packages/gpg/rocm.gpg -O - \
+| gpg --dearmor | sudo tee /etc/apt/keyrings/amdrocm.gpg > /dev/null
+```
+
+---
+
+###### Add the ROCm Repository
+
+Replace `<os_profile>` with the appropriate distribution profile  
+(e.g. `debian12`, `ubuntu2404`).
+
+```bash
+sudo tee /etc/apt/sources.list.d/rocm.list << EOF
+deb [arch=amd64 signed-by=/etc/apt/keyrings/rocm.gpg] https://rocm.prereleases.amd.com/packages/<os_profile> stable main
+EOF
+sudo apt update
+```
+
+---
+
+###### Install ROCm
+
+```bash
+sudo apt install amdrocm-gfx94x # Change the gfx arch based on your machine.
+```
+
+---
+
+##### Installing Packages on RPM-Based Systems
+
+###### Add the ROCm Repository
+
+Replace `<os_profile>` with the appropriate distribution profile  
+(e.g. `rhel8`, `sles16`).
+
+```bash
+sudo tee /etc/yum.repos.d/rocm.repo << EOF
+[rocm]
+name=ROCm Prerelease Repository
+baseurl=https://rocm.prereleases.amd.com/packages/<os_profile>/x86_64/
+enabled=1
+gpgcheck=1
+gpgkey=https://rocm.prereleases.amd.com/packages/gpg/rocm.gpg
+EOF
+sudo dnf clean all
+```
+
+---
+
+###### Install ROCm
+
+```bash
+sudo dnf install amdrocm-gfx94x # Change the gfx arch based on your machine.
+```
+
