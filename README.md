@@ -91,7 +91,7 @@ https://rocm.prereleases.amd.com/packages/
 ```bash
 sudo mkdir --parents --mode=0755 /etc/apt/keyrings
 wget https://rocm.prereleases.amd.com/packages/gpg/rocm.gpg -O - \
-| gpg --dearmor | sudo tee /etc/apt/keyrings/rocm.gpg > /dev/null
+| gpg --dearmor | sudo tee /etc/apt/keyrings/amdrocm.gpg > /dev/null
 ```
 
 ---
