@@ -103,7 +103,7 @@ Replace `<os_profile>` with the appropriate distribution profile
 
 ```bash
 sudo tee /etc/apt/sources.list.d/rocm.list << EOF
-deb [arch=amd64 signed-by=/etc/apt/keyrings/rocm.gpg] https://rocm.prereleases.amd.com/packages/<os_profile> stable main
+deb [arch=amd64 signed-by=/etc/apt/keyrings/amdrocm.gpg] https://rocm.prereleases.amd.com/packages/<os_profile> stable main
 EOF
 sudo apt update
 ```
