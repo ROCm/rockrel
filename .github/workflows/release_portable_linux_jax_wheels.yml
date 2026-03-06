@@ -4,6 +4,9 @@ on:
   pull_request:
     branches:
       - users/arravikum/jax_rel_changes
+  push:
+    branches:
+      - users/arravikum/jax_rel_changes
   workflow_dispatch:
     inputs:
       amdgpu_family:
