@@ -95,7 +95,7 @@ jobs:
       s3_staging_subdir: ${{ inputs.s3_staging_subdir || 'v2-staging' }}
       cloudfront_url: ${{ inputs.cloudfront_url || 'https://rocm.devreleases.amd.com/v2' }}
       cloudfront_staging_url: ${{ inputs.cloudfront_staging_url || 'https://rocm.devreleases.amd.com/v2-staging' }}
-      rocm_version: ${{ inputs.rocm_version }}
+      rocm_version: ${{ inputs.rocm_version || '7.12.0a20260218' }}
       tar_url: ${{ inputs.tar_url }}
       jax_ref: ${{ matrix.jax_ref }}
       repository: "ROCm/TheRock"
