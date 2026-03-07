@@ -67,7 +67,7 @@ jobs:
         python_version: ["3.11", "3.12", "3.13"]
         jax_ref: ["rocm-jaxlib-v0.8.2"]
 
-    uses: ROCm/TheRock/.github/workflows/build_linux_jax_wheels.yml@users/arravikum/JAX_build_release_changes
+    uses: ROCm/TheRock/.github/workflows/build_linux_jax_wheels.yml@main
     with:
       amdgpu_family: ${{ inputs.amdgpu_family }}
       python_version: ${{ matrix.python_version }}
