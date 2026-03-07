@@ -98,6 +98,5 @@ jobs:
       rocm_version: ${{ inputs.rocm_version }}
       tar_url: ${{ inputs.tar_url }}
       jax_ref: ${{ matrix.jax_ref }}
-      ref: ${{ inputs.ref || github.sha }}
-
-
+      repository: "ROCm/TheRock"
+      ref: ${{ inputs.ref || '' }}
