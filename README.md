@@ -98,7 +98,7 @@ wget https://rocm.prereleases.amd.com/packages/gpg/rocm.gpg -O - \
 
 ###### Add the ROCm Repository
 
-Replace `<os_profile>` with the appropriate distribution profile  
+Replace `<os_profile>` with the appropriate distribution profile
 (e.g. `debian12`, `ubuntu2404`).
 
 ```bash
@@ -122,7 +122,7 @@ sudo apt install amdrocm-gfx94x # Change the gfx arch based on your machine.
 
 ###### Add the ROCm Repository
 
-Replace `<os_profile>` with the appropriate distribution profile  
+Replace `<os_profile>` with the appropriate distribution profile
 (e.g. `rhel8`, `sles16`).
 
 ```bash
@@ -144,4 +144,3 @@ sudo dnf clean all
 ```bash
 sudo dnf install amdrocm-gfx94x # Change the gfx arch based on your machine.
 ```
-
