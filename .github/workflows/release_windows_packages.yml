@@ -52,7 +52,7 @@ permissions:
 run-name: Release Windows packages (${{ inputs.families || 'default' }}, ${{ inputs.release_type || 'nightly' }})
 
 jobs:
-  linux_packages:
+  windows_packages:
     name: Build
     uses: ROCm/TheRock/.github/workflows/release_windows_packages.yml@main
     secrets: inherit
