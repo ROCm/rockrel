@@ -424,7 +424,8 @@ class RockTagging:
                 self.log("Continuing with git operations (may fail if not authenticated via SSH)...")
         else:
             self.log("Skipping gh auth login (SSH mode). Assuming user already authenticated.")
-        
+
+
         for comp, meta in plan.items():
             url = meta["url"]
             commit = meta["commit"]
