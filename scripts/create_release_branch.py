@@ -313,7 +313,6 @@ class RockBranchingAutomation:
         if failed_repos:
             self.log(f"Failed repos: {pformat(failed_repos)}")
 
-    
     def convert_to_ssh(self, url: str) -> str:
         """Convert https://github.com/X/Y.git → git@github.com:X/Y.git"""
         if url.startswith("https://github.com/"):
@@ -427,7 +426,7 @@ class RockBranchingAutomation:
 
             # Update refs from origin
             self.log("Fetching latest changes for existing TheRock clone...")
-            self.run_command(["git", "fetch", "origin", "--prune", "--recurse-submodules=on-demand"], 
+            self.run_command(["git", "fetch", "origin", "--prune", "--recurse-submodules=on-demand"],
                              cwd=clone_dir, stream=True)
 
         fetch_script = clone_dir / "build_tools" / "fetch_sources.py"
