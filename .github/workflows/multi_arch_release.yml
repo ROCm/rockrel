@@ -63,6 +63,6 @@ jobs:
       repository: "ROCm/TheRock"
       ref: ${{ inputs.ref || '' }}
     permissions:
-      contents: read
+      contents: write
       actions: write
       id-token: write
