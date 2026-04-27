@@ -56,7 +56,7 @@ pip install --extra-index-url https://rocm.prereleases.amd.com/v4/whl/ --pre "ro
 
 Replace `device-gfx942` with the extra for your GPU (e.g. `device-gfx1100`,
 `device-gfx1201`). See the
-[multi-arch releases section of RELEASES.md](https://github.com/ROCm/TheRock/blob/main/RELEASES.md#multi-arch-releases)
+[multi-arch releases section of RELEASES.md](https://github.com/ROCm/TheRock/blob/main/RELEASES.md#installing-multi-arch-rocm-python-packages)
 for the full device table.
 
 ##### Per-family (GPU-family-specific index)
