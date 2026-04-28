@@ -48,7 +48,7 @@ Multi-arch releases use a single index URL for all GPU architectures. Select
 your GPU using pip extras:
 
 ```bash
-pip install --extra-index-url https://rocm.prereleases.amd.com/v4/whl/ --pre "rocm[devel,device-gfx942]"
+pip install --extra-index-url https://rocm.prereleases.amd.com/whl-multi-arch/ --pre "rocm[devel,device-gfx942]"
 ```
 
 <!-- TODO: Once dependencies are uploaded to the multi-arch index, replace
