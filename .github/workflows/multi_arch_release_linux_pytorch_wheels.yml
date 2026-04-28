@@ -1,0 +1,57 @@
+name: Multi-Arch Release Linux PyTorch Wheels
+
+on:
+  workflow_dispatch:
+    inputs:
+      amdgpu_families:
+        description: >-
+          Semicolon-separated list of AMD GPU families to build PyTorch for
+          (e.g. 'gfx94X-dcgpu;gfx120X-all').
+        type: string
+        required: true
+      rocm_version:
+        description: ROCm package version to install and build against (e.g. 7.10.0.dev0)
+        type: string
+        required: true
+      rocm_package_find_links_url:
+        description: URL for pip --find-links to install ROCm packages
+        type: string
+        required: true
+      release_type:
+        description: 'Release type: "dev", "nightly", or "prerelease". Selects the S3 bucket.'
+        type: choice
+        options:
+          - dev
+          - nightly
+          - prerelease
+        default: dev
+      cache_type:
+        description: "Compiler cache type"
+        type: choice
+        options:
+          - none
+          - sccache
+          - ccache
+        default: none
+      ref:
+        description: "Branch, tag or SHA to checkout. Defaults to the reference or SHA that triggered the workflow."
+        type: string
+        default: ''
+
+permissions:
+  id-token: write
+  contents: read
+
+run-name: Multi-Arch Release Linux PyTorch Wheels (${{ inputs.amdgpu_families }}, ${{ inputs.release_type }}, ${{ inputs.rocm_version }})
+
+jobs:
+  release:
+    uses: ROCm/TheRock/.github/workflows/multi_arch_release_linux_pytorch_wheels.yml@main
+    with:
+      amdgpu_families: ${{ inputs.amdgpu_families }}
+      rocm_version: ${{ inputs.rocm_version }}
+      rocm_package_find_links_url: ${{ inputs.rocm_package_find_links_url }}
+      release_type: ${{ inputs.release_type }}
+      cache_type: ${{ inputs.cache_type }}
+      repository: "ROCm/TheRock"
+      ref: ${{ inputs.ref || '' }}
