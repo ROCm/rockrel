@@ -53,6 +53,7 @@ Options:
 """
 import argparse
 import logging
+import re
 import shlex
 import shutil
 import subprocess
@@ -79,6 +80,13 @@ class RockBranchingAutomation:
         self.release_branch: str = cli_args.branch_name
         self.dry_run: bool = cli_args.dry_run
         self.commitid: str = cli_args.commitid
+
+        if not re.fullmatch(r"[0-9a-f]{40}", self.commitid):
+            raise SystemExit(
+                f"ERROR: --commitid must be a full 40-character lowercase hex "
+                f"SHA-1 hash, got: {self.commitid!r}"
+            )
+
         self.exclude_list: set[str] = set(cli_args.exclude_list or [])
         self.force_clone: bool = cli_args.force_clone
         self.cache_dir: Path | None = (
@@ -105,6 +113,7 @@ class RockBranchingAutomation:
         *,
         input_data: bytes | None = None,
         stream: bool = False,
+        timeout: int | None = None,
     ) -> None:
         """Execute a subprocess command, raising CalledProcessError on failure.
 
@@ -115,6 +124,7 @@ class RockBranchingAutomation:
             stream:     If True, print stdout/stderr line-by-line as it arrives
                         (useful for long-running operations like clone/fetch).
                         If False, buffer output and log after completion.
+            timeout:    Maximum seconds to wait before raising TimeoutExpired.
         """
         cmd = args if isinstance(args, list) else [args]
         self.log(f"++ Exec [{cwd}]$ {shlex.join(map(str, cmd))}")
@@ -149,6 +159,7 @@ class RockBranchingAutomation:
                 check=True,
                 stdin=None if input_data else subprocess.DEVNULL,
                 text=False,
+                timeout=timeout,
             )
 
             if result.stdout:
@@ -177,10 +188,13 @@ class RockBranchingAutomation:
             )
             raise
 
-    def run_command_output(self, args: list[str | Path], cwd: Path) -> str:
+    def run_command_output(
+        self, args: list[str | Path], cwd: Path, timeout: int | None = None
+    ) -> str:
         """Run a command and return its stripped stdout as a string.
 
         Raises CalledProcessError on non-zero exit.
+        Raises subprocess.TimeoutExpired when *timeout* seconds elapse.
         """
         cmd = args if isinstance(args, list) else [args]
         self.log(f"++ Exec [{cwd}]$ {shlex.join(map(str, cmd))}")
@@ -193,6 +207,7 @@ class RockBranchingAutomation:
             text=True,
             check=True,
             stdin=subprocess.DEVNULL,
+            timeout=timeout,
         )
         return result.stdout.strip()
 
@@ -214,10 +229,12 @@ class RockBranchingAutomation:
         """Return True if the release branch already exists on rocm-github.
 
         Raises CalledProcessError if the remote check itself fails.
+        Raises subprocess.TimeoutExpired if the network call hangs (60 s).
         """
         output = self.run_command_output(
             ["git", "ls-remote", "--heads", "rocm-github", self.release_branch],
             cwd=repo_dir,
+            timeout=60,
         )
         return bool(output)
 
@@ -239,6 +256,7 @@ class RockBranchingAutomation:
             self.run_command(
                 ["git", "push", "rocm-github", self.release_branch],
                 cwd=repo_dir,
+                timeout=120,
             )
 
     def execute_plan(self, plan: dict[str, RepoInfo]) -> None:
@@ -251,6 +269,7 @@ class RockBranchingAutomation:
         4. Push to ``rocm-github`` (skipped in dry-run mode).
         """
         successful_repos: dict[str, RepoInfo] = {}
+        skipped_repos: dict[str, str] = {}
         failed_repos: dict[str, str] = {}
 
         for repo_name, info in plan.items():
@@ -282,7 +301,7 @@ class RockBranchingAutomation:
                     "on rocm-github"
                 )
                 self.log(msg)
-                failed_repos[repo_name] = msg
+                skipped_repos[repo_name] = msg
                 continue
 
             try:
@@ -301,10 +320,13 @@ class RockBranchingAutomation:
 
         self.log(
             f"Summary: {len(successful_repos)} succeeded, "
+            f"{len(skipped_repos)} skipped, "
             f"{len(failed_repos)} failed out of {len(plan)} repos"
         )
         if successful_repos:
             self.log(f"Successful repos: {pformat(successful_repos)}")
+        if skipped_repos:
+            self.log(f"Skipped repos (branch already exists): {pformat(skipped_repos)}")
         if failed_repos:
             self.log(f"Failed repos: {pformat(failed_repos)}")
 
