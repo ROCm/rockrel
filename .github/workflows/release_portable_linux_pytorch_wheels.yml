@@ -14,6 +14,8 @@ on:
           - gfx1152
           - gfx1153
           - gfx120X-all
+          - gfx90a
+          - gfx908
           - gfx90X-dcgpu
           - gfx94X-dcgpu
           - gfx950-dcgpu
@@ -77,8 +79,8 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        python_version: ["3.11", "3.12", "3.13"]
-        pytorch_git_ref: ["release/2.7", "release/2.8", "release/2.9", "nightly"]
+        python_version: ["3.10", "3.11", "3.12", "3.13", "3.14"]
+        pytorch_git_ref: ["release/2.9", "release/2.10", "release/2.11"]
     uses: ROCm/TheRock/.github/workflows/build_portable_linux_pytorch_wheels.yml@main
     with:
       amdgpu_family: ${{ inputs.amdgpu_family }}
