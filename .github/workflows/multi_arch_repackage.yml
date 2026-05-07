@@ -1,0 +1,78 @@
+# Copyright Advanced Micro Devices, Inc.
+# SPDX-License-Identifier: MIT
+
+name: Multi-Arch Repackage
+
+# Repackage existing TheRock artifacts (tarballs, python wheels, native
+# linux packages) without rebuilding from source. The artifacts are
+# located in S3 by `prebuilt_prefix` (the fixed prefix component before
+# "-linux"/"-windows").
+
+on:
+  workflow_dispatch:
+    inputs:
+      release_type:
+        description: 'Release type: "dev", "nightly", or "prerelease".'
+        type: choice
+        options:
+          - dev
+          - nightly
+          - prerelease
+        default: dev
+      prerelease_version:
+        description: "(Optional) Prerelease version number, e.g. '2' for 7.10.0rc2"
+        type: string
+        default: ""
+      prebuilt_prefix:
+        description: >-
+          Fixed S3 prefix component (the part before "-linux"/"-windows")
+          to copy artifacts from for repackaging.
+        type: string
+        required: true
+      linux_amdgpu_families:
+        description: 'Linux GPU families. "all" = all, "none" = skip Linux.'
+        type: string
+        default: "all"
+      windows_amdgpu_families:
+        description: 'Windows GPU families. "all" = all, "none" = skip Windows.'
+        type: string
+        default: "all"
+      ref:
+        description: "TheRock branch/tag/SHA for workflow checkout. Empty = default."
+        type: string
+        default: ""
+
+permissions:
+  contents: read
+
+run-name: >-
+  Multi-Arch Repackage (${{ inputs.release_type }}, prebuilt=${{ inputs.prebuilt_prefix }})
+  | Linux: ${{ inputs.linux_amdgpu_families }}
+  | Windows: ${{ inputs.windows_amdgpu_families }}
+
+jobs:
+  linux:
+    uses: ./.github/workflows/multi_arch_repackage_linux.yml
+    secrets: inherit
+    with:
+      release_type: ${{ inputs.release_type }}
+      prerelease_version: ${{ inputs.prerelease_version }}
+      prebuilt_prefix: ${{ inputs.prebuilt_prefix }}
+      amdgpu_families: ${{ inputs.linux_amdgpu_families }}
+      ref: ${{ inputs.ref }}
+    permissions:
+      contents: read
+      id-token: write
+
+  windows:
+    uses: ./.github/workflows/multi_arch_repackage_windows.yml
+    secrets: inherit
+    with:
+      release_type: ${{ inputs.release_type }}
+      prerelease_version: ${{ inputs.prerelease_version }}
+      prebuilt_prefix: ${{ inputs.prebuilt_prefix }}
+      amdgpu_families: ${{ inputs.windows_amdgpu_families }}
+      ref: ${{ inputs.ref }}
+    permissions:
+      contents: read
+      id-token: write
