@@ -25,7 +25,7 @@ on:
       rocm_version:
         description: ROCm version to append to the package (8.0.0, 8.0.1rc1, ...).
         type: string
-        default: "7.13.0~rc0"
+        default: "7.13.0~pre0"
       native_package_type:
         description: Specify whether debian or rpm packages are needed (deb or rpm).
         required: true
