@@ -1,0 +1,78 @@
+# Copyright Advanced Micro Devices, Inc.
+# SPDX-License-Identifier: MIT
+
+# Thin wrapper that dispatches to TheRock's test_artifacts.yml.
+# This exists so that release workflows running in rockrel's context
+# can dispatch test runs to this repo (which then calls TheRock).
+
+name: Test Artifacts
+
+on:
+  workflow_dispatch:
+    inputs:
+      artifact_group:
+        type: string
+      artifact_run_id:
+        type: string
+        default: ""
+      amdgpu_families:
+        type: string
+      amdgpu_targets:
+        type: string
+        default: ""
+      test_runs_on:
+        type: string
+      benchmark_runs_on:
+        type: string
+        default: ""
+      sanity_check_only_for_family:
+        type: boolean
+        default: false
+      test_type:
+        type: string
+      test_labels:
+        type: string
+        default: ""
+      run_extended_tests:
+        type: string
+        default: 'false'
+      windows_hip_rocr_tests:
+        type: string
+        default: 'false'
+      release_type:
+        description: 'Release type: "" for CI, or "dev", "nightly", "prerelease".'
+        type: string
+        default: ""
+      repository:
+        description: "TheRock repository to checkout."
+        type: string
+        default: "ROCm/TheRock"
+      ref:
+        description: "Branch, tag, or SHA to checkout in TheRock."
+        type: string
+        default: ""
+
+permissions:
+  contents: read
+
+run-name: Test Artifacts (${{ inputs.amdgpu_families }}, ${{ inputs.release_type || 'ci' }}, ${{ inputs.test_type }}, ${{ inputs.test_runs_on }})
+
+jobs:
+  test:
+    uses: ROCm/TheRock/.github/workflows/test_artifacts.yml@main
+    secrets: inherit
+    with:
+      artifact_group: ${{ inputs.artifact_group }}
+      artifact_run_id: ${{ inputs.artifact_run_id }}
+      amdgpu_families: ${{ inputs.amdgpu_families }}
+      amdgpu_targets: ${{ inputs.amdgpu_targets }}
+      test_runs_on: ${{ inputs.test_runs_on }}
+      benchmark_runs_on: ${{ inputs.benchmark_runs_on }}
+      sanity_check_only_for_family: ${{ inputs.sanity_check_only_for_family }}
+      test_type: ${{ inputs.test_type }}
+      test_labels: ${{ inputs.test_labels }}
+      run_extended_tests: ${{ inputs.run_extended_tests }}
+      windows_hip_rocr_tests: ${{ inputs.windows_hip_rocr_tests }}
+      release_type: ${{ inputs.release_type }}
+      repository: ${{ inputs.repository }}
+      ref: ${{ inputs.ref }}
