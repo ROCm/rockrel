@@ -58,6 +58,7 @@ jobs:
       prerelease_version: ${{ inputs.prerelease_version || '' }}
       linux_amdgpu_families: ${{ inputs.linux_amdgpu_families || 'all' }}
       windows_amdgpu_families: ${{ inputs.windows_amdgpu_families || 'all' }}
+      run_full_pytorch_tests: ${{ github.event_name == 'schedule' }}
       repository: "ROCm/TheRock"
       ref: ${{ inputs.ref || '' }}
     permissions:
