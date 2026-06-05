@@ -15,26 +15,17 @@ on:
         required: true
         type: string
       release_type:
-        description: "Release line (ci, dev, nightly, or prerelease)."
+        description: "Release Type (ci, dev, nightly, prerelease)."
         required: true
-        type: choice
-        options:
-          - ci
-          - dev
-          - nightly
-          - prerelease
+        type: string
       gpg_key_url:
         description: "GPG key URL for signed repos"
         type: string
         default: ""
       os_profile:
-        description: "OS profile (package type deb/rpm is derived from this)."
+        description: "OS profile (e.g., ubuntu2404, rhel10, sles16). Package type (deb/rpm) is derived from this."
         required: true
-        type: choice
-        options:
-          - ubuntu2404
-          - rhel10
-          - sles16
+        type: string
       artifact_group:
         description: "Artifact group to extract GPU architecture from (e.g., gfx94X-dcgpu)."
         type: string
@@ -48,11 +39,11 @@ on:
         type: string
         default: ""
       repository:
-        description: "TheRock repository to checkout."
+        description: "Repository to checkout. Otherwise, defaults to `github.repository`"
         type: string
         default: "ROCm/TheRock"
       ref:
-        description: "Branch, tag, or SHA to checkout in TheRock."
+        description: "Branch, tag or SHA to checkout. Defaults to the reference or SHA that triggered the workflow"
         type: string
         default: ""
 
