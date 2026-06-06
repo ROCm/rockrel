@@ -1,0 +1,69 @@
+# Copyright Advanced Micro Devices, Inc.
+# SPDX-License-Identifier: MIT
+
+# Thin wrapper that dispatches to TheRock's test_native_linux_packages_install.yml.
+# This exists so that release workflows running in rockrel's context
+# can dispatch native Linux package install tests to TheRock.
+
+name: Test Native Linux Packages Install
+
+on:
+  workflow_dispatch:
+    inputs:
+      package_install_url:
+        description: "Package installation URL (includes architecture subdirectory for RPM)."
+        required: true
+        type: string
+      release_type:
+        description: "Release Type (ci, dev, nightly, prerelease)."
+        required: true
+        type: string
+      gpg_key_url:
+        description: "GPG key URL for signed repos"
+        type: string
+        default: ""
+      os_profile:
+        description: "OS profile (e.g., ubuntu2404, rhel10, sles16). Package type (deb/rpm) is derived from this."
+        required: true
+        type: string
+      artifact_group:
+        description: "Artifact group to extract GPU architecture from (e.g., gfx94X-dcgpu)."
+        type: string
+        default: "gfx94X-dcgpu"
+      install_prefix:
+        description: "Installation prefix path."
+        type: string
+        default: "/opt/rocm/core"
+      test_type:
+        description: "Test type: quick, standard, comprehensive, full, install, or sanity."
+        type: string
+        default: ""
+      repository:
+        description: "Repository to checkout. Otherwise, defaults to `github.repository`"
+        type: string
+        default: "ROCm/TheRock"
+      ref:
+        description: "Branch, tag or SHA to checkout. Defaults to the reference or SHA that triggered the workflow"
+        type: string
+        default: ""
+
+permissions:
+  contents: read
+  id-token: write
+
+run-name: Test Native Linux Packages Install (${{ inputs.os_profile }}, ${{ inputs.release_type }}, ${{ inputs.test_type || 'sanity' }})
+
+jobs:
+  test:
+    uses: ROCm/TheRock/.github/workflows/test_native_linux_packages_install.yml@main
+    secrets: inherit
+    with:
+      package_install_url: ${{ inputs.package_install_url }}
+      release_type: ${{ inputs.release_type }}
+      gpg_key_url: ${{ inputs.gpg_key_url }}
+      os_profile: ${{ inputs.os_profile }}
+      artifact_group: ${{ inputs.artifact_group }}
+      install_prefix: ${{ inputs.install_prefix }}
+      test_type: ${{ inputs.test_type }}
+      repository: ${{ inputs.repository }}
+      ref: ${{ inputs.ref }}
