@@ -22,24 +22,6 @@ on:
         description: Branch, tag, or SHA to checkout.
         type: string
         default: ""
-  workflow_call:
-    inputs:
-      release_type:
-        description: 'Release type: "dev", "nightly", or "prerelease".'
-        type: string
-        required: true
-      rocm_version:
-        description: ROCm package version to build against.
-        type: string
-        required: true
-      tar_url:
-        description: URL to the shared TheRock tarball used for the build.
-        type: string
-        required: true
-      ref:
-        description: Branch, tag, or SHA to checkout.
-        type: string
-        default: ""
 
 permissions:
   contents: read
