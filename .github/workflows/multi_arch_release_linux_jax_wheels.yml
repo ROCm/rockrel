@@ -18,10 +18,6 @@ on:
         description: URL to the shared TheRock tarball used for the build.
         type: string
         required: true
-      repository:
-        description: Repository to checkout. Defaults to github.repository.
-        type: string
-        default: ""
       ref:
         description: Branch, tag, or SHA to checkout.
         type: string
@@ -40,10 +36,6 @@ on:
         description: URL to the shared TheRock tarball used for the build.
         type: string
         required: true
-      repository:
-        description: Repository to checkout. Defaults to github.repository.
-        type: string
-        default: ""
       ref:
         description: Branch, tag, or SHA to checkout.
         type: string
