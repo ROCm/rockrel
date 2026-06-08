@@ -50,7 +50,7 @@ run-name: Multi-Arch Release Linux PyTorch Wheels (${{ inputs.amdgpu_families }}
 
 jobs:
   release:
-    uses: ROCm/TheRock/.github/workflows/multi_arch_release_linux_pytorch_wheels.yml@main
+    uses: ROCm/TheRock/.github/workflows/multi_arch_release_linux_pytorch_wheels.yml@ethanwee/pytorch-wheels-rocm-index-url
     with:
       amdgpu_families: ${{ inputs.amdgpu_families }}
       rocm_version: ${{ inputs.rocm_version }}
