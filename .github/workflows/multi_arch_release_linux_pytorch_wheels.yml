@@ -55,3 +55,4 @@ jobs:
       cache_type: ${{ inputs.cache_type }}
       repository: "ROCm/TheRock"
       ref: ${{ inputs.ref || '' }}
+      python_version: ""
