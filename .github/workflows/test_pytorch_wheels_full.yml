@@ -1,0 +1,82 @@
+# Copyright Advanced Micro Devices, Inc.
+# SPDX-License-Identifier: MIT
+
+# Thin wrapper that dispatches to TheRock's test_pytorch_wheels_full.yml.
+# This exists so release workflows running in rockrel can dispatch the
+# workflow by name in this repository, then run the reusable workflow from
+# TheRock with explicit checkout plumbing.
+
+name: Test PyTorch Wheels (Full Suite)
+
+on:
+  workflow_dispatch:
+    inputs:
+      amdgpu_family:
+        type: string
+        required: true
+        default: "gfx94X-dcgpu"
+      test_runs_on:
+        type: string
+        required: true
+        default: "linux-gfx942-1gpu-ossci-rocm"
+      test_runs_on_multi_gpu:
+        type: string
+        default: "linux-gfx942-8gpu-ossci-rocm"
+      package_index_url:
+        type: string
+        required: true
+        default: "https://rocm.nightlies.amd.com/v4/whl-staging"
+      python_version:
+        type: string
+        required: true
+        default: "3.12"
+      torch_version:
+        type: string
+        required: true
+      pytorch_git_ref:
+        type: string
+        default: "nightly"
+      pytorch_git_repo:
+        type: string
+        default: "pytorch/pytorch"
+      test_configs:
+        type: string
+        default: "default distributed inductor"
+      tests_to_include:
+        type: string
+        default: ""
+      multi_arch:
+        type: boolean
+        default: true
+      repository:
+        description: "TheRock repository to checkout."
+        type: string
+        default: "ROCm/TheRock"
+      ref:
+        description: "Branch, tag, or SHA to checkout in TheRock."
+        type: string
+        default: ""
+
+permissions:
+  contents: read
+
+run-name: Test PyTorch Full (${{ inputs.amdgpu_family }}, ${{ inputs.torch_version }}, ${{ inputs.test_runs_on }})
+
+jobs:
+  test:
+    uses: ROCm/TheRock/.github/workflows/test_pytorch_wheels_full.yml@main
+    secrets: inherit
+    with:
+      amdgpu_family: ${{ inputs.amdgpu_family }}
+      test_runs_on: ${{ inputs.test_runs_on }}
+      test_runs_on_multi_gpu: ${{ inputs.test_runs_on_multi_gpu }}
+      package_index_url: ${{ inputs.package_index_url }}
+      python_version: ${{ inputs.python_version }}
+      torch_version: ${{ inputs.torch_version }}
+      pytorch_git_ref: ${{ inputs.pytorch_git_ref }}
+      pytorch_git_repo: ${{ inputs.pytorch_git_repo }}
+      test_configs: ${{ inputs.test_configs }}
+      tests_to_include: ${{ inputs.tests_to_include }}
+      multi_arch: ${{ inputs.multi_arch }}
+      repository: ${{ inputs.repository }}
+      ref: ${{ inputs.ref }}

@@ -33,6 +33,10 @@ on:
           - sccache
           - ccache
         default: none
+      run_full_pytorch_tests:
+        description: Run full PyTorch tests after scheduled nightly wheel builds complete.
+        type: boolean
+        default: false
       ref:
         description: "Branch, tag or SHA to checkout. Defaults to the reference or SHA that triggered the workflow."
         type: string
@@ -53,6 +57,7 @@ jobs:
       rocm_package_find_links_url: ${{ inputs.rocm_package_find_links_url }}
       release_type: ${{ inputs.release_type }}
       cache_type: ${{ inputs.cache_type }}
+      run_full_pytorch_tests: ${{ inputs.run_full_pytorch_tests }}
       repository: "ROCm/TheRock"
       ref: ${{ inputs.ref || '' }}
       python_version: ""
