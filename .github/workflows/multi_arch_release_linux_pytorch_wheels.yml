@@ -41,6 +41,10 @@ on:
         description: "Branch, tag or SHA to checkout. Defaults to the reference or SHA that triggered the workflow."
         type: string
         default: ''
+      python_version:
+        description: "Single Python version to build (empty for full matrix)"
+        type: string
+        default: ''
 
 permissions:
   id-token: write
@@ -60,4 +64,4 @@ jobs:
       run_full_pytorch_tests: ${{ inputs.run_full_pytorch_tests }}
       repository: "ROCm/TheRock"
       ref: ${{ inputs.ref || '' }}
-      python_version: ""
+      python_version: ${{ inputs.python_version }}
