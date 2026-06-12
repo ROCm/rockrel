@@ -49,6 +49,7 @@ on:
 permissions:
   id-token: write
   contents: read
+  actions: write
 
 run-name: Multi-Arch Release Linux PyTorch Wheels (${{ inputs.amdgpu_families }}, ${{ inputs.release_type }}, ${{ inputs.rocm_version }})
 
