@@ -27,7 +27,7 @@ High-level workflow:
 4. For each component:
     a. Set up the SSH `rocm-github` remote.
     b. Check if the release branch already exists on the remote; if so, skip
-       the repo entirely (recorded as a failure).
+       the repo entirely (recorded as skipped, not a failure).
     c. Create (or reset) the branch at the recorded commit.
     d. Push to `rocm-github` (skipped in dry-run mode).
 5. Log a summary of successful and failed repos.
@@ -142,7 +142,12 @@ class RockBranchingAutomation:
             for line in process.stdout:
                 self.log(line.rstrip())
 
-            ret = process.wait()
+            try:
+                ret = process.wait(timeout=timeout)
+            except subprocess.TimeoutExpired:
+                process.kill()
+                process.wait()
+                raise
             if ret != 0:
                 raise subprocess.CalledProcessError(ret, cmd)
 
@@ -264,7 +269,7 @@ class RockBranchingAutomation:
 
         For each repo:
         1. Set up the ``rocm-github`` remote with the SSH URL.
-        2. Guard against a pre-existing remote branch (skip if found).
+        2. Guard against a pre-existing remote branch (recorded as skipped, not failed, if found).
         3. Create (or reset) the release branch at the recorded commit SHA.
         4. Push to ``rocm-github`` (skipped in dry-run mode).
         """
@@ -426,6 +431,7 @@ class RockBranchingAutomation:
                 ["git", "clone", str(self.rock_url), str(clone_dir)],
                 cwd=cache_root,
                 stream=True,
+                timeout=600,
             )
         else:
             self.log(f"Reusing existing TheRock repo at {clone_dir}")
@@ -456,6 +462,7 @@ class RockBranchingAutomation:
                 ],
                 cwd=clone_dir,
                 stream=True,
+                timeout=600,
             )
 
         fetch_script = clone_dir / "build_tools" / "fetch_sources.py"
