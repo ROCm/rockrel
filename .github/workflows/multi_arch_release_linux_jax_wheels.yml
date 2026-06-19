@@ -33,6 +33,7 @@ on:
 
 permissions:
   contents: read
+  packages: read
   id-token: write
 
 run-name: Multi-Arch Release Linux JAX Wheels (${{ inputs.release_type }}, ${{ inputs.rocm_version }}, Multiarch)
