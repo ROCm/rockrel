@@ -1,0 +1,75 @@
+name: Multi-Arch Release ASAN
+
+# Expected triggers:
+#
+# Release type | Trigger details
+# ------------ | --------------------------------------------------------------
+# dev          | "workflow_dispatch" for testing with any set of inputs
+# nightly      | "schedule", or "workflow_dispatch" as needed (default inputs)
+# prerelease   | "workflow_dispatch" for stable releases (explicit GPU family lists?)
+
+on:
+  workflow_dispatch:
+    inputs:
+      release_type:
+        description: 'Release type: "dev", "nightly", or "prerelease".'
+        type: choice
+        options:
+          - dev
+          - nightly
+          - prerelease
+        default: dev
+      prerelease_version:
+        description: "(Optional) Prerelease version number, e.g. '2' for 7.10.0rc2"
+        type: string
+        default: ""
+      linux_amdgpu_families:
+        description: 'Linux GPU families. "all" = all, "none" = skip Linux.'
+        type: string
+        default: "all"
+      ref:
+        description: "TheRock branch, tag, or SHA. Empty = default branch."
+        type: string
+        default: ""
+      run_full_pytorch_tests:
+        description: "Run full PyTorch tests after scheduled nightly Linux PyTorch wheel builds complete."
+        type: boolean
+        default: false
+      build_pytorch:
+        description: "Build PyTorch wheels"
+        type: boolean
+        default: true
+      python_version:
+        description: "Single Python version for wheel builds (empty for full matrix)"
+        type: string
+        default: ""
+
+  # Trigger on a schedule to build nightly releases.
+  schedule:
+    # Runs at 12:00 AM UTC, which is 5:00 PM PDT (UTC-7)
+    - cron: '0 00 * * *'
+
+permissions:
+  contents: read
+
+run-name: >-
+  Multi-Arch Release ASAN (${{ inputs.release_type || 'nightly' }})
+  | Linux: ${{ inputs.linux_amdgpu_families || 'all' }}
+
+jobs:
+  release:
+    uses: ROCm/TheRock/.github/workflows/multi_arch_release_asan.yml@main
+    secrets: inherit
+    with:
+      release_type: ${{ inputs.release_type || 'nightly' }}
+      prerelease_version: ${{ inputs.prerelease_version || '' }}
+      linux_amdgpu_families: ${{ inputs.linux_amdgpu_families || 'all' }}
+      run_full_pytorch_tests: ${{ inputs.run_full_pytorch_tests || github.event_name == 'schedule' }}
+      build_pytorch: ${{ inputs.build_pytorch == '' && true || inputs.build_pytorch }}
+      python_version: ${{ inputs.python_version || '' }}
+      repository: "ROCm/TheRock"
+      ref: ${{ inputs.ref || '' }}
+    permissions:
+      contents: read
+      actions: write
+      id-token: write
