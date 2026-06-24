@@ -77,6 +77,10 @@ class RockTagging:
 
     MONO_REPOS = frozenset({"rocm-libraries", "rocm-systems"})
 
+    # Timeouts (seconds) for subprocess calls.
+    TIMEOUT_LONG = 1800   # clone, fetch, submodule update
+    TIMEOUT_SHORT = 60    # tag, push, git config reads
+
     def __init__(self, cli_args: argparse.Namespace) -> None:
         self.release_branch: str = cli_args.branch_name
         self.release_version: str = cli_args.release_version
@@ -108,6 +112,7 @@ class RockTagging:
         *,
         input_data: bytes | None = None,
         stream: bool = False,
+        timeout: int | None = TIMEOUT_SHORT,
     ) -> None:
         """Execute a subprocess command, raising CalledProcessError on failure.
 
@@ -118,6 +123,8 @@ class RockTagging:
             stream:     If True, print stdout/stderr line-by-line as it arrives
                         (useful for long-running operations like clone/fetch).
                         If False, buffer output and log after completion.
+            timeout:    Seconds before the process is killed (default: TIMEOUT_SHORT).
+                        Pass TIMEOUT_LONG for clone/fetch/submodule operations.
         """
         cmd = args if isinstance(args, list) else [args]
         self.log(f"++ Exec [{cwd}]$ {shlex.join(map(str, cmd))}")
@@ -132,10 +139,14 @@ class RockTagging:
                 text=True,
             )
 
-            for line in process.stdout:
-                self.log(line.rstrip())
-
-            ret = process.wait()
+            try:
+                for line in process.stdout:
+                    self.log(line.rstrip())
+                ret = process.wait(timeout=timeout)
+            except subprocess.TimeoutExpired:
+                process.kill()
+                process.wait()
+                raise subprocess.TimeoutExpired(cmd, timeout)
             if ret != 0:
                 raise subprocess.CalledProcessError(ret, cmd)
 
@@ -152,6 +163,7 @@ class RockTagging:
                 check=True,
                 stdin=None if input_data else subprocess.DEVNULL,
                 text=False,
+                timeout=timeout,
             )
 
             if result.stdout:
@@ -180,7 +192,12 @@ class RockTagging:
             )
             raise
 
-    def run_command_output(self, args: list[str | Path], cwd: Path) -> str:
+    def run_command_output(
+        self,
+        args: list[str | Path],
+        cwd: Path,
+        timeout: int | None = TIMEOUT_SHORT,
+    ) -> str:
         """Run a command and return its stripped stdout as a string.
 
         Raises CalledProcessError on non-zero exit.
@@ -196,6 +213,7 @@ class RockTagging:
             text=True,
             check=True,
             stdin=subprocess.DEVNULL,
+            timeout=timeout,
         )
         return result.stdout.strip()
 
@@ -295,6 +313,7 @@ class RockTagging:
                 ["git", "clone", str(self.rock_url), str(clone_dir)],
                 cwd=cache_root,
                 stream=True,
+                timeout=self.TIMEOUT_LONG,
             )
         else:
             self.log(f"Reusing existing TheRock repo at {clone_dir}")
@@ -325,10 +344,27 @@ class RockTagging:
                 ],
                 cwd=clone_dir,
                 stream=True,
+                timeout=self.TIMEOUT_LONG,
             )
 
         fetch_script = clone_dir / "build_tools" / "fetch_sources.py"
         rock_commit = self.commitid
+
+        self.log(
+            f"Fetching release branch '{self.release_branch}' to ensure "
+            f"commit {rock_commit} is reachable..."
+        )
+        self.run_command(
+            [
+                "git",
+                "fetch",
+                "origin",
+                f"refs/heads/{self.release_branch}:refs/remotes/origin/{self.release_branch}",
+            ],
+            cwd=clone_dir,
+            stream=True,
+            timeout=self.TIMEOUT_LONG,
+        )
 
         self.log(f"Checking out TheRock at commit {rock_commit}")
         self.run_command(["git", "checkout", rock_commit], cwd=clone_dir)
@@ -351,6 +387,7 @@ class RockTagging:
                 ],
                 cwd=clone_dir,
                 stream=True,
+                timeout=self.TIMEOUT_LONG,
             )
         else:
             self.log(
@@ -361,6 +398,7 @@ class RockTagging:
                 ["git", "submodule", "update", "--init", "--recursive"],
                 cwd=clone_dir,
                 stream=True,
+                timeout=self.TIMEOUT_LONG,
             )
 
         self.log("Reading submodule status...")
@@ -530,7 +568,6 @@ class RockTagging:
                         ],
                         cwd=info.path,
                     )
-                successful_components[comp] = info
             except subprocess.CalledProcessError as exc:
                 failed_components[comp] = f"Tag failed: {exc}"
                 continue
@@ -547,6 +584,7 @@ class RockTagging:
 
             if self.dry_run:
                 self.log(f"[DRY RUN] Would create release with: {tarballs}")
+                successful_components[comp] = info
             else:
                 try:
                     release_cmd = [
@@ -559,6 +597,7 @@ class RockTagging:
                         *[str(p) for p in tarballs],
                     ]
                     self.run_command(release_cmd, cwd=info.path)
+                    successful_components[comp] = info
                 except subprocess.CalledProcessError as exc:
                     failed_components[comp] = (
                         f"Release creation failed: {exc}"
