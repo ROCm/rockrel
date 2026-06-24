@@ -15,7 +15,7 @@ on:
         type: string
         required: true
       rocm_version:
-        description: ROCm package version to build against.
+        description: "ROCm package version to build against."
         type: string
         required: true
       rocm_package_index_url:
