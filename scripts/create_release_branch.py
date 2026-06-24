@@ -294,7 +294,7 @@ class RockBranchingAutomation:
 
             try:
                 branch_exists = self._remote_branch_exists(info.path)
-            except subprocess.CalledProcessError as exc:
+            except (subprocess.CalledProcessError, subprocess.TimeoutExpired) as exc:
                 failed_repos[repo_name] = (
                     f"Remote branch check failed: {exc}"
                 )
@@ -320,7 +320,7 @@ class RockBranchingAutomation:
             try:
                 self._push_branch(repo_name, info.path)
                 successful_repos[repo_name] = info
-            except subprocess.CalledProcessError as exc:
+            except (subprocess.CalledProcessError, subprocess.TimeoutExpired) as exc:
                 failed_repos[repo_name] = f"Branch push failed: {exc}"
 
         self.log(
@@ -622,8 +622,18 @@ def main(argv: list[str]) -> int:
         level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s"
     )
 
-    RockBranchingAutomation(args).run()
-    return 0
+    try:
+        RockBranchingAutomation(args).run()
+        return 0
+    except (subprocess.CalledProcessError, subprocess.TimeoutExpired) as exc:
+        logging.error("Command failed: %s", exc)
+        return 1
+    except RuntimeError as exc:
+        logging.error("%s", exc)
+        return 1
+    except Exception as exc:
+        logging.error("Unexpected error: %s", exc)
+        return 1
 
 
 if __name__ == "__main__":
