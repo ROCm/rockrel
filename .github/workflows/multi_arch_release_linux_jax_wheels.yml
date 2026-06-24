@@ -18,6 +18,10 @@ on:
         description: ROCm package version to build against.
         type: string
         required: true
+      rocm_package_find_links_url:
+        description: "ROCm package index / find-links URL for the JAX manylinux build."
+        type: string
+        default: "https://rocm.devreleases.amd.com/whl-multi-arch/"
       tar_url:
         description: URL to the shared TheRock tarball used for the build.
         type: string
@@ -45,6 +49,7 @@ jobs:
       test_amdgpu_family: ${{ inputs.test_amdgpu_family }}
       release_type: ${{ inputs.release_type }}
       rocm_version: ${{ inputs.rocm_version }}
+      rocm_package_find_links_url: ${{ inputs.rocm_package_find_links_url }}
       tar_url: ${{ inputs.tar_url }}
       repository: ${{ inputs.repository || 'ROCm/TheRock' }}
       ref: ${{ inputs.ref || '' }}
