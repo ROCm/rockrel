@@ -23,7 +23,7 @@ on:
         type: string
         default: ""
       tar_url:
-        description: "URL to the shared TheRock tarball used for the build."
+        description: "URL to TheRock tarball used for the build."
         type: string
         required: true
       ref:
