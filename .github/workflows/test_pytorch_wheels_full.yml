@@ -64,7 +64,7 @@ run-name: Test PyTorch Full (${{ inputs.amdgpu_family }}, ${{ inputs.torch_versi
 
 jobs:
   test:
-    uses: ROCm/TheRock/.github/workflows/test_pytorch_wheels_full.yml@main
+    uses: ROCm/TheRock/.github/workflows/test_pytorch_wheels_full.yml@release/therock-7.14
     secrets: inherit
     with:
       amdgpu_family: ${{ inputs.amdgpu_family }}

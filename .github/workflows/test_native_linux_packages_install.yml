@@ -55,7 +55,7 @@ run-name: Test Native Linux Packages Install (${{ inputs.os_profile }}, ${{ inpu
 
 jobs:
   test:
-    uses: ROCm/TheRock/.github/workflows/test_native_linux_packages_install.yml@main
+    uses: ROCm/TheRock/.github/workflows/test_native_linux_packages_install.yml@release/therock-7.14
     secrets: inherit
     with:
       package_install_url: ${{ inputs.package_install_url }}
