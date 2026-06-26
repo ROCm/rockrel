@@ -59,7 +59,7 @@ run-name: Test Artifacts (${{ inputs.amdgpu_families }}, ${{ inputs.release_type
 
 jobs:
   test:
-    uses: ROCm/TheRock/.github/workflows/test_artifacts.yml@main
+    uses: ROCm/TheRock/.github/workflows/test_artifacts.yml@users/geomin12/mi455-tests
     secrets: inherit
     with:
       artifact_group: ${{ inputs.artifact_group }}
