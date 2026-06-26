@@ -50,7 +50,7 @@ on:
       ref:
         description: "Branch, tag, or SHA to checkout in TheRock."
         type: string
-        default: ""
+        default: "users/geomin12/mi455-tests"
 
 permissions:
   contents: read
