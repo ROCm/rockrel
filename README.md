@@ -95,7 +95,7 @@ AMD provides prerelease ROCm packages for both Debian-based and RPM-based Linux 
 Repository base URL:
 
 ```
-https://rocm.prereleases.amd.com/packages/
+https://rocm.prereleases.amd.com/packages-multi-arch/
 ```
 
 ---
@@ -119,7 +119,7 @@ Replace `<os_profile>` with the appropriate distribution profile
 
 ```bash
 sudo tee /etc/apt/sources.list.d/rocm.list << EOF
-deb [arch=amd64 signed-by=/etc/apt/keyrings/amdrocm.gpg] https://rocm.prereleases.amd.com/packages/<os_profile> stable main
+deb [arch=amd64 signed-by=/etc/apt/keyrings/amdrocm.gpg] https://rocm.prereleases.amd.com/packages-multi-arch/<os_profile> stable main
 EOF
 sudo apt update
 ```
@@ -129,7 +129,7 @@ sudo apt update
 ###### Install ROCm
 
 ```bash
-sudo apt install amdrocm-gfx94x # Change the gfx arch based on your machine.
+sudo apt install amdrocm7.14-gfx942 # Change the version (7.14) and gfx arch (gfx942) based on your release and machine.
 ```
 
 ---
@@ -145,7 +145,7 @@ Replace `<os_profile>` with the appropriate distribution profile
 sudo tee /etc/yum.repos.d/rocm.repo << EOF
 [rocm]
 name=ROCm Prerelease Repository
-baseurl=https://rocm.prereleases.amd.com/packages/<os_profile>/x86_64/
+baseurl=https://rocm.prereleases.amd.com/packages-multi-arch/<os_profile>/x86_64/
 enabled=1
 gpgcheck=1
 gpgkey=https://rocm.prereleases.amd.com/packages/gpg/rocm.gpg
@@ -158,5 +158,5 @@ sudo dnf clean all
 ###### Install ROCm
 
 ```bash
-sudo dnf install amdrocm-gfx94x # Change the gfx arch based on your machine.
+sudo dnf install amdrocm7.14-gfx942 # Change the version (7.14) and gfx arch (gfx942) based on your release and machine.
 ```
