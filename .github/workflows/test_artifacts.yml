@@ -75,4 +75,4 @@ jobs:
       windows_hip_rocr_tests: ${{ inputs.windows_hip_rocr_tests }}
       release_type: ${{ inputs.release_type }}
       repository: ${{ inputs.repository }}
-      ref: ${{ inputs.ref }}
+      ref: ${{ inputs.ref || 'users/geomin12/mi455-tests' }}
