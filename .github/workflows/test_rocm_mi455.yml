@@ -63,6 +63,11 @@ jobs:
           echo "Contents of bin directory:"
           ls -la ${{ env.THEROCK_BIN_DIR }} || echo "bin directory not found at expected path"
 
+      - name: Setting up Python
+        uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405 # v6.2.0
+        with:
+          python-version: 3.12
+
       - name: Adjust git config
         run: |
           git config --global --add safe.directory $PWD
