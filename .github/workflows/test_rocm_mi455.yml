@@ -1,0 +1,89 @@
+# Copyright Advanced Micro Devices, Inc.
+# SPDX-License-Identifier: MIT
+
+name: Test ROCm MI455
+
+on:
+  push:
+    branches:
+      - users/geomin12/mi455-tests
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  test_hiptests:
+    name: Test hip-tests (gfx125X-dcgpu)
+    runs-on: linux-mi455-gpu-rocm
+    timeout-minutes: 400
+    container:
+      image: ghcr.io/rocm/no_rocm_image_ubuntu24_04@sha256:4150afe4759d14822f0e3f8930e1124f26e11f68b5c7b91ec9a02b20b1ebbb98
+      options: --ipc=host --user root --ulimit nofile=65536:65536 --security-opt seccomp=unconfined --device=/dev/kfd --device=/dev/dri --group-add video --group-add render
+    defaults:
+      run:
+        shell: bash
+    env:
+      THEROCK_DIST_URL: "https://therock-dev-artifacts.s3.amazonaws.com/27891944995-linux/tarballs/therock-dist-linux-multiarch-7.14.0.dev0%2Bb482313ad38c75b1401fd7938cb6a8dee3f60daa.tar.gz"
+      OUTPUT_ARTIFACTS_DIR: "./build"
+      THEROCK_BIN_DIR: "./build/bin"
+      AMDGPU_FAMILIES: "gfx125X-dcgpu"
+      SHARD_INDEX: "1"
+      TOTAL_SHARDS: "1"
+      TEST_TYPE: "comprehensive"
+    steps:
+      - name: Checkout TheRock repository
+        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
+        with:
+          repository: ROCm/TheRock
+          ref: users/geomin12/mi455-tests
+          sparse-checkout: build_tools
+
+      - name: Pre-job cleanup GPU processes
+        timeout-minutes: 5
+        run: bash ./build_tools/github_actions/cleanup_processes.sh
+
+      - name: Checkout TheRock repository (full)
+        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
+        with:
+          repository: ROCm/TheRock
+          ref: users/geomin12/mi455-tests
+
+      - name: Download and extract TheRock distribution
+        timeout-minutes: 15
+        run: |
+          mkdir -p ${{ env.OUTPUT_ARTIFACTS_DIR }}
+          echo "Downloading TheRock distribution..."
+          curl -L "${{ env.THEROCK_DIST_URL }}" -o therock-dist.tar.gz
+          echo "Extracting..."
+          tar -xzf therock-dist.tar.gz -C ${{ env.OUTPUT_ARTIFACTS_DIR }} --strip-components=1
+          rm therock-dist.tar.gz
+          echo "Contents of build directory:"
+          ls -la ${{ env.OUTPUT_ARTIFACTS_DIR }}
+          echo "Contents of bin directory:"
+          ls -la ${{ env.THEROCK_BIN_DIR }} || echo "bin directory not found at expected path"
+
+      - name: Adjust git config
+        run: |
+          git config --global --add safe.directory $PWD
+          git config fetch.parallel 10
+
+      - name: Runner health status
+        run: |
+          python ./build_tools/health_status.py
+
+      - name: Driver / GPU sanity check
+        timeout-minutes: 3
+        run: |
+          python ./build_tools/print_driver_gpu_info.py
+
+      - name: Test hip-tests
+        id: test
+        timeout-minutes: 400
+        run: |
+          python ./build_tools/github_actions/test_executable_scripts/test_hiptests.py
+
+      - name: Post-job cleanup GPU processes
+        if: ${{ always() }}
+        timeout-minutes: 5
+        run: bash ./build_tools/github_actions/cleanup_processes.sh
