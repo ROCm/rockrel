@@ -85,6 +85,8 @@ jobs:
       - name: Test hip-tests
         id: test
         timeout-minutes: 400
+        env:
+          ROCR_VISIBLE_DEVICES: "0"
         run: |
           python ./build_tools/github_actions/test_executable_scripts/test_hiptests.py
 
