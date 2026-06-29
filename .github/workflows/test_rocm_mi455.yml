@@ -19,7 +19,7 @@ jobs:
     timeout-minutes: 400
     container:
       image: ghcr.io/rocm/no_rocm_image_ubuntu24_04@sha256:4150afe4759d14822f0e3f8930e1124f26e11f68b5c7b91ec9a02b20b1ebbb98
-      options: --ipc=host --user root --ulimit nofile=65536:65536 --security-opt seccomp=unconfined --device=/dev/kfd --device=/dev/dri --group-add video --group-add render
+      options: --ipc=host --user root --ulimit memlock=-1:-1 --ulimit nofile=1048576:1048576 --security-opt seccomp=unconfined --device=/dev/kfd --device=/dev/dri --group-add video --group-add render
     defaults:
       run:
         shell: bash
