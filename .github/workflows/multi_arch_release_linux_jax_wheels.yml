@@ -34,6 +34,10 @@ on:
         description: "Repository to checkout. Defaults to ROCm/TheRock."
         type: string
         default: "ROCm/TheRock"
+      python_version:
+        description: "Single Python version to build (empty for full matrix)"
+        type: string
+        default: ''
 
 permissions:
   contents: read
@@ -53,3 +57,4 @@ jobs:
       tar_url: ${{ inputs.tar_url }}
       repository: ${{ inputs.repository || 'ROCm/TheRock' }}
       ref: ${{ inputs.ref || '' }}
+      python_version: ${{ inputs.python_version }}
