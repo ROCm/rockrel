@@ -568,7 +568,7 @@ class RockTagging:
                         ],
                         cwd=info.path,
                     )
-            except subprocess.CalledProcessError as exc:
+            except (subprocess.CalledProcessError, subprocess.TimeoutExpired) as exc:
                 failed_components[comp] = f"Tag failed: {exc}"
                 continue
 
@@ -584,7 +584,6 @@ class RockTagging:
 
             if self.dry_run:
                 self.log(f"[DRY RUN] Would create release with: {tarballs}")
-                successful_components[comp] = info
             else:
                 try:
                     release_cmd = [
@@ -597,11 +596,12 @@ class RockTagging:
                         *[str(p) for p in tarballs],
                     ]
                     self.run_command(release_cmd, cwd=info.path)
-                    successful_components[comp] = info
-                except subprocess.CalledProcessError as exc:
+                except (subprocess.CalledProcessError, subprocess.TimeoutExpired) as exc:
                     failed_components[comp] = (
                         f"Release creation failed: {exc}"
                     )
+                    continue
+            successful_components[comp] = info
 
         self.log(
             f"Summary: {len(successful_components)} succeeded, "
@@ -673,8 +673,18 @@ def main(argv: list[str]) -> int:
         level=logging.INFO, format="[%(levelname)s] %(message)s"
     )
 
-    RockTagging(args).run()
-    return 0
+    try:
+        RockTagging(args).run()
+        return 0
+    except (subprocess.CalledProcessError, subprocess.TimeoutExpired) as exc:
+        logging.error("Command failed: %s", exc)
+        return 1
+    except RuntimeError as exc:
+        logging.error("%s", exc)
+        return 1
+    except Exception as exc:
+        logging.error("Unexpected error: %s", exc)
+        return 1
 
 
 if __name__ == "__main__":
