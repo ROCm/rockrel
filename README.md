@@ -114,12 +114,12 @@ wget https://rocm.prereleases.amd.com/packages/gpg/rocm.gpg -O - \
 
 ###### Add the ROCm Repository
 
-Replace `<os_profile>` with the appropriate distribution profile
-(e.g. `debian12`, `ubuntu2404`).
+The example below uses the `ubuntu2404` profile; change it to match your
+distribution (e.g. `debian12`, `ubuntu2204`).
 
 ```bash
 sudo tee /etc/apt/sources.list.d/rocm.list << EOF
-deb [arch=amd64 signed-by=/etc/apt/keyrings/amdrocm.gpg] https://rocm.prereleases.amd.com/packages-multi-arch/<os_profile> stable main
+deb [arch=amd64 signed-by=/etc/apt/keyrings/amdrocm.gpg] https://rocm.prereleases.amd.com/packages-multi-arch/ubuntu2404 stable main
 EOF
 sudo apt update
 ```
@@ -129,7 +129,10 @@ sudo apt update
 ###### Install ROCm
 
 ```bash
-sudo apt install amdrocm7.14-gfx942 # Change the version (7.14) and gfx arch (gfx942) based on your release and machine.
+# Installs the ROCm HIP runtime (version- and architecture-independent).
+sudo apt install amdrocm-runtime
+# For a specific ROCm version and GPU arch instead, e.g.:
+# sudo apt install amdrocm7.14-gfx942
 ```
 
 ---
@@ -138,14 +141,14 @@ sudo apt install amdrocm7.14-gfx942 # Change the version (7.14) and gfx arch (gf
 
 ###### Add the ROCm Repository
 
-Replace `<os_profile>` with the appropriate distribution profile
-(e.g. `rhel8`, `sles16`).
+The example below uses the `rhel10` profile; change it to match your
+distribution (e.g. `rhel8`, `rhel9`, `sles15`).
 
 ```bash
 sudo tee /etc/yum.repos.d/rocm.repo << EOF
 [rocm]
 name=ROCm Prerelease Repository
-baseurl=https://rocm.prereleases.amd.com/packages-multi-arch/<os_profile>/x86_64/
+baseurl=https://rocm.prereleases.amd.com/packages-multi-arch/rhel10/x86_64/
 enabled=1
 gpgcheck=1
 gpgkey=https://rocm.prereleases.amd.com/packages/gpg/rocm.gpg
@@ -158,5 +161,8 @@ sudo dnf clean all
 ###### Install ROCm
 
 ```bash
-sudo dnf install amdrocm7.14-gfx942 # Change the version (7.14) and gfx arch (gfx942) based on your release and machine.
+# Installs the ROCm HIP runtime (version- and architecture-independent).
+sudo dnf install amdrocm-runtime
+# For a specific ROCm version and GPU arch instead, e.g.:
+# sudo dnf install amdrocm7.14-gfx942
 ```
