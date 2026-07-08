@@ -57,7 +57,7 @@ for the device extras table and full install instructions.
 #### Installing from tarballs
 
 Prerelease tarballs can be downloaded from
-https://rocm.prereleases.amd.com/tarball-multi-arch/.
+<https://rocm.prereleases.amd.com/tarball-multi-arch/>.
 
 After downloading, extract the release tarball into place:
 
@@ -109,7 +109,7 @@ distribution (e.g. `debian12`, `ubuntu2204`, `ubuntu2604`).
 
 ```bash
 sudo tee /etc/apt/sources.list.d/rocm.list << EOF
-deb [arch=amd64 signed-by=/etc/apt/keyrings/amdrocm.gpg] https://rocm.prereleases.amd.com/packages-multi-arch/ubuntu2404 stable main
+deb [arch=amd64 signed-by=/etc/apt/keyrings/amdrocm.gpg] https://rocm.prereleases.amd.com/packages-multi-arch/ubuntu2404/ stable main
 EOF
 sudo apt update
 ```
