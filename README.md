@@ -78,11 +78,11 @@ After downloading, extract the release tarball into place:
 ```bash
 mkdir therock-tarball && cd therock-tarball
 
-# Per-family (smaller, one GPU family):
-wget https://rocm.prereleases.amd.com/tarball-multi-arch/therock-dist-linux-gfx94X-dcgpu-7.14.0rc1.tar.gz
+# Multiarch (all GPUs):
+wget https://rocm.prereleases.amd.com/tarball-multi-arch/therock-dist-linux-multiarch-7.14.0rc1.tar.gz
 
-# Or multiarch (all GPUs):
-# wget https://rocm.prereleases.amd.com/tarball-multi-arch/therock-dist-linux-multiarch-7.14.0rc1.tar.gz
+# Per-family (smaller, one GPU family):
+# wget https://rocm.prereleases.amd.com/tarball-multi-arch/therock-dist-linux-gfx94X-dcgpu-7.14.0rc1.tar.gz
 
 mkdir install
 tar -xf *.tar.gz -C install
@@ -91,6 +91,7 @@ tar -xf *.tar.gz -C install
 Pick the tarball that matches your GPU family and ROCm version from the index
 (e.g. `gfx1151`, `gfx950-dcgpu`). Use the `multiarch` tarball to install all
 supported GPU families at once.
+
 #### Installing from Native Linux Packages
 
 AMD provides prerelease ROCm packages for both Debian-based and RPM-based Linux distributions.
@@ -118,7 +119,7 @@ wget https://rocm.prereleases.amd.com/packages/gpg/rocm.gpg -O - \
 ###### Add the ROCm Repository
 
 The example below uses the `ubuntu2404` profile; change it to match your
-distribution (e.g. `debian12`, `ubuntu2204`).
+distribution (e.g. `debian12`, `ubuntu2204`, `ubuntu2604`).
 
 ```bash
 sudo tee /etc/apt/sources.list.d/rocm.list << EOF
@@ -140,12 +141,12 @@ sudo apt install amdrocm-core
 
 ---
 
-##### Installing Packages on RHEL-Based Systems
+##### Installing Packages on RPM-Based Systems
 
 ###### Add the ROCm Repository
 
 The example below uses the `rhel10` profile; change it to match your
-distribution (e.g. `rhel8`, `rhel9`).
+distribution (e.g. `rhel8`, `rhel9`, `sles15`, `sles16`).
 
 ```bash
 sudo tee /etc/yum.repos.d/rocm.repo << EOF
@@ -168,30 +169,4 @@ sudo dnf clean all
 sudo dnf install amdrocm-core
 # For a specific ROCm version and GPU arch instead, e.g.:
 # sudo dnf install amdrocm7.14-gfx942
-```
-
----
-
-##### Installing Packages on SLES-Based Systems
-
-SLES uses `zypper` rather than `dnf`. The example below uses the `sles15`
-profile; change it to match your distribution (e.g. `sles16`).
-
-###### Add the ROCm Repository
-
-```bash
-sudo rpm --import https://rocm.prereleases.amd.com/packages/gpg/rocm.gpg
-sudo zypper addrepo --gpgcheck --refresh https://rocm.prereleases.amd.com/packages-multi-arch/sles15/x86_64/ rocm
-sudo zypper --gpg-auto-import-keys refresh
-```
-
----
-
-###### Install ROCm
-
-```bash
-# Installs the full ROCm core SDK (version- and architecture-independent).
-sudo zypper install amdrocm-core
-# For a specific ROCm version and GPU arch instead, e.g.:
-# sudo zypper install amdrocm7.14-gfx942
 ```
