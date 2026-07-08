@@ -43,30 +43,16 @@ For general and more detailed information on releases, see [`RELEASES.md` in The
 #### Installing ROCm Python packages
 
 Multi-arch releases use a single index URL for all GPU architectures. Select
-your GPU using pip `[device-*]` extras:
-
-```
-https://rocm.prereleases.amd.com/whl-multi-arch/
-```
-
-| Product Name        | GFX Target | GFX Family   | Pip extra        | Release Index                                      |
-| --------------------| ---------- | ------------ | ---------------- | -------------------------------------------------- |
-| MI300A/MI300X       | gfx942     | gfx94X-dcgpu | `device-gfx942`  | https://rocm.prereleases.amd.com/whl-multi-arch/   |
-| MI350X/MI355X       | gfx950     | gfx950-dcgpu | `device-gfx950`  | https://rocm.prereleases.amd.com/whl-multi-arch/   |
-| AMD Strix Halo iGPU | gfx1151    | gfx1151      | `device-gfx1151` | https://rocm.prereleases.amd.com/whl-multi-arch/   |
+your GPU using a pip `[device-*]` extra:
 
 ```bash
 pip install --index-url https://rocm.prereleases.amd.com/whl-multi-arch/ --pre \
   "rocm[libraries,devel,device-gfx942]"
 ```
 
-Replace `device-gfx942` with the pip extra for your GPU from the table above.
-See the
+Replace `device-gfx942` with the pip extra for your GPU. See the
 [multi-arch releases section of RELEASES.md](https://github.com/ROCm/TheRock/blob/main/RELEASES.md#installing-multi-arch-rocm-python-packages)
-for the full device table.
-
-For more detailed instructions see TheRock's instructions on [installing releases using pip
-](https://github.com/ROCm/TheRock/blob/main/RELEASES.md#installing-multi-arch-rocm-python-packages).
+for the device extras table and full install instructions.
 
 #### Installing from tarballs
 
