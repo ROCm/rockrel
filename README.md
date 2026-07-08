@@ -67,7 +67,7 @@ mkdir therock-tarball && cd therock-tarball
 # Multiarch (all GPUs):
 wget https://rocm.prereleases.amd.com/tarball-multi-arch/therock-dist-linux-multiarch-7.14.0rc1.tar.gz
 
-# Per-family (smaller, one GPU family):
+# Per-family (one GPU family):
 # wget https://rocm.prereleases.amd.com/tarball-multi-arch/therock-dist-linux-gfx94X-dcgpu-7.14.0rc1.tar.gz
 
 mkdir install
@@ -119,7 +119,7 @@ sudo apt update
 ###### Install ROCm
 
 ```bash
-# Installs the full ROCm core SDK (version- and architecture-independent).
+# Installs the full ROCm core SDK.
 sudo apt install amdrocm-core
 # For a specific ROCm version and GPU arch instead, e.g.:
 # sudo apt install amdrocm7.14-gfx942
@@ -151,7 +151,7 @@ sudo dnf clean all
 ###### Install ROCm
 
 ```bash
-# Installs the full ROCm core SDK (version- and architecture-independent).
+# Installs the full ROCm core SDK.
 sudo dnf install amdrocm-core
 # For a specific ROCm version and GPU arch instead, e.g.:
 # sudo dnf install amdrocm7.14-gfx942
