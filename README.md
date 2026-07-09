@@ -42,52 +42,44 @@ For general and more detailed information on releases, see [`RELEASES.md` in The
 
 #### Installing ROCm Python packages
 
-##### Multi-arch (unified index)
-
-Multi-arch releases use a single index URL for all GPU architectures. Select
-your GPU using pip extras:
+Multi-arch releases use a single index URL for all GPU architectures. Use
+`device-all` for all supported GPUs, or one family with a `[device-*]` extra:
 
 ```bash
-pip install --index-url https://rocm.prereleases.amd.com/whl-multi-arch/ --pre "rocm[devel,device-gfx942]"
+pip install --index-url https://rocm.prereleases.amd.com/whl-multi-arch/ --pre \
+  "rocm[libraries,devel,device-all]"
+# For a specific GPU family instead, e.g.:
+# "rocm[libraries,devel,device-gfx942]"
 ```
 
-Replace `device-gfx942` with the extra for your GPU (e.g. `device-gfx1100`,
-`device-gfx1201`). See the
+See the
 [multi-arch releases section of RELEASES.md](https://github.com/ROCm/TheRock/blob/main/RELEASES.md#installing-multi-arch-rocm-python-packages)
-for the full device table.
-
-##### Per-family (GPU-family-specific index)
-
-Per-family releases use a separate index URL for each GPU family:
-
-| Product Name        | GFX Target | GFX Family   | Release Index                                      |
-| --------------------| ---------- | ------------ | -------------------------------------------------- |
-| MI300A/MI300X       | gfx942     | gfx94X-dcgpu | https://rocm.prereleases.amd.com/whl/gfx94X-dcgpu/ |
-| MI350X/MI355X       | gfx950     | gfx950-dcgpu | https://rocm.prereleases.amd.com/whl/gfx950-dcgpu/ |
-| AMD Strix Halo iGPU | gfx1151    | gfx1151      | https://rocm.prereleases.amd.com/whl/gfx1151/      |
-
-Install instructions:
-```bash
-python -m pip install --index-url ${Release_Index} "rocm[libraries,devel]"
-```
-
-For more detailed instructions see TheRock's instructions on [installing releases using pip
-](https://github.com/ROCm/TheRock/blob/main/RELEASES.md#installing-per-family-releases-using-pip).
+for the device extras table and full install instructions.
 
 #### Installing from tarballs
 
-Prerelease tarballs can be downloaded from https://rocm.prereleases.amd.com/tarball/.
+Prerelease tarballs can be downloaded from
+<https://rocm.prereleases.amd.com/tarball-multi-arch/>.
 
-After downloading, simply extract the release tarball into place:
+After downloading, extract the release tarball into place:
 
 ```bash
 mkdir therock-tarball && cd therock-tarball
-# For example...
-wget https://rocm.prereleases.amd.com/tarball/therock-dist-linux-gfx1151-7.9.0rc1.tar.gz
+
+# Multiarch (all GPUs):
+wget https://rocm.prereleases.amd.com/tarball-multi-arch/therock-dist-linux-multiarch-7.14.0rc1.tar.gz
+
+# Per-family (one GPU family):
+# wget https://rocm.prereleases.amd.com/tarball-multi-arch/therock-dist-linux-gfx94X-dcgpu-7.14.0rc1.tar.gz
 
 mkdir install
 tar -xf *.tar.gz -C install
 ```
+
+Pick the tarball that matches your GPU family and ROCm version from the index
+(e.g. `gfx1151`, `gfx950-dcgpu`). Use the `multiarch` tarball to install all
+supported GPU families at once.
+
 #### Installing from Native Linux Packages
 
 AMD provides prerelease ROCm packages for both Debian-based and RPM-based Linux distributions.
@@ -95,7 +87,7 @@ AMD provides prerelease ROCm packages for both Debian-based and RPM-based Linux 
 Repository base URL:
 
 ```
-https://rocm.prereleases.amd.com/packages/
+https://rocm.prereleases.amd.com/packages-multi-arch/
 ```
 
 ---
@@ -114,12 +106,12 @@ wget https://rocm.prereleases.amd.com/packages/gpg/rocm.gpg -O - \
 
 ###### Add the ROCm Repository
 
-Replace `<os_profile>` with the appropriate distribution profile
-(e.g. `debian12`, `ubuntu2404`).
+The example below uses the `ubuntu2404` profile; change it to match your
+distribution (e.g. `debian12`, `ubuntu2204`, `ubuntu2604`).
 
 ```bash
 sudo tee /etc/apt/sources.list.d/rocm.list << EOF
-deb [arch=amd64 signed-by=/etc/apt/keyrings/amdrocm.gpg] https://rocm.prereleases.amd.com/packages/<os_profile> stable main
+deb [arch=amd64 signed-by=/etc/apt/keyrings/amdrocm.gpg] https://rocm.prereleases.amd.com/packages-multi-arch/ubuntu2404/ stable main
 EOF
 sudo apt update
 ```
@@ -129,7 +121,10 @@ sudo apt update
 ###### Install ROCm
 
 ```bash
-sudo apt install amdrocm-gfx94x # Change the gfx arch based on your machine.
+# Installs the full ROCm core SDK.
+sudo apt install amdrocm-core
+# For a specific ROCm version and GPU arch instead, e.g.:
+# sudo apt install amdrocm7.14-gfx942
 ```
 
 ---
@@ -138,14 +133,14 @@ sudo apt install amdrocm-gfx94x # Change the gfx arch based on your machine.
 
 ###### Add the ROCm Repository
 
-Replace `<os_profile>` with the appropriate distribution profile
-(e.g. `rhel8`, `sles16`).
+The example below uses the `rhel10` profile; change it to match your
+distribution (e.g. `rhel8`, `rhel9`, `sles15`, `sles16`).
 
 ```bash
 sudo tee /etc/yum.repos.d/rocm.repo << EOF
 [rocm]
 name=ROCm Prerelease Repository
-baseurl=https://rocm.prereleases.amd.com/packages/<os_profile>/x86_64/
+baseurl=https://rocm.prereleases.amd.com/packages-multi-arch/rhel10/x86_64/
 enabled=1
 gpgcheck=1
 gpgkey=https://rocm.prereleases.amd.com/packages/gpg/rocm.gpg
@@ -158,5 +153,8 @@ sudo dnf clean all
 ###### Install ROCm
 
 ```bash
-sudo dnf install amdrocm-gfx94x # Change the gfx arch based on your machine.
+# Installs the full ROCm core SDK.
+sudo dnf install amdrocm-core
+# For a specific ROCm version and GPU arch instead, e.g.:
+# sudo dnf install amdrocm7.14-gfx942
 ```
