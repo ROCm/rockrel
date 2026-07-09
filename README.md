@@ -42,15 +42,17 @@ For general and more detailed information on releases, see [`RELEASES.md` in The
 
 #### Installing ROCm Python packages
 
-Multi-arch releases use a single index URL for all GPU architectures. Select
-your GPU using a pip `[device-*]` extra:
+Multi-arch releases use a single index URL for all GPU architectures. Use
+`device-all` for all supported GPUs, or one family with a `[device-*]` extra:
 
 ```bash
 pip install --index-url https://rocm.prereleases.amd.com/whl-multi-arch/ --pre \
-  "rocm[libraries,devel,device-gfx942]"
+  "rocm[libraries,devel,device-all]"
+# For a specific GPU family instead, e.g.:
+# "rocm[libraries,devel,device-gfx942]"
 ```
 
-Replace `device-gfx942` with the pip extra for your GPU. See the
+See the
 [multi-arch releases section of RELEASES.md](https://github.com/ROCm/TheRock/blob/main/RELEASES.md#installing-multi-arch-rocm-python-packages)
 for the device extras table and full install instructions.
 
