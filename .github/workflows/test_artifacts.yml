@@ -51,6 +51,10 @@ on:
         description: "Branch, tag, or SHA to checkout in TheRock."
         type: string
         default: ""
+      build_variant:
+        description: "Build variant (e.g., release, asan)."
+        type: string
+        default: "release"
 
 permissions:
   contents: read
@@ -76,3 +80,4 @@ jobs:
       release_type: ${{ inputs.release_type }}
       repository: ${{ inputs.repository }}
       ref: ${{ inputs.ref }}
+      build_variant: ${{ inputs.build_variant }}
