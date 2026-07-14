@@ -51,11 +51,15 @@ on:
         description: "Branch, tag, or SHA to checkout in TheRock."
         type: string
         default: ""
+      build_variant:
+        description: "Build variant (e.g., release, asan)."
+        type: string
+        default: "release"
 
 permissions:
   contents: read
 
-run-name: Test Artifacts (${{ inputs.amdgpu_families }}, ${{ inputs.release_type || 'ci' }}, ${{ inputs.test_type }}, ${{ inputs.test_runs_on }})
+run-name: Test Artifacts (${{ inputs.amdgpu_families }}, ${{ inputs.release_type || 'ci' }}, ${{ inputs.test_type }}, ${{ inputs.build_variant }}, ${{ inputs.test_runs_on }})
 
 jobs:
   test:
@@ -76,3 +80,4 @@ jobs:
       release_type: ${{ inputs.release_type }}
       repository: ${{ inputs.repository }}
       ref: ${{ inputs.ref }}
+      build_variant: ${{ inputs.build_variant }}
