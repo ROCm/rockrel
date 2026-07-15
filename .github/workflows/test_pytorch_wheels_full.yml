@@ -45,9 +45,6 @@ on:
       tests_to_include:
         type: string
         default: ""
-      multi_arch:
-        type: boolean
-        default: true
       repository:
         description: "TheRock repository to checkout."
         type: string
@@ -77,6 +74,5 @@ jobs:
       pytorch_git_repo: ${{ inputs.pytorch_git_repo }}
       test_configs: ${{ inputs.test_configs }}
       tests_to_include: ${{ inputs.tests_to_include }}
-      multi_arch: ${{ inputs.multi_arch }}
       repository: ${{ inputs.repository }}
       ref: ${{ inputs.ref }}
