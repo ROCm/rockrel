@@ -57,6 +57,14 @@ run-name: >-
   | Linux: ${{ inputs.linux_amdgpu_families || 'all' }}
 
 jobs:
+  notify_quartz_start:
+    uses: ./.github/workflows/notify_quartz.yml
+    with:
+      run_phase: started
+      workflow_inputs: ${{ toJSON(inputs) }}
+      workflow_captured_outputs: ${{ toJSON(needs) }}
+    secrets: inherit
+
   release:
     uses: ROCm/TheRock/.github/workflows/multi_arch_release_asan.yml@main
     secrets: inherit
@@ -73,3 +81,13 @@ jobs:
       contents: read
       actions: write
       id-token: write
+
+  notify_quartz_completed:
+    if: ${{ always() }}
+    needs: [release]
+    uses: ./.github/workflows/notify_quartz.yml
+    with:
+      run_phase: completed
+      workflow_inputs: ${{ toJSON(inputs) }}
+      workflow_captured_outputs: ${{ toJSON(needs) }}
+    secrets: inherit
