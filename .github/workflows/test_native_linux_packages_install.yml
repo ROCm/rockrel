@@ -58,6 +58,7 @@ jobs:
     uses: ./.github/workflows/notify_quartz.yml
     with:
       run_phase: started
+      reporting_workflow: test_native_linux_packages_install.yml
       workflow_inputs: ${{ toJSON(inputs) }}
       workflow_captured_outputs: ${{ toJSON(needs) }}
     secrets: inherit
@@ -82,6 +83,7 @@ jobs:
     uses: ./.github/workflows/notify_quartz.yml
     with:
       run_phase: completed
+      reporting_workflow: test_native_linux_packages_install.yml
       workflow_inputs: ${{ toJSON(inputs) }}
       workflow_captured_outputs: ${{ toJSON(needs) }}
     secrets: inherit
