@@ -51,7 +51,8 @@ run-name: >-
 
 jobs:
   notify_quartz_start:
-    uses: ./.github/workflows/notify_quartz.yml
+    if: ${{ vars.NOTIFY_QUARTZ_ENABLED == 'true' }}
+    uses: ROCm/TheRock/.github/workflows/notify_quartz.yml@main
     with:
       run_phase: started
       reporting_workflow: multi_arch_release.yml
@@ -76,9 +77,9 @@ jobs:
       id-token: write
 
   notify_quartz_completed:
-    if: ${{ always() }}
+    if: ${{ always() && vars.NOTIFY_QUARTZ_ENABLED == 'true' }}
     needs: [release]
-    uses: ./.github/workflows/notify_quartz.yml
+    uses: ROCm/TheRock/.github/workflows/notify_quartz.yml@main
     with:
       run_phase: completed
       reporting_workflow: multi_arch_release.yml

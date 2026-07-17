@@ -63,7 +63,8 @@ run-name: Test Artifacts (${{ inputs.amdgpu_families }}, ${{ inputs.release_type
 
 jobs:
   notify_quartz_start:
-    uses: ./.github/workflows/notify_quartz.yml
+    if: ${{ vars.NOTIFY_QUARTZ_ENABLED == 'true' }}
+    uses: ROCm/TheRock/.github/workflows/notify_quartz.yml@main
     with:
       run_phase: started
       reporting_workflow: test_artifacts.yml
@@ -92,9 +93,9 @@ jobs:
       build_variant: ${{ inputs.build_variant }}
 
   notify_quartz_completed:
-    if: ${{ always() }}
+    if: ${{ always() && vars.NOTIFY_QUARTZ_ENABLED == 'true' }}
     needs: [test]
-    uses: ./.github/workflows/notify_quartz.yml
+    uses: ROCm/TheRock/.github/workflows/notify_quartz.yml@main
     with:
       run_phase: completed
       reporting_workflow: test_artifacts.yml
