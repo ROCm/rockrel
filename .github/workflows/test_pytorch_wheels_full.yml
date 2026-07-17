@@ -60,6 +60,16 @@ permissions:
 run-name: Test PyTorch Full (${{ inputs.amdgpu_family }}, ${{ inputs.torch_version }}, ${{ inputs.test_runs_on }})
 
 jobs:
+  notify_quartz_start:
+    if: ${{ vars.NOTIFY_QUARTZ_ENABLED == 'true' }}
+    uses: ROCm/TheRock/.github/workflows/notify_quartz.yml@main
+    with:
+      run_phase: started
+      reporting_workflow: test_pytorch_wheels_full.yml
+      workflow_inputs: ${{ toJSON(inputs) }}
+      workflow_captured_outputs: ${{ toJSON(needs) }}
+    secrets: inherit
+
   test:
     uses: ROCm/TheRock/.github/workflows/test_pytorch_wheels_full.yml@main
     secrets: inherit
@@ -76,3 +86,14 @@ jobs:
       tests_to_include: ${{ inputs.tests_to_include }}
       repository: ${{ inputs.repository }}
       ref: ${{ inputs.ref }}
+
+  notify_quartz_completed:
+    if: ${{ always() && vars.NOTIFY_QUARTZ_ENABLED == 'true' }}
+    needs: [test]
+    uses: ROCm/TheRock/.github/workflows/notify_quartz.yml@main
+    with:
+      run_phase: completed
+      reporting_workflow: test_pytorch_wheels_full.yml
+      workflow_inputs: ${{ toJSON(inputs) }}
+      workflow_captured_outputs: ${{ toJSON(needs) }}
+    secrets: inherit

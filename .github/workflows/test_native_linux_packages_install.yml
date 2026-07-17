@@ -54,6 +54,16 @@ permissions:
 run-name: Test Native Linux Packages Install (${{ inputs.os_profile }}, ${{ inputs.release_type }}, ${{ inputs.test_type || 'sanity' }})
 
 jobs:
+  notify_quartz_start:
+    if: ${{ vars.NOTIFY_QUARTZ_ENABLED == 'true' }}
+    uses: ROCm/TheRock/.github/workflows/notify_quartz.yml@main
+    with:
+      run_phase: started
+      reporting_workflow: test_native_linux_packages_install.yml
+      workflow_inputs: ${{ toJSON(inputs) }}
+      workflow_captured_outputs: ${{ toJSON(needs) }}
+    secrets: inherit
+
   test:
     uses: ROCm/TheRock/.github/workflows/test_native_linux_packages_install.yml@main
     secrets: inherit
@@ -67,3 +77,14 @@ jobs:
       test_type: ${{ inputs.test_type }}
       repository: ${{ inputs.repository }}
       ref: ${{ inputs.ref }}
+
+  notify_quartz_completed:
+    if: ${{ always() && vars.NOTIFY_QUARTZ_ENABLED == 'true' }}
+    needs: [test]
+    uses: ROCm/TheRock/.github/workflows/notify_quartz.yml@main
+    with:
+      run_phase: completed
+      reporting_workflow: test_native_linux_packages_install.yml
+      workflow_inputs: ${{ toJSON(inputs) }}
+      workflow_captured_outputs: ${{ toJSON(needs) }}
+    secrets: inherit

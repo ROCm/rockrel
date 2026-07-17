@@ -49,6 +49,16 @@ permissions:
 run-name: Multi-Arch Release Windows PyTorch Wheels (${{ inputs.amdgpu_families }}, ${{ inputs.release_type }}, ${{ inputs.rocm_version }})
 
 jobs:
+  notify_quartz_start:
+    if: ${{ vars.NOTIFY_QUARTZ_ENABLED == 'true' }}
+    uses: ROCm/TheRock/.github/workflows/notify_quartz.yml@main
+    with:
+      run_phase: started
+      reporting_workflow: multi_arch_release_windows_pytorch_wheels.yml
+      workflow_inputs: ${{ toJSON(inputs) }}
+      workflow_captured_outputs: ${{ toJSON(needs) }}
+    secrets: inherit
+
   release:
     uses: ROCm/TheRock/.github/workflows/multi_arch_release_windows_pytorch_wheels.yml@main
     with:
@@ -60,3 +70,14 @@ jobs:
       repository: "ROCm/TheRock"
       ref: ${{ inputs.ref || '' }}
       python_version: ${{ inputs.python_version }}
+
+  notify_quartz_completed:
+    if: ${{ always() && vars.NOTIFY_QUARTZ_ENABLED == 'true' }}
+    needs: [release]
+    uses: ROCm/TheRock/.github/workflows/notify_quartz.yml@main
+    with:
+      run_phase: completed
+      reporting_workflow: multi_arch_release_windows_pytorch_wheels.yml
+      workflow_inputs: ${{ toJSON(inputs) }}
+      workflow_captured_outputs: ${{ toJSON(needs) }}
+    secrets: inherit

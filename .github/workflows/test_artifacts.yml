@@ -62,6 +62,16 @@ permissions:
 run-name: Test Artifacts (${{ inputs.amdgpu_families }}, ${{ inputs.release_type || 'ci' }}, ${{ inputs.test_type }}, ${{ inputs.build_variant }}, ${{ inputs.test_runs_on }})
 
 jobs:
+  notify_quartz_start:
+    if: ${{ vars.NOTIFY_QUARTZ_ENABLED == 'true' }}
+    uses: ROCm/TheRock/.github/workflows/notify_quartz.yml@main
+    with:
+      run_phase: started
+      reporting_workflow: test_artifacts.yml
+      workflow_inputs: ${{ toJSON(inputs) }}
+      workflow_captured_outputs: ${{ toJSON(needs) }}
+    secrets: inherit
+
   test:
     uses: ROCm/TheRock/.github/workflows/test_artifacts.yml@main
     secrets: inherit
@@ -81,3 +91,14 @@ jobs:
       repository: ${{ inputs.repository }}
       ref: ${{ inputs.ref }}
       build_variant: ${{ inputs.build_variant }}
+
+  notify_quartz_completed:
+    if: ${{ always() && vars.NOTIFY_QUARTZ_ENABLED == 'true' }}
+    needs: [test]
+    uses: ROCm/TheRock/.github/workflows/notify_quartz.yml@main
+    with:
+      run_phase: completed
+      reporting_workflow: test_artifacts.yml
+      workflow_inputs: ${{ toJSON(inputs) }}
+      workflow_captured_outputs: ${{ toJSON(needs) }}
+    secrets: inherit
