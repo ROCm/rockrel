@@ -14,9 +14,13 @@ on:
         type: string
         required: true
       rocm_package_find_links_url:
-        description: URL for pip --find-links to install ROCm packages
+        description: URL for pip --find-links to install ROCm packages (flat page; use this OR rocm_package_index_url)
         type: string
-        required: true
+        default: ""
+      rocm_package_index_url:
+        description: URL for pip --index-url to install ROCm packages (PEP 503 index, e.g. https://repo.amd.com/rocm/whl-multi-arch/; use this OR rocm_package_find_links_url)
+        type: string
+        default: ""
       release_type:
         description: 'Release type: "dev", "nightly", or "prerelease". Selects the S3 bucket.'
         type: choice
@@ -55,11 +59,12 @@ run-name: Multi-Arch Release Linux PyTorch Wheels (${{ inputs.amdgpu_families }}
 
 jobs:
   release:
-    uses: ROCm/TheRock/.github/workflows/multi_arch_release_linux_pytorch_wheels.yml@main
+    uses: ROCm/TheRock/.github/workflows/multi_arch_release_linux_pytorch_wheels.yml@ethanwee/pytorch-wheels-rocm-index-url
     with:
       amdgpu_families: ${{ inputs.amdgpu_families }}
       rocm_version: ${{ inputs.rocm_version }}
       rocm_package_find_links_url: ${{ inputs.rocm_package_find_links_url }}
+      rocm_package_index_url: ${{ inputs.rocm_package_index_url }}
       release_type: ${{ inputs.release_type }}
       cache_type: ${{ inputs.cache_type }}
       run_full_pytorch_tests: ${{ inputs.run_full_pytorch_tests }}
