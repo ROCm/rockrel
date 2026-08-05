@@ -25,6 +25,10 @@ on:
           - nightly
           - prerelease
         default: dev
+      # Default to sccache so release wheels benefit from the S3 compiler cache
+      # like CI does (TheRock defaults its release-wheel build to sccache since
+      # ROCm/TheRock#5471; this wrapper had drifted, still defaulting to none).
+      # Set "none" for a clean, cache-free build.
       cache_type:
         description: "Compiler cache type"
         type: choice
@@ -32,7 +36,7 @@ on:
           - none
           - sccache
           - ccache
-        default: none
+        default: sccache
       run_full_pytorch_tests:
         description: Run full PyTorch tests after scheduled nightly wheel builds complete.
         type: boolean
