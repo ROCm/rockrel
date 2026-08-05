@@ -25,9 +25,6 @@ on:
           - nightly
           - prerelease
         default: dev
-      # Default to sccache so release wheels use the same S3 compiler cache as
-      # CI (TheRock's release-wheel build defaults to sccache since
-      # ROCm/TheRock#5471). Set "none" for a clean, cache-free build.
       cache_type:
         description: "Compiler cache type"
         type: choice
