@@ -18,7 +18,7 @@ on:
       test_runs_on:
         type: string
         required: true
-        default: "linux-gfx942-1gpu-ossci-rocm"
+        default: "linux-gfx942-1gpu-ccs-csp-ossci-rocm"
       test_runs_on_multi_gpu:
         type: string
         default: "linux-gfx942-8gpu-ossci-rocm"
