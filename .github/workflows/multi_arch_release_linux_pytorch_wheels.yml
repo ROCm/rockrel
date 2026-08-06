@@ -32,7 +32,7 @@ on:
           - none
           - sccache
           - ccache
-        default: none
+        default: sccache
       run_full_pytorch_tests:
         description: Run full PyTorch tests after scheduled nightly wheel builds complete.
         type: boolean
