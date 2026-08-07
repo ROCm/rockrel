@@ -91,4 +91,3 @@ jobs:
       container_image_url: ${{ inputs.container_image_url }}
       repository: ${{ inputs.repository }}
       ref: ${{ inputs.ref }}
-
