@@ -1,0 +1,117 @@
+# Copyright Advanced Micro Devices, Inc.
+# SPDX-License-Identifier: MIT
+
+# Thin wrapper that dispatches to TheRock's test_linux_jax_wheels.yml.
+
+name: Test Linux JAX Wheels
+
+on:
+  workflow_dispatch:
+    inputs:
+      amdgpu_family:
+        description: GPU family to test
+        required: true
+        type: string
+        default: "gfx94X-dcgpu"
+
+      release_type:
+        description: Release type
+        required: true
+        type: string
+        default: "dev"
+
+      package_index_url:
+        description: Base Python package index URL
+        required: true
+        type: string
+        default: "https://rocm.nightlies.amd.com/v2-staging/"
+
+      rocm_version:
+        description: ROCm version
+        required: false
+        type: string
+        default: ""
+
+      tar_url:
+        description: URL to the TheRock tarball
+        required: true
+        type: string
+
+      python_version:
+        description: Python version
+        required: true
+        type: string
+        default: "3.12"
+
+      jax_ref:
+        description: rocm-jax repository ref
+        required: false
+        type: string
+        default: "rocm-jaxlib-v0.11.0"
+
+      jax_version:
+        description: Base JAX version
+        required: false
+        type: string
+        default: ""
+
+      jaxlib_version:
+        description: jaxlib wheel version
+        required: false
+        type: string
+        default: ""
+
+      jax_plugin_version:
+        description: jax ROCm plugin wheel version
+        required: false
+        type: string
+        default: ""
+
+      jax_pjrt_version:
+        description: jax ROCm PJRT wheel version
+        required: false
+        type: string
+        default: ""
+
+      test_runs_on:
+        description: Runner label with a compatible GPU
+        required: true
+        type: string
+        default: "linux-gfx942-1gpu-ccs-csp-ossci-rocm"
+
+      repository:
+        description: Repository containing the test source
+        required: false
+        type: string
+        default: "ROCm/TheRock"
+
+      ref:
+        description: Branch, tag, or SHA containing the test source
+        required: false
+        type: string
+        default: "main"
+
+permissions:
+  contents: read
+  packages: read
+
+jobs:
+  test:
+    uses: ROCm/TheRock/.github/workflows/test_linux_jax_wheels.yml@main
+    secrets: inherit
+    with:
+      amdgpu_family: ${{ inputs.amdgpu_family }}
+      release_type: ${{ inputs.release_type }}
+      package_index_url: ${{ inputs.package_index_url }}
+      rocm_version: ${{ inputs.rocm_version }}
+      tar_url: ${{ inputs.tar_url }}
+      python_version: ${{ inputs.python_version }}
+      jax_ref: ${{ inputs.jax_ref }}
+      jax_version: ${{ inputs.jax_version }}
+      jaxlib_version: ${{ inputs.jaxlib_version }}
+      jax_plugin_version: ${{ inputs.jax_plugin_version }}
+      jax_pjrt_version: ${{ inputs.jax_pjrt_version }}
+      test_runs_on: ${{ inputs.test_runs_on }}
+      repository: ${{ inputs.repository }}
+      ref: ${{ inputs.ref }}
+

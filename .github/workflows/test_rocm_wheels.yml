@@ -1,0 +1,94 @@
+# Copyright Advanced Micro Devices, Inc.
+# SPDX-License-Identifier: MIT
+
+# Thin wrapper that dispatches to TheRock's test_rocm_wheels.yml.
+
+name: Test ROCm Wheels
+
+on:
+  workflow_dispatch:
+    inputs:
+      amdgpu_family:
+        description: GPU family to test
+        required: true
+        type: string
+        default: "gfx94X-dcgpu"
+
+      test_runs_on:
+        description: Runner label with a compatible GPU
+        required: true
+        type: string
+        default: "linux-gfx942-1gpu-ccs-csp-ossci-rocm"
+
+      package_index_url:
+        description: Python package index URL
+        required: false
+        type: string
+        default: "https://rocm.nightlies.amd.com/whl-multi-arch/"
+
+      package_find_links_url:
+        description: Python package URL for --find-links
+        required: false
+        type: string
+        default: ""
+
+      python_version:
+        description: Python version
+        required: true
+        type: string
+        default: "3.12"
+
+      rocm_version:
+        description: ROCm version to install
+        required: true
+        type: string
+
+      kpack_split:
+        description: "'true' for a kpack-split flat build"
+        required: false
+        type: string
+        default: "false"
+
+      container_image_name:
+        description: Human-readable container image label
+        required: true
+        type: string
+        default: "ubuntu24.04"
+
+      container_image_url:
+        description: Container image reference
+        required: false
+        type: string
+        default: "ghcr.io/rocm/no_rocm_image_ubuntu24_04@sha256:405945a40deaff9db90b9839c0f41d4cba4a383c1a7459b28627047bf6302a26"
+
+      repository:
+        description: Repository containing the test source
+        required: false
+        type: string
+        default: "ROCm/TheRock"
+
+      ref:
+        description: Branch, tag, or SHA containing the test source
+        required: false
+        type: string
+        default: "main"
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    uses: ROCm/TheRock/.github/workflows/test_rocm_wheels.yml@main
+    secrets: inherit
+    with:
+      amdgpu_family: ${{ inputs.amdgpu_family }}
+      test_runs_on: ${{ inputs.test_runs_on }}
+      package_index_url: ${{ inputs.package_index_url }}
+      package_find_links_url: ${{ inputs.package_find_links_url }}
+      python_version: ${{ inputs.python_version }}
+      rocm_version: ${{ inputs.rocm_version }}
+      container_image_name: ${{ inputs.container_image_name }}
+      container_image_url: ${{ inputs.container_image_url }}
+      repository: ${{ inputs.repository }}
+      ref: ${{ inputs.ref }}
+
