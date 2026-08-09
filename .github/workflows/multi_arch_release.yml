@@ -51,7 +51,7 @@ run-name: >-
 
 jobs:
   release:
-    uses: ROCm/TheRock/.github/workflows/multi_arch_release.yml@main
+    uses: ROCm/TheRock/.github/workflows/multi_arch_release.yml@revert-7193-users/geomin12/dynamic-determination-stage
     secrets: inherit
     with:
       release_type: ${{ inputs.release_type || 'nightly' }}
