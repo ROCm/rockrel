@@ -32,7 +32,7 @@ on:
           - none
           - sccache
           - ccache
-        default: none
+        default: sccache
       ref:
         description: "Branch, tag or SHA to checkout. Defaults to the reference or SHA that triggered the workflow."
         type: string
