@@ -60,6 +60,21 @@ permissions:
 run-name: Test PyTorch Full (${{ inputs.amdgpu_family }}, ${{ inputs.torch_version }}, ${{ inputs.test_runs_on }})
 
 jobs:
+  notify_quartz_start:
+    name: "Quartz - started - test PyTorch wheels (full suite)"
+    if: ${{ vars.NOTIFY_QUARTZ_ENABLED == 'true' }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    continue-on-error: true
+    steps:
+      - uses: ROCm/Quartz/.github/actions/notify_quartz@b47e20b7539b407072a0c2249ab5e8d9983fac4e # notify_quartz/v1.1.0
+        with:
+          run_phase: started
+          reporting_workflow: test_pytorch_wheels_full.yml
+          workflow_inputs: ${{ toJSON(inputs) }}
+          gh_app_client_id: ${{ secrets.GH_APP_HAULY_CID }}
+          gh_app_private_key: ${{ secrets.GH_APP_HAULY_PRIVATE_KEY }}
+
   test:
     uses: ROCm/TheRock/.github/workflows/test_pytorch_wheels_full.yml@main
     secrets: inherit
@@ -76,3 +91,20 @@ jobs:
       tests_to_include: ${{ inputs.tests_to_include }}
       repository: ${{ inputs.repository }}
       ref: ${{ inputs.ref }}
+
+  notify_quartz_completed:
+    name: "Quartz - completed - test PyTorch wheels (full suite)"
+    if: ${{ always() && vars.NOTIFY_QUARTZ_ENABLED == 'true' }}
+    needs: [test]
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    continue-on-error: true
+    steps:
+      - uses: ROCm/Quartz/.github/actions/notify_quartz@b47e20b7539b407072a0c2249ab5e8d9983fac4e # notify_quartz/v1.1.0
+        with:
+          run_phase: completed
+          reporting_workflow: test_pytorch_wheels_full.yml
+          workflow_inputs: ${{ toJSON(inputs) }}
+          workflow_captured_outputs: ${{ toJSON(needs) }}
+          gh_app_client_id: ${{ secrets.GH_APP_HAULY_CID }}
+          gh_app_private_key: ${{ secrets.GH_APP_HAULY_PRIVATE_KEY }}

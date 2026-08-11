@@ -50,6 +50,21 @@ run-name: >-
   | Windows: ${{ inputs.windows_amdgpu_families || 'all' }}
 
 jobs:
+  notify_quartz_start:
+    name: "Quartz - started - release (rockrel)"
+    if: ${{ vars.NOTIFY_QUARTZ_ENABLED == 'true' }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    continue-on-error: true
+    steps:
+      - uses: ROCm/Quartz/.github/actions/notify_quartz@b47e20b7539b407072a0c2249ab5e8d9983fac4e # notify_quartz/v1.1.0
+        with:
+          run_phase: started
+          reporting_workflow: multi_arch_release.yml
+          workflow_inputs: ${{ toJSON(inputs) }}
+          gh_app_client_id: ${{ secrets.GH_APP_HAULY_CID }}
+          gh_app_private_key: ${{ secrets.GH_APP_HAULY_PRIVATE_KEY }}
+
   release:
     uses: ROCm/TheRock/.github/workflows/multi_arch_release.yml@main
     secrets: inherit
@@ -65,3 +80,20 @@ jobs:
       contents: write
       actions: write
       id-token: write
+
+  notify_quartz_completed:
+    name: "Quartz - completed - release (rockrel)"
+    if: ${{ always() && vars.NOTIFY_QUARTZ_ENABLED == 'true' }}
+    needs: [release]
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    continue-on-error: true
+    steps:
+      - uses: ROCm/Quartz/.github/actions/notify_quartz@b47e20b7539b407072a0c2249ab5e8d9983fac4e # notify_quartz/v1.1.0
+        with:
+          run_phase: completed
+          reporting_workflow: multi_arch_release.yml
+          workflow_inputs: ${{ toJSON(inputs) }}
+          workflow_captured_outputs: ${{ toJSON(needs) }}
+          gh_app_client_id: ${{ secrets.GH_APP_HAULY_CID }}
+          gh_app_private_key: ${{ secrets.GH_APP_HAULY_PRIVATE_KEY }}

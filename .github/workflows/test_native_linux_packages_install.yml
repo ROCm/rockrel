@@ -54,6 +54,21 @@ permissions:
 run-name: Test Native Linux Packages Install (${{ inputs.os_profile }}, ${{ inputs.release_type }}, ${{ inputs.test_type || 'sanity' }})
 
 jobs:
+  notify_quartz_start:
+    name: "Quartz - started - test rpm/deb install (rockrel)"
+    if: ${{ vars.NOTIFY_QUARTZ_ENABLED == 'true' }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    continue-on-error: true
+    steps:
+      - uses: ROCm/Quartz/.github/actions/notify_quartz@b47e20b7539b407072a0c2249ab5e8d9983fac4e # notify_quartz/v1.1.0
+        with:
+          run_phase: started
+          reporting_workflow: test_native_linux_packages_install.yml
+          workflow_inputs: ${{ toJSON(inputs) }}
+          gh_app_client_id: ${{ secrets.GH_APP_HAULY_CID }}
+          gh_app_private_key: ${{ secrets.GH_APP_HAULY_PRIVATE_KEY }}
+
   test:
     uses: ROCm/TheRock/.github/workflows/test_native_linux_packages_install.yml@main
     secrets: inherit
@@ -67,3 +82,20 @@ jobs:
       test_type: ${{ inputs.test_type }}
       repository: ${{ inputs.repository }}
       ref: ${{ inputs.ref }}
+
+  notify_quartz_completed:
+    name: "Quartz - completed - test rpm/deb install (rockrel)"
+    if: ${{ always() && vars.NOTIFY_QUARTZ_ENABLED == 'true' }}
+    needs: [test]
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    continue-on-error: true
+    steps:
+      - uses: ROCm/Quartz/.github/actions/notify_quartz@b47e20b7539b407072a0c2249ab5e8d9983fac4e # notify_quartz/v1.1.0
+        with:
+          run_phase: completed
+          reporting_workflow: test_native_linux_packages_install.yml
+          workflow_inputs: ${{ toJSON(inputs) }}
+          workflow_captured_outputs: ${{ toJSON(needs) }}
+          gh_app_client_id: ${{ secrets.GH_APP_HAULY_CID }}
+          gh_app_private_key: ${{ secrets.GH_APP_HAULY_PRIVATE_KEY }}
