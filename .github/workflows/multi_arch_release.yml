@@ -66,7 +66,7 @@ jobs:
           gh_app_private_key: ${{ secrets.GH_APP_HAULY_PRIVATE_KEY }}
 
   release:
-    uses: ROCm/TheRock/.github/workflows/multi_arch_release.yml@main
+    uses: ROCm/TheRock/.github/workflows/multi_arch_release.yml@release/bkc/therock-10.1-20260811
     secrets: inherit
     with:
       release_type: ${{ inputs.release_type || 'nightly' }}
