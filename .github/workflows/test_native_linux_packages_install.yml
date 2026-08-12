@@ -61,7 +61,7 @@ jobs:
     timeout-minutes: 10
     continue-on-error: true
     steps:
-      - uses: ROCm/Quartz/.github/actions/notify_quartz@b47e20b7539b407072a0c2249ab5e8d9983fac4e # notify_quartz/v1.1.0
+      - uses: ROCm/Quartz/.github/actions/notify_quartz@f386a9756620938616af0b4d5d04b24ae6e0353f # notify_quartz/v1.1.1
         with:
           run_phase: started
           reporting_workflow: test_native_linux_packages_install.yml
@@ -91,7 +91,7 @@ jobs:
     timeout-minutes: 10
     continue-on-error: true
     steps:
-      - uses: ROCm/Quartz/.github/actions/notify_quartz@b47e20b7539b407072a0c2249ab5e8d9983fac4e # notify_quartz/v1.1.0
+      - uses: ROCm/Quartz/.github/actions/notify_quartz@f386a9756620938616af0b4d5d04b24ae6e0353f # notify_quartz/v1.1.1
         with:
           run_phase: completed
           reporting_workflow: test_native_linux_packages_install.yml
