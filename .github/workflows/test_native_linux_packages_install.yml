@@ -70,7 +70,7 @@ jobs:
           gh_app_private_key: ${{ secrets.GH_APP_HAULY_PRIVATE_KEY }}
 
   test:
-    uses: ROCm/TheRock/.github/workflows/test_native_linux_packages_install.yml@main
+    uses: ROCm/TheRock/.github/workflows/test_native_linux_packages_install.yml@release/bkc/therock-10.1-20260811
     secrets: inherit
     with:
       package_install_url: ${{ inputs.package_install_url }}
