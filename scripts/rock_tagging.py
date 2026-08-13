@@ -51,13 +51,18 @@ Options:
                          (default: /tmp/rock-tagging-cache)
 """
 import argparse
+import base64
+import json
 import logging
+import re
 import shlex
 import shutil
 import subprocess
 import sys
 import tarfile
 import tempfile
+import urllib.error
+import urllib.request
 from dataclasses import dataclass
 from pathlib import Path
 from pprint import pformat
@@ -223,6 +228,237 @@ class RockTagging:
             path = url.replace("https://github.com/", "")
             return f"git@github.com:{path}"
         return url
+
+    def _extract_owner_repo(self, url: str) -> tuple[str, str]:
+        """Extract (owner, repo) from a GitHub HTTPS or SSH URL.
+
+        Handles both URL forms that appear in .gitmodules:
+          https://github.com/ROCm/hip.git  →  ("ROCm", "hip")
+          git@github.com:ROCm/hip.git      →  ("ROCm", "hip")
+
+        The .git suffix is optional in both cases.
+        Raises ValueError for any URL that does not match either pattern.
+        """
+        # HTTPS form: https://github.com/OWNER/REPO[.git]
+        m = re.match(r"https://github\.com/([^/]+)/([^/]+?)(?:\.git)?$", url)
+        if m:
+            return m.group(1), m.group(2)
+        # SSH form: git@github.com:OWNER/REPO[.git]
+        m = re.match(r"git@github\.com:([^/]+)/([^/]+?)(?:\.git)?$", url)
+        if m:
+            return m.group(1), m.group(2)
+        raise ValueError(f"Cannot extract owner/repo from URL: {url!r}")
+
+    def _get_gh_token(self) -> str:
+        """Retrieve the GitHub token from the active gh CLI session.
+
+        Requires ``gh auth login`` to have been run beforehand.
+        Raises SystemExit with a clear message if gh is missing or not logged in.
+        """
+        try:
+            result = subprocess.run(
+                ["gh", "auth", "token"],
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
+                text=True,
+                check=True,
+            )
+            token = result.stdout.strip()
+        except FileNotFoundError:
+            raise SystemExit(
+                "ERROR: gh CLI not found. Install it from https://cli.github.com "
+                "and run: gh auth login"
+            )
+        except subprocess.CalledProcessError:
+            raise SystemExit(
+                "ERROR: Not authenticated with gh CLI. Run: gh auth login"
+            )
+        if not token:
+            raise SystemExit(
+                "ERROR: gh auth token returned an empty token. Run: gh auth login"
+            )
+        return token
+
+    def _fetch_lightweight_plan(self, token: str) -> dict[str, str]:
+        """Fetch .gitmodules from the GitHub API and return a repo-name → URL map.
+
+        Calls GET /repos/ROCm/TheRock/contents/.gitmodules?ref=<commitid> to
+        read the submodule list at the requested commit without cloning anything.
+        Also includes TheRock itself. Repos outside the ROCm org and repos in
+        the exclude list are filtered out — matching the logic in build_plan().
+
+        Returns dict[repo_name, url].
+        """
+        api_url = (
+            f"https://api.github.com/repos/ROCm/TheRock/contents/.gitmodules"
+            f"?ref={self.commitid}"
+        )
+        req = urllib.request.Request(
+            api_url,
+            headers={
+                "Authorization": f"token {token}",
+                "Accept": "application/vnd.github+json",
+                "X-GitHub-Api-Version": "2022-11-28",
+            },
+        )
+        try:
+            with urllib.request.urlopen(req, timeout=15) as resp:
+                data = json.loads(resp.read())
+        except urllib.error.HTTPError as exc:
+            raise SystemExit(
+                f"ERROR: Failed to fetch .gitmodules from GitHub API "
+                f"(HTTP {exc.code}). Check that the commit {self.commitid!r} "
+                f"exists and the token has repo read access."
+            )
+        except urllib.error.URLError as exc:
+            raise SystemExit(
+                f"ERROR: Network error fetching .gitmodules: {exc.reason}"
+            )
+
+        # GitHub returns the file content as base64-encoded text.
+        raw = base64.b64decode(data["content"]).decode()
+
+        # Parse submodule entries: extract path and url for each [submodule] block.
+        repo_map: dict[str, str] = {}
+        current_path: str | None = None
+        current_url: str | None = None
+
+        for line in raw.splitlines():
+            line = line.strip()
+            if line.startswith("[submodule"):
+                # Flush the previous entry if both fields were found.
+                if current_path and current_url:
+                    repo_name = Path(current_path).name
+                    url_lower = current_url.lower()
+                    is_rocm = (
+                        "github.com/rocm/" in url_lower
+                        or "github.com:rocm/" in url_lower
+                    )
+                    if is_rocm and repo_name not in self.exclude_list:
+                        repo_map[repo_name] = current_url
+                current_path = None
+                current_url = None
+            elif "=" in line:
+                key, _, value = line.partition("=")
+                key = key.strip()
+                value = value.strip()
+                if key == "path":
+                    current_path = value
+                elif key == "url":
+                    current_url = value
+
+        # Flush the last entry.
+        if current_path and current_url:
+            repo_name = Path(current_path).name
+            url_lower = current_url.lower()
+            is_rocm = (
+                "github.com/rocm/" in url_lower
+                or "github.com:rocm/" in url_lower
+            )
+            if is_rocm and repo_name not in self.exclude_list:
+                repo_map[repo_name] = current_url
+
+        # Always include TheRock itself.
+        repo_map["TheRock"] = self.rock_url
+        return repo_map
+
+    def _check_permissions(self, token: str, repo_map: dict[str, str]) -> None:
+        """Check GitHub push/admin permissions for every repo in repo_map.
+
+        Uses the GitHub REST API (GET /repos/{owner}/{repo}) to inspect the
+        ``permissions`` field returned for the authenticated user. Both
+        ``push`` and ``admin`` access are accepted — either is sufficient to
+        push a tag and create a GitHub release.
+
+        All repos are checked before aborting so the caller sees the full
+        list of failures in a single run. Raises SystemExit if any repo
+        lacks the required access level.
+        """
+        self.log("=" * 60)
+        self.log("  GitHub Permission Check")
+        self.log(f"  Verifying push/admin access for {len(repo_map)} repo(s)")
+        self.log("=" * 60)
+
+        failed_repos: dict[str, str] = {}
+        for repo_name, url in repo_map.items():
+            # Parse owner/repo from the URL before hitting the API.
+            try:
+                owner, repo = self._extract_owner_repo(url)
+            except ValueError as exc:
+                failed_repos[repo_name] = f"URL parse error: {exc}"
+                continue
+
+            # GET /repos/{owner}/{repo} returns a `permissions` object that
+            # reflects exactly what the authenticated user can do on that repo.
+            api_url = f"https://api.github.com/repos/{owner}/{repo}"
+            req = urllib.request.Request(
+                api_url,
+                headers={
+                    "Authorization": f"token {token}",
+                    "Accept": "application/vnd.github+json",
+                    # Pin the API version for stable field names.
+                    "X-GitHub-Api-Version": "2022-11-28",
+                },
+            )
+            try:
+                with urllib.request.urlopen(req, timeout=15) as resp:
+                    data = json.loads(resp.read())
+            except urllib.error.HTTPError as exc:
+                # 403 — token valid but explicitly denied.
+                # 404 — GitHub hides private repos as 404 when the token has
+                #        no visibility; treat it the same as access denied.
+                if exc.code == 403:
+                    failed_repos[repo_name] = (
+                        f"HTTP 403 Forbidden — token lacks access to "
+                        f"{owner}/{repo}"
+                    )
+                elif exc.code == 404:
+                    failed_repos[repo_name] = (
+                        f"HTTP 404 — repo {owner}/{repo} not found "
+                        "(token may lack visibility)"
+                    )
+                else:
+                    failed_repos[repo_name] = (
+                        f"HTTP {exc.code} from GitHub API for {owner}/{repo}"
+                    )
+                continue
+            except urllib.error.URLError as exc:
+                failed_repos[repo_name] = (
+                    f"Network error checking {owner}/{repo}: {exc.reason}"
+                )
+                continue
+
+            # `push` is the minimum write access needed to push a tag and
+            # create a GitHub release. `admin` implies all permissions
+            # including push, so accept either.
+            perms = data.get("permissions", {})
+            has_access = perms.get("push", False) or perms.get("admin", False)
+            if has_access:
+                self.log(f"Permission check OK: {owner}/{repo}")
+            else:
+                failed_repos[repo_name] = (
+                    f"Insufficient permissions for {owner}/{repo}: "
+                    f"push={perms.get('push')}, admin={perms.get('admin')}"
+                )
+
+        # Always print the summary so the user sees the counts even on failure.
+        total = len(repo_map)
+        passed = total - len(failed_repos)
+        self.log("=" * 60)
+        self.log("  Permission Check Summary")
+        self.log(f"  Passed : {passed} / {total} repo(s)")
+        self.log(f"  Failed : {len(failed_repos)} / {total} repo(s)")
+        self.log("=" * 60)
+
+        if failed_repos:
+            lines = [
+                f"  {name}: {reason}" for name, reason in failed_repos.items()
+            ]
+            raise SystemExit(
+                f"ERROR: Permission check failed for {len(failed_repos)} "
+                f"repo(s). Aborting before any tags are created.\n"
+                + "\n".join(lines)
+            )
 
     def get_submodule_url_map(self, repo_dir: Path) -> dict[str, str]:
         """Return mapping of submodule working-tree paths to remote URLs."""
@@ -614,6 +850,13 @@ class RockTagging:
 
     def run(self) -> None:
         """Build the execution plan and execute it."""
+        # Fetch token and check permissions before the expensive clone step.
+        # _fetch_lightweight_plan reads .gitmodules directly from the GitHub
+        # API at the requested commit — no local clone required.
+        token = self._get_gh_token()
+        repo_map = self._fetch_lightweight_plan(token)
+        self._check_permissions(token, repo_map)
+
         plan = self.build_plan()
         self.log(f"Execution plan: {pformat(plan)}")
         self.execute_plan(plan)
