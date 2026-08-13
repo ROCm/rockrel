@@ -52,6 +52,7 @@ Options:
                          (default: /tmp/rock-branching-cache)
 """
 import argparse
+import base64
 import json
 import logging
 import re
@@ -246,28 +247,12 @@ class RockBranchingAutomation:
         )
         return bool(output)
 
-    def _check_permissions(self, plan: dict[str, "RepoInfo"]) -> None:
-        """Check GitHub push/admin permissions for every repo in the plan.
+    def _get_gh_token(self) -> str:
+        """Retrieve the GitHub token from the active gh CLI session.
 
-        Uses the GitHub REST API (GET /repos/{owner}/{repo}) to inspect the
-        ``permissions`` field returned for the authenticated user. Both
-        ``push`` and ``admin`` access are accepted — either is sufficient to
-        create and push a branch.
-
-        Token is sourced exclusively from the active ``gh`` CLI session via
-        ``gh auth token``. Requires ``gh auth login`` to have been run beforehand.
-
-        All repos are checked before aborting so the caller sees the full
-        list of failures in a single run. Raises SystemExit if the token is
-        missing or any repo lacks the required access level.
+        Requires ``gh auth login`` to have been run beforehand.
+        Raises SystemExit with a clear message if gh is missing or not logged in.
         """
-        self.log("=" * 60)
-        self.log("  GitHub Permission Check")
-        self.log(f"  Verifying push/admin access for {len(plan)} repo(s)")
-        self.log("=" * 60)
-
-        # Retrieve the token from the active gh CLI session.
-        # Requires `gh auth login` to have been run beforehand.
         try:
             result = subprocess.run(
                 ["gh", "auth", "token"],
@@ -290,12 +275,113 @@ class RockBranchingAutomation:
             raise SystemExit(
                 "ERROR: gh auth token returned an empty token. Run: gh auth login"
             )
+        return token
+
+    def _fetch_lightweight_plan(self, token: str) -> dict[str, str]:
+        """Fetch .gitmodules from the GitHub API and return a repo-name → URL map.
+
+        Calls GET /repos/ROCm/TheRock/contents/.gitmodules?ref=<commitid> to
+        read the submodule list at the requested commit without cloning anything.
+        Also includes TheRock itself. Repos outside the ROCm org and repos in
+        the exclude list are filtered out — matching the logic in build_plan().
+
+        Returns dict[repo_name, url].
+        """
+        api_url = (
+            f"https://api.github.com/repos/ROCm/TheRock/contents/.gitmodules"
+            f"?ref={self.commitid}"
+        )
+        req = urllib.request.Request(
+            api_url,
+            headers={
+                "Authorization": f"token {token}",
+                "Accept": "application/vnd.github+json",
+                "X-GitHub-Api-Version": "2022-11-28",
+            },
+        )
+        try:
+            with urllib.request.urlopen(req, timeout=15) as resp:
+                data = json.loads(resp.read())
+        except urllib.error.HTTPError as exc:
+            raise SystemExit(
+                f"ERROR: Failed to fetch .gitmodules from GitHub API "
+                f"(HTTP {exc.code}). Check that the commit {self.commitid!r} "
+                f"exists and the token has repo read access."
+            )
+        except urllib.error.URLError as exc:
+            raise SystemExit(
+                f"ERROR: Network error fetching .gitmodules: {exc.reason}"
+            )
+
+        # GitHub returns the file content as base64-encoded text.
+        raw = base64.b64decode(data["content"]).decode()
+
+        # Parse submodule entries: extract path and url for each [submodule] block.
+        repo_map: dict[str, str] = {}
+        current_path: str | None = None
+        current_url: str | None = None
+
+        for line in raw.splitlines():
+            line = line.strip()
+            if line.startswith("[submodule"):
+                # Flush the previous entry if both fields were found.
+                if current_path and current_url:
+                    repo_name = Path(current_path).name
+                    url_lower = current_url.lower()
+                    is_rocm = (
+                        "github.com/rocm/" in url_lower
+                        or "github.com:rocm/" in url_lower
+                    )
+                    if is_rocm and repo_name not in self.exclude_list:
+                        repo_map[repo_name] = current_url
+                current_path = None
+                current_url = None
+            elif "=" in line:
+                key, _, value = line.partition("=")
+                key = key.strip()
+                value = value.strip()
+                if key == "path":
+                    current_path = value
+                elif key == "url":
+                    current_url = value
+
+        # Flush the last entry.
+        if current_path and current_url:
+            repo_name = Path(current_path).name
+            url_lower = current_url.lower()
+            is_rocm = (
+                "github.com/rocm/" in url_lower
+                or "github.com:rocm/" in url_lower
+            )
+            if is_rocm and repo_name not in self.exclude_list:
+                repo_map[repo_name] = current_url
+
+        # Always include TheRock itself.
+        repo_map["TheRock"] = self.rock_url
+        return repo_map
+
+    def _check_permissions(self, token: str, repo_map: dict[str, str]) -> None:
+        """Check GitHub push/admin permissions for every repo in repo_map.
+
+        Uses the GitHub REST API (GET /repos/{owner}/{repo}) to inspect the
+        ``permissions`` field returned for the authenticated user. Both
+        ``push`` and ``admin`` access are accepted — either is sufficient to
+        create and push a branch.
+
+        All repos are checked before aborting so the caller sees the full
+        list of failures in a single run. Raises SystemExit if any repo
+        lacks the required access level.
+        """
+        self.log("=" * 60)
+        self.log("  GitHub Permission Check")
+        self.log(f"  Verifying push/admin access for {len(repo_map)} repo(s)")
+        self.log("=" * 60)
 
         failed_repos: dict[str, str] = {}
-        for repo_name, info in plan.items():
+        for repo_name, url in repo_map.items():
             # Parse owner/repo from the URL before hitting the API.
             try:
-                owner, repo = self._extract_owner_repo(info.url)
+                owner, repo = self._extract_owner_repo(url)
             except ValueError as exc:
                 failed_repos[repo_name] = f"URL parse error: {exc}"
                 continue
@@ -353,11 +439,12 @@ class RockBranchingAutomation:
                 )
 
         # Always print the summary so the user sees the counts even on failure.
-        passed = len(plan) - len(failed_repos)
+        total = len(repo_map)
+        passed = total - len(failed_repos)
         self.log("=" * 60)
         self.log("  Permission Check Summary")
-        self.log(f"  Passed : {passed} / {len(plan)} repo(s)")
-        self.log(f"  Failed : {len(failed_repos)} / {len(plan)} repo(s)")
+        self.log(f"  Passed : {passed} / {total} repo(s)")
+        self.log(f"  Failed : {len(failed_repos)} / {total} repo(s)")
         self.log("=" * 60)
 
         if failed_repos:
@@ -716,9 +803,15 @@ class RockBranchingAutomation:
 
     def run(self) -> None:
         """Build the execution plan and execute it."""
+        # Fetch token and check permissions before the expensive clone step.
+        # _fetch_lightweight_plan reads .gitmodules directly from the GitHub
+        # API at the requested commit — no local clone required.
+        token = self._get_gh_token()
+        repo_map = self._fetch_lightweight_plan(token)
+        self._check_permissions(token, repo_map)
+
         plan = self.build_plan()
         self.log(f"Execution plan:\n{pformat(plan)}")
-        self._check_permissions(plan)
         self.execute_plan(plan)
 
 
