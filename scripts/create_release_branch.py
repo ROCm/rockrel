@@ -54,7 +54,6 @@ Options:
 import argparse
 import json
 import logging
-import os
 import re
 import shlex
 import shutil
@@ -255,9 +254,8 @@ class RockBranchingAutomation:
         ``push`` and ``admin`` access are accepted — either is sufficient to
         create and push a branch.
 
-        Token resolution order:
-          1. GITHUB_TOKEN environment variable.
-          2. ``gh auth token`` (active gh CLI session).
+        Token is sourced exclusively from the active ``gh`` CLI session via
+        ``gh auth token``. Requires ``gh auth login`` to have been run beforehand.
 
         All repos are checked before aborting so the caller sees the full
         list of failures in a single run. Raises SystemExit if the token is
@@ -268,26 +266,29 @@ class RockBranchingAutomation:
         self.log(f"  Verifying push/admin access for {len(plan)} repo(s)")
         self.log("=" * 60)
 
-        # Prefer an explicit env var; fall back to the active gh CLI session
-        # so users who ran `gh auth login` don't need to export a token manually.
-        token = os.environ.get("GITHUB_TOKEN")
-        if not token:
-            try:
-                result = subprocess.run(
-                    ["gh", "auth", "token"],
-                    stdout=subprocess.PIPE,
-                    stderr=subprocess.PIPE,
-                    text=True,
-                    check=True,
-                )
-                token = result.stdout.strip()
-            except (subprocess.CalledProcessError, FileNotFoundError):
-                # gh not installed or not logged in — handled below.
-                pass
+        # Retrieve the token from the active gh CLI session.
+        # Requires `gh auth login` to have been run beforehand.
+        try:
+            result = subprocess.run(
+                ["gh", "auth", "token"],
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
+                text=True,
+                check=True,
+            )
+            token = result.stdout.strip()
+        except FileNotFoundError:
+            raise SystemExit(
+                "ERROR: gh CLI not found. Install it from https://cli.github.com "
+                "and run: gh auth login"
+            )
+        except subprocess.CalledProcessError:
+            raise SystemExit(
+                "ERROR: Not authenticated with gh CLI. Run: gh auth login"
+            )
         if not token:
             raise SystemExit(
-                "ERROR: No GitHub token found. Either set GITHUB_TOKEN or "
-                "authenticate with: gh auth login"
+                "ERROR: gh auth token returned an empty token. Run: gh auth login"
             )
 
         failed_repos: dict[str, str] = {}
