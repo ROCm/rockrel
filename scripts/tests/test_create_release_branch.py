@@ -10,8 +10,11 @@ Covers:
 - get_submodule_url_map parsing
 - execute_plan behaviour with mocked subprocess calls
 """
+import json
 import subprocess
 import textwrap
+import urllib.error
+import urllib.request
 from pathlib import Path
 from types import SimpleNamespace
 from unittest.mock import MagicMock, call, patch
@@ -233,6 +236,160 @@ class TestExecutePlan:
             if "push" in c.args[0]
         ]
         assert len(push_calls) == 1
+
+
+# ---------------------------------------------------------------------------
+# _extract_owner_repo
+# ---------------------------------------------------------------------------
+
+class TestExtractOwnerRepo:
+    @pytest.mark.parametrize("url,owner,repo", [
+        ("https://github.com/ROCm/hip.git",     "ROCm", "hip"),
+        ("https://github.com/ROCm/hip",         "ROCm", "hip"),
+        ("git@github.com:ROCm/hip.git",         "ROCm", "hip"),
+        ("git@github.com:ROCm/hip",             "ROCm", "hip"),
+        ("https://github.com/ROCm/TheRock.git", "ROCm", "TheRock"),
+    ])
+    def test_extraction(self, url, owner, repo):
+        auto = make_automation()
+        assert auto._extract_owner_repo(url) == (owner, repo)
+
+    def test_invalid_url_raises_value_error(self):
+        auto = make_automation()
+        with pytest.raises(ValueError):
+            auto._extract_owner_repo("not-a-url")
+
+
+# ---------------------------------------------------------------------------
+# _check_permissions
+# ---------------------------------------------------------------------------
+
+def _make_permission_plan(tmp_path: Path) -> dict[str, RepoInfo]:
+    return {
+        "hip": RepoInfo(
+            url="https://github.com/ROCm/hip.git",
+            commit="b" * 40,
+            path=tmp_path / "hip",
+        )
+    }
+
+
+def _make_mock_response(permissions: dict) -> MagicMock:
+    mock_resp = MagicMock()
+    mock_resp.read.return_value = json.dumps({"permissions": permissions}).encode()
+    mock_resp.__enter__ = lambda s: s
+    mock_resp.__exit__ = MagicMock(return_value=False)
+    return mock_resp
+
+
+class TestCheckPermissions:
+    def test_missing_token_raises(self, tmp_path, monkeypatch):
+        monkeypatch.delenv("GITHUB_TOKEN", raising=False)
+        auto = make_automation()
+        plan = _make_permission_plan(tmp_path)
+        with pytest.raises(SystemExit) as exc_info:
+            auto._check_permissions(plan)
+        assert "GITHUB_TOKEN" in str(exc_info.value)
+
+    def test_insufficient_permission_raises_with_repo_name(self, tmp_path, monkeypatch):
+        monkeypatch.setenv("GITHUB_TOKEN", "fake-token")
+        auto = make_automation()
+        plan = _make_permission_plan(tmp_path)
+        mock_resp = _make_mock_response({"push": False, "admin": False})
+        with patch("urllib.request.urlopen", return_value=mock_resp):
+            with pytest.raises(SystemExit) as exc_info:
+                auto._check_permissions(plan)
+        assert "hip" in str(exc_info.value)
+
+    def test_all_push_access_passes(self, tmp_path, monkeypatch):
+        monkeypatch.setenv("GITHUB_TOKEN", "fake-token")
+        auto = make_automation()
+        plan = {
+            "hip": RepoInfo(
+                url="https://github.com/ROCm/hip.git",
+                commit="b" * 40,
+                path=tmp_path / "hip",
+            ),
+            "clr": RepoInfo(
+                url="https://github.com/ROCm/clr.git",
+                commit="c" * 40,
+                path=tmp_path / "clr",
+            ),
+        }
+        mock_resp = _make_mock_response({"push": True, "admin": False})
+        with patch("urllib.request.urlopen", return_value=mock_resp):
+            auto._check_permissions(plan)  # must not raise
+
+    def test_admin_access_passes(self, tmp_path, monkeypatch):
+        monkeypatch.setenv("GITHUB_TOKEN", "fake-token")
+        auto = make_automation()
+        plan = _make_permission_plan(tmp_path)
+        mock_resp = _make_mock_response({"push": False, "admin": True})
+        with patch("urllib.request.urlopen", return_value=mock_resp):
+            auto._check_permissions(plan)  # must not raise
+
+    def test_http_403_raises_with_repo_name(self, tmp_path, monkeypatch):
+        monkeypatch.setenv("GITHUB_TOKEN", "fake-token")
+        auto = make_automation()
+        plan = _make_permission_plan(tmp_path)
+        with patch(
+            "urllib.request.urlopen",
+            side_effect=urllib.error.HTTPError(
+                url=None, code=403, msg="Forbidden", hdrs=None, fp=None
+            ),
+        ):
+            with pytest.raises(SystemExit) as exc_info:
+                auto._check_permissions(plan)
+        assert "hip" in str(exc_info.value)
+
+    def test_http_404_raises_with_repo_name(self, tmp_path, monkeypatch):
+        monkeypatch.setenv("GITHUB_TOKEN", "fake-token")
+        auto = make_automation()
+        plan = _make_permission_plan(tmp_path)
+        with patch(
+            "urllib.request.urlopen",
+            side_effect=urllib.error.HTTPError(
+                url=None, code=404, msg="Not Found", hdrs=None, fp=None
+            ),
+        ):
+            with pytest.raises(SystemExit) as exc_info:
+                auto._check_permissions(plan)
+        assert "hip" in str(exc_info.value)
+
+    def test_multiple_failures_summary_lists_all(self, tmp_path, monkeypatch):
+        monkeypatch.setenv("GITHUB_TOKEN", "fake-token")
+        auto = make_automation()
+        plan = {
+            "hip": RepoInfo(
+                url="https://github.com/ROCm/hip.git",
+                commit="b" * 40,
+                path=tmp_path / "hip",
+            ),
+            "clr": RepoInfo(
+                url="https://github.com/ROCm/clr.git",
+                commit="c" * 40,
+                path=tmp_path / "clr",
+            ),
+        }
+        mock_resp = _make_mock_response({"push": False, "admin": False})
+        with patch("urllib.request.urlopen", return_value=mock_resp):
+            with pytest.raises(SystemExit) as exc_info:
+                auto._check_permissions(plan)
+        msg = str(exc_info.value)
+        assert "hip" in msg
+        assert "clr" in msg
+
+    def test_network_error_recorded_as_failure(self, tmp_path, monkeypatch):
+        monkeypatch.setenv("GITHUB_TOKEN", "fake-token")
+        auto = make_automation()
+        plan = _make_permission_plan(tmp_path)
+        with patch(
+            "urllib.request.urlopen",
+            side_effect=urllib.error.URLError("connection refused"),
+        ):
+            with pytest.raises(SystemExit) as exc_info:
+                auto._check_permissions(plan)
+        assert "hip" in str(exc_info.value)
 
 
 # ---------------------------------------------------------------------------

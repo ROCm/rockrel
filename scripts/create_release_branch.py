@@ -52,13 +52,17 @@ Options:
                          (default: /tmp/rock-branching-cache)
 """
 import argparse
+import json
 import logging
+import os
 import re
 import shlex
 import shutil
 import subprocess
 import sys
 import tempfile
+import urllib.error
+import urllib.request
 from dataclasses import dataclass
 from pathlib import Path
 from pprint import pformat
@@ -243,6 +247,106 @@ class RockBranchingAutomation:
         )
         return bool(output)
 
+    def _check_permissions(self, plan: dict[str, "RepoInfo"]) -> None:
+        """Check GitHub push/admin permissions for every repo in the plan.
+
+        Reads GITHUB_TOKEN from the environment. Checks all repos before
+        aborting so the user sees the complete list of failures at once.
+        Raises SystemExit if the token is missing or any repo lacks access.
+        """
+        self.log("=" * 60)
+        self.log("  GitHub Permission Check")
+        self.log(f"  Verifying push/admin access for {len(plan)} repo(s)")
+        self.log("=" * 60)
+
+        token = os.environ.get("GITHUB_TOKEN")
+        if not token:
+            try:
+                result = subprocess.run(
+                    ["gh", "auth", "token"],
+                    stdout=subprocess.PIPE,
+                    stderr=subprocess.PIPE,
+                    text=True,
+                    check=True,
+                )
+                token = result.stdout.strip()
+            except (subprocess.CalledProcessError, FileNotFoundError):
+                pass
+        if not token:
+            raise SystemExit(
+                "ERROR: No GitHub token found. Either set GITHUB_TOKEN or "
+                "authenticate with: gh auth login"
+            )
+
+        failed_repos: dict[str, str] = {}
+        for repo_name, info in plan.items():
+            try:
+                owner, repo = self._extract_owner_repo(info.url)
+            except ValueError as exc:
+                failed_repos[repo_name] = f"URL parse error: {exc}"
+                continue
+
+            api_url = f"https://api.github.com/repos/{owner}/{repo}"
+            req = urllib.request.Request(
+                api_url,
+                headers={
+                    "Authorization": f"token {token}",
+                    "Accept": "application/vnd.github+json",
+                    "X-GitHub-Api-Version": "2022-11-28",
+                },
+            )
+            try:
+                with urllib.request.urlopen(req, timeout=15) as resp:
+                    data = json.loads(resp.read())
+            except urllib.error.HTTPError as exc:
+                if exc.code == 403:
+                    failed_repos[repo_name] = (
+                        f"HTTP 403 Forbidden — token lacks access to "
+                        f"{owner}/{repo}"
+                    )
+                elif exc.code == 404:
+                    failed_repos[repo_name] = (
+                        f"HTTP 404 — repo {owner}/{repo} not found "
+                        "(token may lack visibility)"
+                    )
+                else:
+                    failed_repos[repo_name] = (
+                        f"HTTP {exc.code} from GitHub API for {owner}/{repo}"
+                    )
+                continue
+            except urllib.error.URLError as exc:
+                failed_repos[repo_name] = (
+                    f"Network error checking {owner}/{repo}: {exc.reason}"
+                )
+                continue
+
+            perms = data.get("permissions", {})
+            has_access = perms.get("push", False) or perms.get("admin", False)
+            if has_access:
+                self.log(f"Permission check OK: {owner}/{repo}")
+            else:
+                failed_repos[repo_name] = (
+                    f"Insufficient permissions for {owner}/{repo}: "
+                    f"push={perms.get('push')}, admin={perms.get('admin')}"
+                )
+
+        passed = len(plan) - len(failed_repos)
+        self.log("=" * 60)
+        self.log("  Permission Check Summary")
+        self.log(f"  Passed : {passed} / {len(plan)} repo(s)")
+        self.log(f"  Failed : {len(failed_repos)} / {len(plan)} repo(s)")
+        self.log("=" * 60)
+
+        if failed_repos:
+            lines = [
+                f"  {name}: {reason}" for name, reason in failed_repos.items()
+            ]
+            raise SystemExit(
+                f"ERROR: Permission check failed for {len(failed_repos)} "
+                f"repo(s). Aborting before any branches are created.\n"
+                + "\n".join(lines)
+            )
+
     def _create_branch(self, commit: str, repo_dir: Path) -> None:
         """Create (or reset) the release branch at the given commit."""
         self.run_command(
@@ -341,6 +445,16 @@ class RockBranchingAutomation:
             path = url.replace("https://github.com/", "")
             return f"git@github.com:{path}"
         return url
+
+    def _extract_owner_repo(self, url: str) -> tuple[str, str]:
+        """Extract (owner, repo) from a GitHub HTTPS or SSH URL."""
+        m = re.match(r"https://github\.com/([^/]+)/([^/]+?)(?:\.git)?$", url)
+        if m:
+            return m.group(1), m.group(2)
+        m = re.match(r"git@github\.com:([^/]+)/([^/]+?)(?:\.git)?$", url)
+        if m:
+            return m.group(1), m.group(2)
+        raise ValueError(f"Cannot extract owner/repo from URL: {url!r}")
 
     def get_submodule_url_map(self, repo_dir: Path) -> dict[str, str]:
         """Return mapping of submodule working-tree paths to remote URLs."""
@@ -571,6 +685,7 @@ class RockBranchingAutomation:
         """Build the execution plan and execute it."""
         plan = self.build_plan()
         self.log(f"Execution plan:\n{pformat(plan)}")
+        self._check_permissions(plan)
         self.execute_plan(plan)
 
 
