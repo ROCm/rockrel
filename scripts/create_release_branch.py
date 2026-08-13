@@ -250,15 +250,26 @@ class RockBranchingAutomation:
     def _check_permissions(self, plan: dict[str, "RepoInfo"]) -> None:
         """Check GitHub push/admin permissions for every repo in the plan.
 
-        Reads GITHUB_TOKEN from the environment. Checks all repos before
-        aborting so the user sees the complete list of failures at once.
-        Raises SystemExit if the token is missing or any repo lacks access.
+        Uses the GitHub REST API (GET /repos/{owner}/{repo}) to inspect the
+        ``permissions`` field returned for the authenticated user. Both
+        ``push`` and ``admin`` access are accepted — either is sufficient to
+        create and push a branch.
+
+        Token resolution order:
+          1. GITHUB_TOKEN environment variable.
+          2. ``gh auth token`` (active gh CLI session).
+
+        All repos are checked before aborting so the caller sees the full
+        list of failures in a single run. Raises SystemExit if the token is
+        missing or any repo lacks the required access level.
         """
         self.log("=" * 60)
         self.log("  GitHub Permission Check")
         self.log(f"  Verifying push/admin access for {len(plan)} repo(s)")
         self.log("=" * 60)
 
+        # Prefer an explicit env var; fall back to the active gh CLI session
+        # so users who ran `gh auth login` don't need to export a token manually.
         token = os.environ.get("GITHUB_TOKEN")
         if not token:
             try:
@@ -271,6 +282,7 @@ class RockBranchingAutomation:
                 )
                 token = result.stdout.strip()
             except (subprocess.CalledProcessError, FileNotFoundError):
+                # gh not installed or not logged in — handled below.
                 pass
         if not token:
             raise SystemExit(
@@ -280,18 +292,22 @@ class RockBranchingAutomation:
 
         failed_repos: dict[str, str] = {}
         for repo_name, info in plan.items():
+            # Parse owner/repo from the URL before hitting the API.
             try:
                 owner, repo = self._extract_owner_repo(info.url)
             except ValueError as exc:
                 failed_repos[repo_name] = f"URL parse error: {exc}"
                 continue
 
+            # GET /repos/{owner}/{repo} returns a `permissions` object that
+            # reflects exactly what the authenticated user can do on that repo.
             api_url = f"https://api.github.com/repos/{owner}/{repo}"
             req = urllib.request.Request(
                 api_url,
                 headers={
                     "Authorization": f"token {token}",
                     "Accept": "application/vnd.github+json",
+                    # Pin the API version for stable field names.
                     "X-GitHub-Api-Version": "2022-11-28",
                 },
             )
@@ -299,6 +315,9 @@ class RockBranchingAutomation:
                 with urllib.request.urlopen(req, timeout=15) as resp:
                     data = json.loads(resp.read())
             except urllib.error.HTTPError as exc:
+                # 403 — token valid but explicitly denied.
+                # 404 — GitHub hides private repos as 404 when the token has
+                #        no visibility; treat it the same as access denied.
                 if exc.code == 403:
                     failed_repos[repo_name] = (
                         f"HTTP 403 Forbidden — token lacks access to "
@@ -320,6 +339,8 @@ class RockBranchingAutomation:
                 )
                 continue
 
+            # `push` is the minimum write access needed to create a branch.
+            # `admin` implies all permissions including push, so accept either.
             perms = data.get("permissions", {})
             has_access = perms.get("push", False) or perms.get("admin", False)
             if has_access:
@@ -330,6 +351,7 @@ class RockBranchingAutomation:
                     f"push={perms.get('push')}, admin={perms.get('admin')}"
                 )
 
+        # Always print the summary so the user sees the counts even on failure.
         passed = len(plan) - len(failed_repos)
         self.log("=" * 60)
         self.log("  Permission Check Summary")
@@ -447,10 +469,20 @@ class RockBranchingAutomation:
         return url
 
     def _extract_owner_repo(self, url: str) -> tuple[str, str]:
-        """Extract (owner, repo) from a GitHub HTTPS or SSH URL."""
+        """Extract (owner, repo) from a GitHub HTTPS or SSH URL.
+
+        Handles both URL forms that appear in .gitmodules:
+          https://github.com/ROCm/hip.git  →  ("ROCm", "hip")
+          git@github.com:ROCm/hip.git      →  ("ROCm", "hip")
+
+        The .git suffix is optional in both cases.
+        Raises ValueError for any URL that does not match either pattern.
+        """
+        # HTTPS form: https://github.com/OWNER/REPO[.git]
         m = re.match(r"https://github\.com/([^/]+)/([^/]+?)(?:\.git)?$", url)
         if m:
             return m.group(1), m.group(2)
+        # SSH form: git@github.com:OWNER/REPO[.git]
         m = re.match(r"git@github\.com:([^/]+)/([^/]+?)(?:\.git)?$", url)
         if m:
             return m.group(1), m.group(2)
