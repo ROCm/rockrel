@@ -1,4 +1,4 @@
-name: Reconcile Express Train requests
+name: Reconcile cherry-pick requests
 
 on:
   schedule:
@@ -6,7 +6,7 @@ on:
   workflow_dispatch:
     inputs:
       train_id:
-        description: Express Train ID, or leave empty for every active train
+        description: Destination train ID, or leave empty for every active train
         required: false
         type: string
       automation_ref:
@@ -51,7 +51,7 @@ jobs:
           import json
           import os
 
-          config = json.load(open("config/express-trains.json"))
+          config = json.load(open("config/cherry-pick-trains.json"))
           requested = os.environ.get("REQUESTED_TRAIN", "")
           trains = [
               {"id": item["id"], "mode": item["mode"]}
@@ -130,21 +130,21 @@ jobs:
           JIRA_URL: ${{ secrets.ROCM_CHERRYPICK_JIRA_URL }}
           JIRA_TOKEN: ${{ secrets.ROCM_CHERRYPICK_JIRA_TOKEN }}
         run: |
-          python3 -m scripts.express_train \
-            --config config/express-trains.json \
+          python3 -m scripts.cherry_pick \
+            --config config/cherry-pick-trains.json \
             reconcile \
             --train "${{ matrix.train.id }}" \
             --repo-dir "ROCm/TheRock=$GITHUB_WORKSPACE/sources/TheRock" \
             --repo-dir "ROCm/rocm-systems=$GITHUB_WORKSPACE/sources/rocm-systems" \
             --repo-dir "ROCm/rocm-libraries=$GITHUB_WORKSPACE/sources/rocm-libraries" \
-            | tee "$RUNNER_TEMP/express-train-reconcile.json"
+            | tee "$RUNNER_TEMP/cherry-pick-reconcile.json"
         working-directory: automation
       - name: Upload reconciliation evidence
         if: always()
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         with:
-          name: express-train-reconcile-${{ matrix.train.id }}-${{ github.run_id }}
-          path: ${{ runner.temp }}/express-train-reconcile.json
+          name: cherry-pick-reconcile-${{ matrix.train.id }}-${{ github.run_id }}
+          path: ${{ runner.temp }}/cherry-pick-reconcile.json
           if-no-files-found: warn
 
   create-drafts:
@@ -206,8 +206,8 @@ jobs:
           JIRA_URL: ${{ secrets.ROCM_CHERRYPICK_JIRA_URL }}
           JIRA_TOKEN: ${{ secrets.ROCM_CHERRYPICK_JIRA_TOKEN }}
         run: |
-          python3 -m scripts.express_train \
-            --config config/express-trains.json \
+          python3 -m scripts.cherry_pick \
+            --config config/cherry-pick-trains.json \
             reconcile \
             --train "${{ matrix.train.id }}" \
             --repo-dir "ROCm/TheRock=$GITHUB_WORKSPACE/sources/TheRock" \
@@ -215,12 +215,12 @@ jobs:
             --repo-dir "ROCm/rocm-libraries=$GITHUB_WORKSPACE/sources/rocm-libraries" \
             --create-drafts \
             --publish-status \
-            | tee "$RUNNER_TEMP/express-train-reconcile-create.json"
+            | tee "$RUNNER_TEMP/cherry-pick-reconcile-create.json"
         working-directory: automation
       - name: Upload creation evidence
         if: always()
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         with:
-          name: express-train-reconcile-create-${{ matrix.train.id }}-${{ github.run_id }}
-          path: ${{ runner.temp }}/express-train-reconcile-create.json
+          name: cherry-pick-reconcile-create-${{ matrix.train.id }}-${{ github.run_id }}
+          path: ${{ runner.temp }}/cherry-pick-reconcile-create.json
           if-no-files-found: warn

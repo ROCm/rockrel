@@ -1,4 +1,4 @@
-"""Orchestrate one source pull request and one Express Train."""
+"""Orchestrate one source pull request and one destination-branch train."""
 
 from __future__ import annotations
 
@@ -7,7 +7,7 @@ from pathlib import Path
 from typing import Any
 
 from .clients import GitHubClient, JiraClient, extract_jira_keys, parse_pull_request_url
-from .config import ExpressTrainConfig
+from .config import TrainCatalog
 from .coverage import find_covering_pull
 from .git import evaluate_cherry_pick
 from .models import Result, Status
@@ -19,11 +19,11 @@ def automation_branch(train_id: str, source_number: int) -> str:
 
 
 def identity_marker(repository: str, source_number: int, train_id: str) -> str:
-    return f"<!-- express-train:{repository}#{source_number}:{train_id} -->"
+    return f"<!-- cherry-pick:{repository}#{source_number}:{train_id} -->"
 
 
 def status_marker(train_id: str) -> str:
-    return f"<!-- express-train-status:{train_id} -->"
+    return f"<!-- cherry-pick-status:{train_id} -->"
 
 
 def render_pull_body(
@@ -37,9 +37,9 @@ def render_pull_body(
     return (
         f"{marker}\n"
         f"Cherry-picks [`{source_sha}`]({source_url}/commits/{source_sha}) from "
-        f"{source_url} for Express Train `{train_id}`.\n\n"
+        f"{source_url} for train `{train_id}`.\n\n"
         "This pull request was created as a draft and remains a draft until an "
-        "operator completes target-branch review. The automation never marks it "
+        "operator completes destination-branch review. The automation never marks it "
         "ready or merges it.\n\n"
         "## Source pull request\n\n"
         f"{source_body.strip() or '_No source description was provided._'}\n"
@@ -48,12 +48,12 @@ def render_pull_body(
 
 def render_status_comment(result: Result) -> str:
     lines = [
-        "## Express Train cherry-pick status",
+        "## Cherry-pick status",
         "",
         f"- Train: `{result.train_id}`",
         f"- Status: `{result.status.value}`",
         f"- Reason: `{result.reason_code}`",
-        f"- Target: `{result.target_branch}`",
+        f"- Destination: `{result.destination_branch}`",
     ]
     if result.pull_request_url:
         lines.append(f"- Pull request: {result.pull_request_url}")
@@ -66,9 +66,9 @@ class Planner:
 
     def __init__(
         self,
-        config: ExpressTrainConfig,
+        config: TrainCatalog,
         github: GitHubClient,
-        jira: JiraClient,
+        jira: JiraClient | None,
         *,
         evaluator: Callable[[Path, str, str], Result] = evaluate_cherry_pick,
         coverage_evaluator: Callable[
@@ -87,7 +87,7 @@ class Planner:
         *,
         source_url: str,
         train_id: str,
-        target_branch: str | None,
+        destination_branch: str | None,
         evidence: dict[str, Any] | None = None,
         pull_request_url: str | None = None,
     ) -> Result:
@@ -100,7 +100,7 @@ class Planner:
             evidence=combined,
             source_pr=source_url,
             train_id=train_id,
-            target_branch=target_branch,
+            destination_branch=destination_branch,
             pull_request_url=pull_request_url or result.pull_request_url,
         )
 
@@ -116,8 +116,8 @@ class Planner:
         repository = f"{owner}/{repo}"
         train = self.config.train(train_id)
         repository_config = train.repositories.get(repository)
-        target_branch = (
-            repository_config.target_branch if repository_config else None
+        destination_branch = (
+            repository_config.destination_branch if repository_config else None
         )
         pull = self.github.pull(owner, repo, number)
         current_labels = {
@@ -129,10 +129,10 @@ class Planner:
             return Result(
                 status=Status.CANCELLED,
                 reason_code="train_label_removed",
-                message="The Express Train request label was removed.",
+                message="The cherry-pick request label was removed.",
                 source_pr=source_url,
                 train_id=train_id,
-                target_branch=target_branch,
+                destination_branch=destination_branch,
                 evidence={
                     "source_number": number,
                     "source_repository": repository,
@@ -147,7 +147,7 @@ class Planner:
                 message=f"The source PR does not currently have label {train.label}.",
                 source_pr=source_url,
                 train_id=train_id,
-                target_branch=target_branch,
+                destination_branch=destination_branch,
                 evidence={
                     "source_number": number,
                     "source_repository": repository,
@@ -160,8 +160,11 @@ class Planner:
         label_actor: str | None = None
         permission = "none"
         branch = {"exists": False, "protected": False, "sha": None}
-        jira_keys = extract_jira_keys(
-            f"{pull.get('title') or ''}\n{pull.get('body') or ''}"
+        jira_required = train.requirements.jira_fix_version is not None
+        jira_keys = (
+            extract_jira_keys(f"{pull.get('title') or ''}\n{pull.get('body') or ''}")
+            if jira_required
+            else []
         )
         fix_versions: set[str] = set()
         try:
@@ -177,15 +180,16 @@ class Planner:
         if repository_config is not None:
             try:
                 branch = self.github.branch(
-                    owner, repo, repository_config.target_branch
+                    owner, repo, repository_config.destination_branch
                 )
             except Exception as exc:
-                errors.append(f"github_target_evidence:{type(exc).__name__}")
-        if not jira_keys:
-            fix_versions = set()
-        else:
+                errors.append(f"github_destination_evidence:{type(exc).__name__}")
+        if jira_required and self.jira is None:
+            errors.append("jira_evidence:client_unavailable")
+        elif jira_required:
             for key in jira_keys:
                 try:
+                    assert self.jira is not None
                     fix_versions.update(self.jira.fix_versions(key))
                 except Exception as exc:
                     errors.append(f"jira_evidence:{key}:{type(exc).__name__}")
@@ -198,8 +202,8 @@ class Planner:
             closed=pull.get("state") == "closed",
             label_actor_permission=permission,
             jira_fix_versions=frozenset(fix_versions),
-            target_exists=branch["exists"] is True,
-            target_protected=branch["protected"] is True,
+            destination_exists=branch["exists"] is True,
+            destination_protected=branch["protected"] is True,
             evidence_errors=tuple(errors),
         )
         qualified = qualify_request(train, facts)
@@ -211,7 +215,7 @@ class Planner:
             "source_merge_commit": pull.get("merge_commit_sha"),
             "label_actor": label_actor,
             "jira_keys": jira_keys,
-            "target_head": branch.get("sha"),
+            "destination_head": branch.get("sha"),
             "train_mode": train.mode,
             "event_action": event_action,
         }
@@ -219,7 +223,7 @@ class Planner:
             qualified,
             source_url=source_url,
             train_id=train_id,
-            target_branch=target_branch,
+            destination_branch=destination_branch,
             evidence=base_evidence,
         )
         if qualified.status is not Status.CHERRY_PICK_REQUIRED:
@@ -232,26 +236,26 @@ class Planner:
                 evidence=base_evidence,
                 source_pr=source_url,
                 train_id=train_id,
-                target_branch=target_branch,
+                destination_branch=destination_branch,
             )
 
         marker = identity_marker(repository, number, train_id)
         branch_name = automation_branch(train_id, number)
         try:
-            target_pulls = self.github.pulls(
-                owner, repo, base=repository_config.target_branch, state="all"
+            destination_pulls = self.github.pulls(
+                owner, repo, base=repository_config.destination_branch, state="all"
             )
         except Exception as exc:
             return Result(
                 status=Status.BLOCKED,
                 reason_code="existing_pr_evidence_unavailable",
-                message="GitHub could not enumerate existing target pull requests.",
+                message="GitHub could not enumerate existing destination pull requests.",
                 evidence={**base_evidence, "error": type(exc).__name__},
                 source_pr=source_url,
                 train_id=train_id,
-                target_branch=target_branch,
+                destination_branch=destination_branch,
             )
-        for candidate in target_pulls:
+        for candidate in destination_pulls:
             owns_identity = candidate.get("state") == "open" or bool(
                 candidate.get("merged_at")
             )
@@ -262,11 +266,11 @@ class Planner:
                 return Result(
                     status=Status.COVERED_BY_EXISTING_PR,
                     reason_code="existing_identity_match",
-                    message="An existing target pull request owns this source/train identity.",
+                    message="An existing destination pull request owns this source/train identity.",
                     evidence=base_evidence,
                     source_pr=source_url,
                     train_id=train_id,
-                    target_branch=target_branch,
+                    destination_branch=destination_branch,
                     pull_request_url=candidate.get("html_url"),
                 )
             try:
@@ -280,7 +284,7 @@ class Planner:
                 return Result(
                     status=Status.BLOCKED,
                     reason_code="covering_pr_evidence_unavailable",
-                    message="Coverage evaluation for an existing target PR failed.",
+                    message="Coverage evaluation for an existing destination PR failed.",
                     evidence={
                         **base_evidence,
                         "candidate_pull_request": candidate.get("html_url"),
@@ -288,17 +292,17 @@ class Planner:
                     },
                     source_pr=source_url,
                     train_id=train_id,
-                    target_branch=target_branch,
+                    destination_branch=destination_branch,
                 )
             if coverage is not None:
                 return Result(
                     status=Status.COVERED_BY_EXISTING_PR,
                     reason_code=str(coverage["reason"]),
-                    message="An existing target pull request positively covers this change.",
+                    message="An existing destination pull request positively covers this change.",
                     evidence={**base_evidence, "coverage": coverage},
                     source_pr=source_url,
                     train_id=train_id,
-                    target_branch=target_branch,
+                    destination_branch=destination_branch,
                     pull_request_url=str(coverage["pull_request_url"]),
                 )
 
@@ -309,6 +313,6 @@ class Planner:
             git_result,
             source_url=source_url,
             train_id=train_id,
-            target_branch=target_branch,
+            destination_branch=destination_branch,
             evidence=base_evidence,
         )

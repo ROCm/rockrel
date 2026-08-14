@@ -20,8 +20,8 @@ class QualificationFacts:
     closed: bool
     label_actor_permission: str
     jira_fix_versions: frozenset[str]
-    target_exists: bool
-    target_protected: bool
+    destination_exists: bool
+    destination_protected: bool
     evidence_errors: tuple[str, ...] = ()
 
 
@@ -39,7 +39,7 @@ def _result(
         message=message,
         source_pr=facts.source_pr,
         train_id=train.id,
-        target_branch=repository.target_branch if repository else None,
+        destination_branch=repository.destination_branch if repository else None,
         evidence={
             "repository": facts.repository,
             "base_branch": facts.base_branch,
@@ -65,7 +65,7 @@ def qualify_request(train: TrainConfig, facts: QualificationFacts) -> Result:
         return _result(
             Status.INVALID,
             "inactive_train",
-            f"Express Train {train.id} is inactive.",
+            f"Train {train.id} is inactive.",
             train,
             facts,
         )
@@ -74,7 +74,7 @@ def qualify_request(train: TrainConfig, facts: QualificationFacts) -> Result:
         return _result(
             Status.INVALID,
             "repository_not_configured",
-            f"{facts.repository} is not configured for Express Train {train.id}.",
+            f"{facts.repository} is not configured for train {train.id}.",
             train,
             facts,
         )
@@ -94,27 +94,28 @@ def qualify_request(train: TrainConfig, facts: QualificationFacts) -> Result:
             train,
             facts,
         )
-    if train.jira_fix_version not in facts.jira_fix_versions:
+    jira_fix_version = train.requirements.jira_fix_version
+    if jira_fix_version is not None and jira_fix_version not in facts.jira_fix_versions:
         return _result(
             Status.INVALID,
             "jira_fix_version_mismatch",
-            f"No referenced ROCm Jira issue has Fix Version {train.jira_fix_version}.",
+            f"No referenced ROCm Jira issue has Fix Version {jira_fix_version}.",
             train,
             facts,
         )
-    if not facts.target_exists:
+    if not facts.destination_exists:
         return _result(
             Status.INVALID,
-            "target_branch_missing",
-            f"Target branch {repository.target_branch} does not exist.",
+            "destination_branch_missing",
+            f"Destination branch {repository.destination_branch} does not exist.",
             train,
             facts,
         )
-    if not facts.target_protected:
+    if not facts.destination_protected:
         return _result(
             Status.INVALID,
-            "target_branch_not_protected",
-            f"Target branch {repository.target_branch} is not protected by PR rules.",
+            "destination_branch_not_protected",
+            f"Destination branch {repository.destination_branch} is not protected by PR rules.",
             train,
             facts,
         )

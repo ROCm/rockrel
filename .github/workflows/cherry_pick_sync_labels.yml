@@ -1,10 +1,10 @@
-name: Synchronize Express Train labels
+name: Synchronize cherry-pick labels
 
 on:
   workflow_dispatch:
     inputs:
       train_id:
-        description: Express Train ID
+        description: Destination train ID
         required: true
         type: string
       automation_ref:
@@ -40,7 +40,7 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ steps.app-token.outputs.token }}
         run: |
-          python3 -m scripts.express_train \
-            --config config/express-trains.json \
+          python3 -m scripts.cherry_pick \
+            --config config/cherry-pick-trains.json \
             sync-labels \
             --train "${{ inputs.train_id }}"

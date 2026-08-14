@@ -1,4 +1,4 @@
-"""Shared immutable data models for Express Train automation."""
+"""Shared immutable data models for Cherry-pick automation."""
 
 from __future__ import annotations
 
@@ -29,7 +29,7 @@ class Result:
     evidence: dict[str, Any] = field(default_factory=dict)
     source_pr: str | None = None
     train_id: str | None = None
-    target_branch: str | None = None
+    destination_branch: str | None = None
     pull_request_url: str | None = None
 
     def as_dict(self) -> dict[str, Any]:
@@ -56,7 +56,7 @@ class Result:
         if not isinstance(evidence, dict):
             raise ValueError("result evidence must be an object")
         optional_strings = {}
-        for key in ("target_branch", "pull_request_url"):
+        for key in ("destination_branch", "pull_request_url"):
             item = value.get(key)
             if item is not None and not isinstance(item, str):
                 raise ValueError(f"result {key} must be a string or null")
@@ -72,6 +72,6 @@ class Result:
             evidence=evidence,
             source_pr=source_pr,
             train_id=train_id,
-            target_branch=optional_strings["target_branch"],
+            destination_branch=optional_strings["destination_branch"],
             pull_request_url=optional_strings["pull_request_url"],
         )

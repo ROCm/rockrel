@@ -1,4 +1,4 @@
-"""ROCm Express Train cherry-pick automation."""
+"""ROCm Cherry-pick cherry-pick automation."""
 
 from .models import Result, Status
 

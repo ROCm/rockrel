@@ -1,4 +1,4 @@
-"""Side-effect-contained Git planning for Express Train requests."""
+"""Side-effect-contained Git planning for Cherry-pick requests."""
 
 from __future__ import annotations
 
@@ -50,7 +50,7 @@ def _git_result(
 ) -> Result:
     evidence: dict[str, object] = {
         "source_commit": source,
-        "target_head": target,
+        "destination_head": target,
     }
     evidence.update(extra or {})
     return Result(
@@ -114,7 +114,7 @@ def evaluate_cherry_pick(
     parent_count = max(0, len(parents.stdout.split()) - 1)
     mainline = 1 if parent_count > 1 else None
 
-    with tempfile.TemporaryDirectory(prefix="express-train-plan-") as temp_root:
+    with tempfile.TemporaryDirectory(prefix="cherry-pick-plan-") as temp_root:
         worktree = Path(temp_root) / "worktree"
         add = _run(repo_path, "worktree", "add", "--detach", str(worktree), target)
         if add.returncode != 0:

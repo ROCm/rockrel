@@ -1,6 +1,6 @@
 # Generated callers must pin both rockrel references below to the same reviewed
-# immutable commit SHA. Use scripts/render_express_train_workflow.py.
-name: Express Train cherry-pick request
+# immutable commit SHA. Use scripts/render_cherry_pick_workflow.py.
+name: Cherry-pick request
 
 on:
   pull_request_target:
@@ -15,7 +15,7 @@ jobs:
     outputs:
       trains: ${{ steps.labels.outputs.trains }}
     steps:
-      - name: Select Express Train labels from event metadata
+      - name: Select cherry-pick labels from event metadata
         id: labels
         env:
           ACTION: ${{ github.event.action }}
@@ -28,9 +28,9 @@ jobs:
 
           labels = json.loads(os.environ["PR_LABELS"])
           event_label = os.environ.get("EVENT_LABEL", "")
-          if event_label.startswith("express-train:"):
+          if event_label.startswith("cherry-pick:"):
               labels.append(event_label)
-          trains = sorted({label.split(":", 1)[1] for label in labels if label.startswith("express-train:")})
+          trains = sorted({label.split(":", 1)[1] for label in labels if label.startswith("cherry-pick:")})
           print(f"trains={json.dumps(trains)}")
           PY
 
@@ -41,7 +41,7 @@ jobs:
       fail-fast: false
       matrix:
         train: ${{ fromJSON(needs.discover.outputs.trains) }}
-    uses: ROCm/rockrel/.github/workflows/express_train_cherry_pick.yml@ROCKREL_AUTOMATION_SHA
+    uses: ROCm/rockrel/.github/workflows/cherry_pick.yml@ROCKREL_AUTOMATION_SHA
     with:
       source_pr: ${{ github.event.pull_request.html_url }}
       train_id: ${{ matrix.train }}

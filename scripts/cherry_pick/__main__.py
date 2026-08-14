@@ -1,4 +1,4 @@
-"""Command-line entry point for Express Train cherry-pick automation."""
+"""Command-line entry point for label-driven cherry-pick automation."""
 
 from __future__ import annotations
 
@@ -17,12 +17,12 @@ from .orchestrator import Planner, render_status_comment, status_marker
 from .writer import DraftWriter
 
 
-DEFAULT_CONFIG = Path(__file__).parents[2] / "config" / "express-trains.json"
+DEFAULT_CONFIG = Path(__file__).parents[2] / "config" / "cherry-pick-trains.json"
 
 
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
-        description="Plan and create draft ROCm Express Train cherry-picks."
+        description="Plan and create draft ROCm destination-branch cherry-picks."
     )
     parser.add_argument("--config", type=Path, default=DEFAULT_CONFIG)
     subparsers = parser.add_subparsers(dest="command", required=True)
@@ -118,7 +118,7 @@ def main(
                 repo,
                 name=train.label,
                 description=(
-                    f"Request a draft cherry-pick for Express Train {train.id}"
+                    f"Request a draft cherry-pick for train {train.id}"
                 ),
             )
         print(
@@ -134,11 +134,13 @@ def main(
         )
         return 0
 
-    jira_url = _credential(environ, "JIRA_URL", stderr)
-    jira_token = _credential(environ, "JIRA_TOKEN", stderr)
-    if jira_url is None or jira_token is None:
-        return 2
-    jira = jira_factory(jira_url, jira_token)
+    jira = None
+    if train.requirements.jira_fix_version is not None:
+        jira_url = _credential(environ, "JIRA_URL", stderr)
+        jira_token = _credential(environ, "JIRA_TOKEN", stderr)
+        if jira_url is None or jira_token is None:
+            return 2
+        jira = jira_factory(jira_url, jira_token)
     planner = planner_factory(config, github, jira)
 
     if args.command == "reconcile":

@@ -107,7 +107,7 @@ class GitHubClient:
             "Accept": GITHUB_ACCEPT,
             "Authorization": f"Bearer {self.token}",
             "X-GitHub-Api-Version": GITHUB_API_VERSION,
-            "User-Agent": "rocm-rockrel-express-train",
+            "User-Agent": "rocm-rockrel-cherry-pick",
         }
         payload = None
         if body is not None:
@@ -349,7 +349,7 @@ class JiraClient:
         headers = {
             "Accept": "application/json",
             "Authorization": f"Bearer {self.token}",
-            "User-Agent": "rocm-rockrel-express-train",
+            "User-Agent": "rocm-rockrel-cherry-pick",
         }
         response = self.transport.request(
             "GET",

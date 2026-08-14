@@ -33,7 +33,7 @@ def main() -> int:
     parser.add_argument(
         "--template",
         type=Path,
-        default=Path(__file__).parents[1] / "templates/express_train_request.yml",
+        default=Path(__file__).parents[1] / "templates/cherry_pick_request.yml",
     )
     parser.add_argument("--sha", required=True)
     parser.add_argument("--output", type=Path, required=True)

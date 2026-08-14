@@ -1,4 +1,4 @@
-"""Load and validate version-controlled Express Train configuration."""
+"""Load and validate version-controlled cherry-pick train configuration."""
 
 from __future__ import annotations
 
@@ -15,7 +15,7 @@ SUPPORTED_REPOSITORIES = frozenset(
 VALID_STATES = frozenset({"active", "inactive"})
 VALID_MODES = frozenset({"disabled", "validate", "shadow", "create-draft"})
 TRAIN_ID_RE = re.compile(r"[A-Za-z0-9][A-Za-z0-9._-]{0,63}\Z")
-LABEL_PREFIX = "express-train:"
+LABEL_PREFIX = "cherry-pick:"
 
 
 class ConfigError(ValueError):
@@ -25,24 +25,26 @@ class ConfigError(ValueError):
 @dataclass(frozen=True)
 class RepositoryConfig:
     source_branch: str
-    target_branch: str
+    destination_branch: str
+
+
+@dataclass(frozen=True)
+class TrainRequirements:
+    jira_fix_version: str | None = None
 
 
 @dataclass(frozen=True)
 class TrainConfig:
     id: str
-    jira_fix_version: str
+    label: str
     state: str
     mode: str
+    requirements: TrainRequirements
     repositories: dict[str, RepositoryConfig]
-
-    @property
-    def label(self) -> str:
-        return f"{LABEL_PREFIX}{self.id}"
 
 
 @dataclass(frozen=True)
-class ExpressTrainConfig:
+class TrainCatalog:
     trains: dict[str, TrainConfig]
 
     def train(self, train_id: str) -> TrainConfig:
@@ -50,6 +52,15 @@ class ExpressTrainConfig:
             return self.trains[train_id]
         except KeyError as exc:
             raise ConfigError(f"unknown train id: {train_id}") from exc
+
+    def train_for_label(self, label: str) -> TrainConfig:
+        train_id = parse_train_label(label)
+        if train_id is None:
+            raise ConfigError(f"invalid train label: {label}")
+        train = self.train(train_id)
+        if train.label != label:
+            raise ConfigError(f"unknown train label: {label}")
+        return train
 
 
 def _required_string(value: dict[str, Any], key: str, context: str) -> str:
@@ -59,21 +70,55 @@ def _required_string(value: dict[str, Any], key: str, context: str) -> str:
     return item
 
 
+def _valid_branch(branch: str) -> bool:
+    """Apply the safety-relevant subset of git-check-ref-format rules."""
+
+    return not (
+        branch.startswith("-")
+        or branch.startswith("/")
+        or branch.endswith(("/", "."))
+        or ".." in branch
+        or "//" in branch
+        or "@{" in branch
+        or branch.endswith(".lock")
+        or any(character.isspace() or ord(character) < 32 for character in branch)
+        or any(character in "~^:?*[\\" for character in branch)
+    )
+
+
 def _parse_repository(name: str, raw: Any, context: str) -> RepositoryConfig:
     if name not in SUPPORTED_REPOSITORIES:
         raise ConfigError(f"unsupported repository: {name}")
     if not isinstance(raw, dict):
         raise ConfigError(f"{context} must be an object")
     source = _required_string(raw, "source_branch", context)
-    target = _required_string(raw, "target_branch", context)
-    expected_source = "main" if name == "ROCm/TheRock" else "develop"
-    if source != expected_source:
-        raise ConfigError(
-            f"{context}.source_branch must be {expected_source!r}, got {source!r}"
-        )
-    if not target.startswith("release/"):
-        raise ConfigError(f"{context}.target_branch must start with release/")
-    return RepositoryConfig(source_branch=source, target_branch=target)
+    destination = _required_string(raw, "destination_branch", context)
+    if not _valid_branch(source):
+        raise ConfigError(f"{context}.source_branch is not a safe Git branch")
+    if not _valid_branch(destination):
+        raise ConfigError(f"{context}.destination_branch is not a safe Git branch")
+    if not destination.startswith("release/"):
+        raise ConfigError(f"{context}.destination_branch must start with release/")
+    return RepositoryConfig(
+        source_branch=source,
+        destination_branch=destination,
+    )
+
+
+def _parse_requirements(raw: Any, context: str) -> TrainRequirements:
+    if raw is None:
+        raw = {}
+    if not isinstance(raw, dict):
+        raise ConfigError(f"{context} must be an object")
+    unsupported = set(raw) - {"jira_fix_version"}
+    if unsupported:
+        raise ConfigError(f"unsupported requirement: {sorted(unsupported)[0]}")
+    jira_fix_version = raw.get("jira_fix_version")
+    if jira_fix_version is not None and (
+        not isinstance(jira_fix_version, str) or not jira_fix_version.strip()
+    ):
+        raise ConfigError(f"{context}.jira_fix_version must be a non-empty string")
+    return TrainRequirements(jira_fix_version=jira_fix_version)
 
 
 def _parse_train(raw: Any, index: int) -> TrainConfig:
@@ -83,13 +128,17 @@ def _parse_train(raw: Any, index: int) -> TrainConfig:
     train_id = _required_string(raw, "id", context)
     if TRAIN_ID_RE.fullmatch(train_id) is None:
         raise ConfigError(f"{context}.id is invalid: {train_id!r}")
-    jira_fix_version = _required_string(raw, "jira_fix_version", context)
+    label = _required_string(raw, "label", context)
+    expected_label = f"{LABEL_PREFIX}{train_id}"
+    if label != expected_label:
+        raise ConfigError(f"{context}.label must be {expected_label!r}")
     state = _required_string(raw, "state", context)
     mode = _required_string(raw, "mode", context)
     if state not in VALID_STATES:
         raise ConfigError(f"{context}.state must be one of {sorted(VALID_STATES)}")
     if mode not in VALID_MODES:
         raise ConfigError(f"{context}.mode must be one of {sorted(VALID_MODES)}")
+    requirements = _parse_requirements(raw.get("requirements"), f"{context}.requirements")
     raw_repositories = raw.get("repositories")
     if not isinstance(raw_repositories, dict) or not raw_repositories:
         raise ConfigError(f"{context}.repositories must be a non-empty object")
@@ -99,22 +148,23 @@ def _parse_train(raw: Any, index: int) -> TrainConfig:
     }
     return TrainConfig(
         id=train_id,
-        jira_fix_version=jira_fix_version,
+        label=label,
         state=state,
         mode=mode,
+        requirements=requirements,
         repositories=repositories,
     )
 
 
-def load_config(path: str | Path) -> ExpressTrainConfig:
+def load_config(path: str | Path) -> TrainCatalog:
     """Read *path*, validate all fields, and return immutable train objects."""
 
     try:
         raw = json.loads(Path(path).read_text())
     except (OSError, json.JSONDecodeError) as exc:
         raise ConfigError(f"cannot load train configuration: {exc}") from exc
-    if not isinstance(raw, dict) or raw.get("schema_version") != 1:
-        raise ConfigError("schema_version must be 1")
+    if not isinstance(raw, dict) or raw.get("schema_version") != 2:
+        raise ConfigError("schema_version must be 2")
     raw_trains = raw.get("trains")
     if not isinstance(raw_trains, list):
         raise ConfigError("trains must be an array")
@@ -124,11 +174,11 @@ def load_config(path: str | Path) -> ExpressTrainConfig:
         if train.id in trains:
             raise ConfigError(f"duplicate train id: {train.id}")
         trains[train.id] = train
-    return ExpressTrainConfig(trains=trains)
+    return TrainCatalog(trains=trains)
 
 
 def parse_train_label(label: str) -> str | None:
-    """Return the train ID encoded by a valid Express Train label."""
+    """Return the train ID encoded by a valid cherry-pick label."""
 
     if not label.startswith(LABEL_PREFIX):
         return None

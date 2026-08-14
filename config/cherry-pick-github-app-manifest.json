@@ -1,5 +1,5 @@
 {
-  "name": "ROCm Express Train Cherry Pick",
+  "name": "ROCm Cherry Pick Automation",
   "url": "https://github.com/ROCm/rockrel",
   "hook_attributes": {
     "url": "https://github.com/ROCm/rockrel",

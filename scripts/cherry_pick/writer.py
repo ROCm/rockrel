@@ -1,4 +1,4 @@
-"""The single draft-only write transaction for Express Train automation."""
+"""The single draft-only write transaction for Cherry-pick automation."""
 
 from __future__ import annotations
 
@@ -50,7 +50,7 @@ def _result_from(
         evidence=combined,
         source_pr=plan.source_pr,
         train_id=plan.train_id,
-        target_branch=plan.target_branch,
+        destination_branch=plan.destination_branch,
         pull_request_url=pull_request_url,
     )
 
@@ -89,10 +89,10 @@ class DraftWriter:
             "source_title",
             "source_body",
             "source_merge_commit",
-            "target_head",
+            "destination_head",
         )
         missing = [key for key in required if plan.evidence.get(key) is None]
-        if missing or plan.target_branch is None or plan.train_id is None:
+        if missing or plan.destination_branch is None or plan.train_id is None:
             return _result_from(
                 plan,
                 Status.BLOCKED,
@@ -101,17 +101,17 @@ class DraftWriter:
             )
 
         source_sha = str(plan.evidence["source_merge_commit"])
-        expected_target = str(plan.evidence["target_head"])
-        actual_target = _remote_head(repo, plan.target_branch)
-        if actual_target != expected_target:
+        expected_destination = str(plan.evidence["destination_head"])
+        actual_destination = _remote_head(repo, plan.destination_branch)
+        if actual_destination != expected_destination:
             return _result_from(
                 plan,
                 Status.BLOCKED,
-                "target_head_moved",
-                "The target branch moved after planning; recompute before writing.",
+                "destination_head_moved",
+                "The destination branch moved after planning; recompute before writing.",
                 evidence={
-                    "expected_target_head": expected_target,
-                    "actual_target_head": actual_target,
+                    "expected_destination_head": expected_destination,
+                    "actual_destination_head": actual_destination,
                 },
             )
 
@@ -128,9 +128,16 @@ class DraftWriter:
             )
         mainline = 1 if len(parent_result.stdout.split()) - 1 > 1 else None
 
-        with tempfile.TemporaryDirectory(prefix="express-train-write-") as temp_root:
+        with tempfile.TemporaryDirectory(prefix="cherry-pick-write-") as temp_root:
             worktree = Path(temp_root) / "worktree"
-            add = _run(repo, "worktree", "add", "--detach", str(worktree), expected_target)
+            add = _run(
+                repo,
+                "worktree",
+                "add",
+                "--detach",
+                str(worktree),
+                expected_destination,
+            )
             if add.returncode != 0:
                 return _result_from(
                     plan,
@@ -221,7 +228,7 @@ class DraftWriter:
                     title=f"{plan.evidence['source_title']} (#{source_number})",
                     body=body,
                     head=branch,
-                    base=plan.target_branch,
+                    base=plan.destination_branch,
                 )
                 return _result_from(
                     plan,
