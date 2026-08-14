@@ -217,6 +217,34 @@ class GitHubClient:
             and isinstance(item.get("html_url"), str)
         ]
 
+    def commit(
+        self, owner: str, repo: str, sha: str
+    ) -> dict[str, Any]:
+        encoded = urllib.parse.quote(sha, safe="")
+        response = self._request(
+            "GET", f"/repos/{owner}/{repo}/commits/{encoded}"
+        )
+        if not isinstance(response, dict):
+            raise ApiError(0, "GitHub commit response was not an object")
+        return response
+
+    def compare(
+        self,
+        owner: str,
+        repo: str,
+        base: str,
+        head: str,
+    ) -> dict[str, Any]:
+        encoded_base = urllib.parse.quote(base, safe="")
+        encoded_head = urllib.parse.quote(head, safe="")
+        response = self._request(
+            "GET",
+            f"/repos/{owner}/{repo}/compare/{encoded_base}...{encoded_head}",
+        )
+        if not isinstance(response, dict):
+            raise ApiError(0, "GitHub compare response was not an object")
+        return response
+
     def remove_label(
         self, owner: str, repo: str, number: int, label: str
     ) -> None:

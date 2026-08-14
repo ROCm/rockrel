@@ -8,6 +8,7 @@ from typing import Any
 
 from .clients import GitHubClient, JiraClient, extract_jira_keys, parse_pull_request_url
 from .config import ExpressTrainConfig
+from .coverage import find_covering_pull
 from .git import evaluate_cherry_pick
 from .models import Result, Status
 from .policy import QualificationFacts, qualify_request
@@ -70,11 +71,15 @@ class Planner:
         jira: JiraClient,
         *,
         evaluator: Callable[[Path, str, str], Result] = evaluate_cherry_pick,
+        coverage_evaluator: Callable[
+            [Path, GitHubClient, str, dict[str, Any]], dict[str, Any] | None
+        ] = find_covering_pull,
     ) -> None:
         self.config = config
         self.github = github
         self.jira = jira
         self.evaluator = evaluator
+        self.coverage_evaluator = coverage_evaluator
 
     @staticmethod
     def _with_context(
@@ -252,6 +257,38 @@ class Planner:
                     train_id=train_id,
                     target_branch=target_branch,
                     pull_request_url=candidate.get("html_url"),
+                )
+            try:
+                coverage = self.coverage_evaluator(
+                    Path(repo_dir),
+                    self.github,
+                    pull["merge_commit_sha"],
+                    candidate,
+                )
+            except Exception as exc:
+                return Result(
+                    status=Status.BLOCKED,
+                    reason_code="covering_pr_evidence_unavailable",
+                    message="Coverage evaluation for an existing target PR failed.",
+                    evidence={
+                        **base_evidence,
+                        "candidate_pull_request": candidate.get("html_url"),
+                        "error": type(exc).__name__,
+                    },
+                    source_pr=source_url,
+                    train_id=train_id,
+                    target_branch=target_branch,
+                )
+            if coverage is not None:
+                return Result(
+                    status=Status.COVERED_BY_EXISTING_PR,
+                    reason_code=str(coverage["reason"]),
+                    message="An existing target pull request positively covers this change.",
+                    evidence={**base_evidence, "coverage": coverage},
+                    source_pr=source_url,
+                    train_id=train_id,
+                    target_branch=target_branch,
+                    pull_request_url=str(coverage["pull_request_url"]),
                 )
 
         git_result = self.evaluator(
