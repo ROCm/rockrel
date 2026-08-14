@@ -66,6 +66,9 @@ class FakeGitHub:
     def upsert_comment(self, owner, repo, number, **kwargs):
         self.comments.append((owner, repo, number, kwargs))
 
+    def search_merged_labeled_pull_requests(self, owner, repo, label):
+        return [FakePlanner.result.source_pr]
+
 
 class FakeJira:
     def __init__(self, base_url, token):
@@ -214,3 +217,28 @@ def test_missing_credentials_fails_without_echoing_secret(tmp_path):
     assert code == 2
     assert "GITHUB_TOKEN" in error.getvalue()
     assert output.getvalue() == ""
+
+
+def test_reconcile_discovers_and_plans_labeled_merged_prs(tmp_path):
+    FakePlanner.calls.clear()
+    output = io.StringIO()
+    code = main(
+        [
+            "--config",
+            str(config_file(tmp_path)),
+            "reconcile",
+            "--train",
+            "10.1-20260811",
+            "--repo-dir",
+            f"ROCm/TheRock={tmp_path}",
+        ],
+        environ=environment(),
+        stdout=output,
+        **dependencies(),
+    )
+    assert code == 0
+    payload = json.loads(output.getvalue())
+    assert payload["status"] == "reconciled"
+    assert payload["mode"] == "plan"
+    assert payload["results"][0]["source_pr"].endswith("/pull/7282")
+    assert FakePlanner.calls[-1][2] == str(tmp_path)
