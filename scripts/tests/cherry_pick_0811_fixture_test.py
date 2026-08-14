@@ -1,17 +1,17 @@
 import json
 from pathlib import Path
 
-from scripts.express_train.clients import parse_pull_request_url
+from scripts.cherry_pick.clients import parse_pull_request_url
 
 
-FIXTURE = Path(__file__).parent / "fixtures/express_train_0811.json"
+FIXTURE = Path(__file__).parent / "fixtures/cherry_pick_0811.json"
 
 
 def test_0811_fixture_contains_all_seven_unique_source_requests():
     fixture = json.loads(FIXTURE.read_text())
     cases = fixture["cases"]
     assert fixture["train_id"] == "10.1-20260811"
-    assert fixture["target_branch"] == "release/bkc/therock-10.1-20260811"
+    assert fixture["destination_branch"] == "release/bkc/therock-10.1-20260811"
     assert len(cases) == 7
     assert len({case["source_pr"] for case in cases}) == 7
     assert len({case["covering_pr"] for case in cases}) == 7

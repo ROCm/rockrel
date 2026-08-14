@@ -2,8 +2,8 @@ import subprocess
 
 import pytest
 
-from scripts.express_train.git import classify_gitlink, evaluate_cherry_pick
-from scripts.express_train.models import Status
+from scripts.cherry_pick.git import classify_gitlink, evaluate_cherry_pick
+from scripts.cherry_pick.models import Status
 
 
 def git(repo, *args, check=True):
@@ -29,8 +29,8 @@ def repo(tmp_path):
     path = tmp_path / "repo"
     path.mkdir()
     git(path, "init", "-b", "main")
-    git(path, "config", "user.name", "Express Train Test")
-    git(path, "config", "user.email", "express-train@example.com")
+    git(path, "config", "user.name", "Cherry-pick Test")
+    git(path, "config", "user.email", "cherry-pick@example.com")
     commit_file(path, "value.txt", "base\n", "base")
     return path
 
@@ -44,7 +44,7 @@ def test_clean_change_is_required_without_mutating_checkout(repo):
     result = evaluate_cherry_pick(repo, source, "release/test")
 
     assert result.status is Status.CHERRY_PICK_REQUIRED
-    assert result.evidence["target_head"] == base
+    assert result.evidence["destination_head"] == base
     assert git(repo, "rev-parse", "HEAD") == original_head
     assert git(repo, "status", "--porcelain") == ""
 

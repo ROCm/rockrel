@@ -3,9 +3,9 @@ from unittest.mock import Mock
 
 import pytest
 
-from scripts.express_train.config import RepositoryConfig, TrainConfig
-from scripts.express_train.models import Result, Status
-from scripts.express_train.writer import DraftWriter
+from scripts.cherry_pick.config import RepositoryConfig, TrainConfig, TrainRequirements
+from scripts.cherry_pick.models import Result, Status
+from scripts.cherry_pick.writer import DraftWriter
 
 
 def git(repo, *args, check=True):
@@ -32,8 +32,8 @@ def repositories(tmp_path):
     git(tmp_path, "init", "--bare", str(remote))
     repo = tmp_path / "work"
     git(tmp_path, "clone", str(remote), str(repo))
-    git(repo, "config", "user.name", "Express Train Test")
-    git(repo, "config", "user.email", "express-train@example.com")
+    git(repo, "config", "user.name", "Cherry-pick Test")
+    git(repo, "config", "user.email", "cherry-pick@example.com")
     git(repo, "checkout", "-b", "main")
     base = commit_file(repo, "value.txt", "base\n", "base")
     git(repo, "push", "origin", "main")
@@ -47,12 +47,13 @@ def repositories(tmp_path):
 def train(mode="create-draft"):
     return TrainConfig(
         id="10.1-20260811",
-        jira_fix_version="10.1.0a20260811",
+        label="cherry-pick:10.1-20260811",
         state="active",
         mode=mode,
+        requirements=TrainRequirements(jira_fix_version="10.1.0a20260811"),
         repositories={
             "ROCm/TheRock": RepositoryConfig(
-                source_branch="main", target_branch="release/test"
+                source_branch="main", destination_branch="release/test"
             )
         },
     )
@@ -65,14 +66,14 @@ def plan(base, source):
         message="clean",
         source_pr="https://github.com/ROCm/TheRock/pull/7282",
         train_id="10.1-20260811",
-        target_branch="release/test",
+        destination_branch="release/test",
         evidence={
             "source_repository": "ROCm/TheRock",
             "source_number": 7282,
             "source_title": "Compiler update ROCM-29371",
             "source_body": "Take ROCM-29371",
             "source_merge_commit": source,
-            "target_head": base,
+            "destination_head": base,
         },
     )
 
@@ -91,7 +92,7 @@ def test_creates_deterministic_branch_and_draft_pull(repositories):
     assert kwargs["head"] == branch
     assert kwargs["base"] == "release/test"
     assert "ROCM-29371" in kwargs["body"]
-    assert "express-train:ROCm/TheRock#7282:10.1-20260811" in kwargs["body"]
+    assert "cherry-pick:ROCm/TheRock#7282:10.1-20260811" in kwargs["body"]
 
 
 def test_refuses_write_outside_create_draft_mode(repositories):
@@ -105,7 +106,7 @@ def test_refuses_write_outside_create_draft_mode(repositories):
     github.create_pull.assert_not_called()
 
 
-def test_target_head_movement_blocks_before_push(repositories):
+def test_destination_head_movement_blocks_before_push(repositories):
     repo, remote, base, source = repositories
     git(repo, "checkout", "release/test")
     moved = commit_file(repo, "moved.txt", "moved\n", "move target")
@@ -115,8 +116,8 @@ def test_target_head_movement_blocks_before_push(repositories):
     result = DraftWriter(github).create(repo, train(), plan(base, source))
 
     assert result.status is Status.BLOCKED
-    assert result.reason_code == "target_head_moved"
-    assert result.evidence["actual_target_head"] == moved
+    assert result.reason_code == "destination_head_moved"
+    assert result.evidence["actual_destination_head"] == moved
     github.create_pull.assert_not_called()
 
 

@@ -2,7 +2,7 @@ from pathlib import Path
 
 import pytest
 
-from scripts.render_express_train_workflow import RenderError, render_workflow
+from scripts.render_cherry_pick_workflow import RenderError, render_workflow
 
 
 def test_renders_every_placeholder_to_immutable_sha(tmp_path):

@@ -1,6 +1,6 @@
 import subprocess
 
-from scripts.express_train.coverage import (
+from scripts.cherry_pick.coverage import (
     extract_cherry_pick_origin,
     find_covering_pull,
 )
@@ -48,8 +48,8 @@ def make_gitlink_repo(tmp_path):
     repo = tmp_path / "therock"
     repo.mkdir()
     git(repo, "init", "-b", "main")
-    git(repo, "config", "user.name", "Express Train Test")
-    git(repo, "config", "user.email", "express-train@example.com")
+    git(repo, "config", "user.name", "Cherry-pick Test")
+    git(repo, "config", "user.email", "cherry-pick@example.com")
     (repo / ".gitmodules").write_text(
         '[submodule "llvm-project"]\n'
         "\tpath = compiler/amd-llvm\n"

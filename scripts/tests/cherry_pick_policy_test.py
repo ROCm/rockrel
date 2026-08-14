@@ -1,18 +1,19 @@
-from scripts.express_train.config import RepositoryConfig, TrainConfig
-from scripts.express_train.models import Status
-from scripts.express_train.policy import QualificationFacts, qualify_request
+from scripts.cherry_pick.config import RepositoryConfig, TrainConfig, TrainRequirements
+from scripts.cherry_pick.models import Status
+from scripts.cherry_pick.policy import QualificationFacts, qualify_request
 
 
 def train(**overrides):
     value = TrainConfig(
         id="10.1-20260811",
-        jira_fix_version="10.1.0a20260811",
+        label="cherry-pick:10.1-20260811",
         state="active",
         mode="validate",
+        requirements=TrainRequirements(jira_fix_version="10.1.0a20260811"),
         repositories={
             "ROCm/TheRock": RepositoryConfig(
                 source_branch="main",
-                target_branch="release/bkc/therock-10.1-20260811",
+                destination_branch="release/bkc/therock-10.1-20260811",
             )
         },
     )
@@ -28,8 +29,8 @@ def facts(**overrides):
         "closed": True,
         "label_actor_permission": "write",
         "jira_fix_versions": frozenset({"10.1.0a20260811"}),
-        "target_exists": True,
-        "target_protected": True,
+        "destination_exists": True,
+        "destination_protected": True,
         "evidence_errors": (),
     }
     value.update(overrides)
@@ -88,16 +89,24 @@ def test_missing_fix_version_is_invalid():
     assert result.reason_code == "jira_fix_version_mismatch"
 
 
+def test_train_without_jira_requirement_does_not_require_fix_version():
+    result = qualify_request(
+        train(requirements=TrainRequirements()),
+        facts(jira_fix_versions=frozenset()),
+    )
+    assert result.status is Status.CHERRY_PICK_REQUIRED
+
+
 def test_missing_target_is_invalid():
-    result = qualify_request(train(), facts(target_exists=False))
+    result = qualify_request(train(), facts(destination_exists=False))
     assert result.status is Status.INVALID
-    assert result.reason_code == "target_branch_missing"
+    assert result.reason_code == "destination_branch_missing"
 
 
 def test_unprotected_target_is_invalid():
-    result = qualify_request(train(), facts(target_protected=False))
+    result = qualify_request(train(), facts(destination_protected=False))
     assert result.status is Status.INVALID
-    assert result.reason_code == "target_branch_not_protected"
+    assert result.reason_code == "destination_branch_not_protected"
 
 
 def test_maintain_and_admin_permissions_are_authorized():

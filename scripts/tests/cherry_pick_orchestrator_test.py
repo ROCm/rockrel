@@ -1,8 +1,13 @@
 from unittest.mock import Mock
 
-from scripts.express_train.config import ExpressTrainConfig, RepositoryConfig, TrainConfig
-from scripts.express_train.models import Result, Status
-from scripts.express_train.orchestrator import (
+from scripts.cherry_pick.config import (
+    RepositoryConfig,
+    TrainCatalog,
+    TrainConfig,
+    TrainRequirements,
+)
+from scripts.cherry_pick.models import Result, Status
+from scripts.cherry_pick.orchestrator import (
     Planner,
     automation_branch,
     identity_marker,
@@ -12,23 +17,24 @@ from scripts.express_train.orchestrator import (
 
 SOURCE_URL = "https://github.com/ROCm/TheRock/pull/7282"
 SOURCE_SHA = "a" * 40
-TARGET_SHA = "b" * 40
+DESTINATION_SHA = "b" * 40
 
 
-def config(mode="validate"):
+def config(mode="validate", *, jira_fix_version="10.1.0a20260811"):
     train = TrainConfig(
         id="10.1-20260811",
-        jira_fix_version="10.1.0a20260811",
+        label="cherry-pick:10.1-20260811",
         state="active",
         mode=mode,
+        requirements=TrainRequirements(jira_fix_version=jira_fix_version),
         repositories={
             "ROCm/TheRock": RepositoryConfig(
                 source_branch="main",
-                target_branch="release/bkc/therock-10.1-20260811",
+                destination_branch="release/bkc/therock-10.1-20260811",
             )
         },
     )
-    return ExpressTrainConfig(trains={train.id: train})
+    return TrainCatalog(trains={train.id: train})
 
 
 def github(pulls=None, merged=True):
@@ -42,14 +48,14 @@ def github(pulls=None, merged=True):
         "merged": merged,
         "merge_commit_sha": SOURCE_SHA if merged else None,
         "base": {"ref": "main"},
-        "labels": [{"name": "express-train:10.1-20260811"}],
+        "labels": [{"name": "cherry-pick:10.1-20260811"}],
     }
     client.label_actor.return_value = "operator"
     client.permission.return_value = "write"
     client.branch.return_value = {
         "exists": True,
         "protected": True,
-        "sha": TARGET_SHA,
+        "sha": DESTINATION_SHA,
     }
     client.pulls.return_value = pulls or []
     return client
@@ -162,13 +168,16 @@ def test_proven_covering_pull_prevents_duplicate_without_marker(tmp_path):
     evaluator.assert_not_called()
 
 
-def test_clean_plan_includes_source_and_target_evidence(tmp_path):
+def test_clean_plan_includes_source_and_destination_evidence(tmp_path):
     evaluator = Mock(
         return_value=Result(
             status=Status.CHERRY_PICK_REQUIRED,
             reason_code="clean_trial_application",
             message="clean",
-            evidence={"source_commit": SOURCE_SHA, "target_head": TARGET_SHA},
+            evidence={
+                "source_commit": SOURCE_SHA,
+                "destination_head": DESTINATION_SHA,
+            },
         )
     )
     result = Planner(config(), github(), jira(), evaluator=evaluator).plan(
@@ -176,9 +185,9 @@ def test_clean_plan_includes_source_and_target_evidence(tmp_path):
     )
     assert result.status is Status.CHERRY_PICK_REQUIRED
     assert result.source_pr == SOURCE_URL
-    assert result.target_branch == "release/bkc/therock-10.1-20260811"
+    assert result.destination_branch == "release/bkc/therock-10.1-20260811"
     assert result.evidence["source_title"].startswith("chore(compiler)")
-    evaluator.assert_called_once_with(tmp_path, SOURCE_SHA, TARGET_SHA)
+    evaluator.assert_called_once_with(tmp_path, SOURCE_SHA, DESTINATION_SHA)
 
 
 def test_missing_train_label_is_invalid(tmp_path):
@@ -230,12 +239,29 @@ def test_jira_transport_failure_blocks(tmp_path):
     assert result.reason_code == "evidence_unavailable"
 
 
+def test_train_without_jira_requirement_never_calls_jira(tmp_path):
+    jira_client = Mock()
+    evaluator = Mock(
+        return_value=Result(
+            status=Status.CHERRY_PICK_REQUIRED,
+            reason_code="clean_trial_application",
+            message="clean",
+        )
+    )
+    result = Planner(
+        config(jira_fix_version=None), github(), jira_client, evaluator=evaluator
+    ).plan(SOURCE_URL, "10.1-20260811", tmp_path)
+
+    assert result.status is Status.CHERRY_PICK_REQUIRED
+    jira_client.fix_versions.assert_not_called()
+
+
 def test_identity_and_pull_rendering_are_stable():
     assert automation_branch("10.1-20260811", 7282) == (
         "shared/cherry-pick/10.1-20260811/7282"
     )
     marker = identity_marker("ROCm/TheRock", 7282, "10.1-20260811")
-    assert marker == "<!-- express-train:ROCm/TheRock#7282:10.1-20260811 -->"
+    assert marker == "<!-- cherry-pick:ROCm/TheRock#7282:10.1-20260811 -->"
 
     body = render_pull_body(
         marker=marker,

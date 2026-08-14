@@ -1,6 +1,6 @@
 {
   "train_id": "10.1-20260811",
-  "target_branch": "release/bkc/therock-10.1-20260811",
+  "destination_branch": "release/bkc/therock-10.1-20260811",
   "cases": [
     {
       "source_pr": "https://github.com/ROCm/TheRock/pull/7268",

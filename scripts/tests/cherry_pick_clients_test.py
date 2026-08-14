@@ -2,7 +2,7 @@ import json
 
 import pytest
 
-from scripts.express_train.clients import (
+from scripts.cherry_pick.clients import (
     ApiError,
     GitHubClient,
     JiraClient,
@@ -49,22 +49,22 @@ def test_github_client_finds_last_exact_label_actor():
             [
                 {
                     "event": "labeled",
-                    "label": {"name": "express-train:other"},
+                    "label": {"name": "cherry-pick:other"},
                     "actor": {"login": "wrong"},
                 },
                 {
                     "event": "labeled",
-                    "label": {"name": "express-train:10.1-20260811"},
+                    "label": {"name": "cherry-pick:10.1-20260811"},
                     "actor": {"login": "first"},
                 },
                 {
                     "event": "unlabeled",
-                    "label": {"name": "express-train:10.1-20260811"},
+                    "label": {"name": "cherry-pick:10.1-20260811"},
                     "actor": {"login": "remover"},
                 },
                 {
                     "event": "labeled",
-                    "label": {"name": "express-train:10.1-20260811"},
+                    "label": {"name": "cherry-pick:10.1-20260811"},
                     "actor": {"login": "operator"},
                 },
             ]
@@ -72,7 +72,7 @@ def test_github_client_finds_last_exact_label_actor():
     )
     github = GitHubClient("token", transport=transport)
 
-    assert github.label_actor("ROCm", "TheRock", 7282, "express-train:10.1-20260811") == "operator"
+    assert github.label_actor("ROCm", "TheRock", 7282, "cherry-pick:10.1-20260811") == "operator"
     assert transport.requests[0][2]["Accept"].endswith("+json")
 
 
@@ -155,7 +155,7 @@ def test_github_search_returns_only_pull_request_urls():
     github = GitHubClient("token", transport=transport)
 
     urls = github.search_merged_labeled_pull_requests(
-        "ROCm", "TheRock", "express-train:10.1-20260811"
+        "ROCm", "TheRock", "cherry-pick:10.1-20260811"
     )
 
     assert urls == ["https://github.com/ROCm/TheRock/pull/7282"]

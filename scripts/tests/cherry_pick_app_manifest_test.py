@@ -2,7 +2,7 @@ import json
 from pathlib import Path
 
 
-MANIFEST = Path(__file__).parents[2] / "config/express-train-github-app-manifest.json"
+MANIFEST = Path(__file__).parents[2] / "config/cherry-pick-github-app-manifest.json"
 
 
 def test_app_manifest_is_private_webhookless_and_least_privilege():

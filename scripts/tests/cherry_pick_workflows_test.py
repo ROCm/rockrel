@@ -3,10 +3,10 @@ from pathlib import Path
 
 
 ROOT = Path(__file__).parents[2]
-CENTRAL = ROOT / ".github/workflows/express_train_cherry_pick.yml"
-RECONCILE = ROOT / ".github/workflows/express_train_reconcile.yml"
-SYNC = ROOT / ".github/workflows/express_train_sync_labels.yml"
-TEMPLATE = ROOT / "templates/express_train_request.yml"
+CENTRAL = ROOT / ".github/workflows/cherry_pick.yml"
+RECONCILE = ROOT / ".github/workflows/cherry_pick_reconcile.yml"
+SYNC = ROOT / ".github/workflows/cherry_pick_sync_labels.yml"
+TEMPLATE = ROOT / "templates/cherry_pick_request.yml"
 FULL_SHA_USE = re.compile(r"uses:\s+[^\s]+@[0-9a-f]{40}(?:\s|$)", re.MULTILINE)
 APP_TOKEN_SHA = "bcd2ba49218906704ab6c1aa796996da409d3eb1"
 
@@ -118,7 +118,7 @@ def test_reconciliation_defaults_to_plan_only():
     plan_job = _job(text, "reconcile", "create-drafts")
     assert "mode: plan" in text
     assert "schedule:" in text
-    assert "python3 -m scripts.express_train" in text
+    assert "python3 -m scripts.cherry_pick" in text
     assert '            reconcile \\' in text
     assert "uses: ROCm/rockrel/.github/workflows/" not in text
     assert f"actions/create-github-app-token@{APP_TOKEN_SHA}" in plan_job

@@ -1,8 +1,8 @@
 import io
 import json
 
-from scripts.express_train.__main__ import main
-from scripts.express_train.models import Result, Status
+from scripts.cherry_pick.__main__ import main
+from scripts.cherry_pick.models import Result, Status
 
 
 class FakePlanner:
@@ -12,20 +12,22 @@ class FakePlanner:
         message="clean",
         source_pr="https://github.com/ROCm/TheRock/pull/7282",
         train_id="10.1-20260811",
-        target_branch="release/test",
+        destination_branch="release/test",
         evidence={
             "source_repository": "ROCm/TheRock",
             "source_number": 7282,
             "source_title": "Change ROCM-29371",
             "source_body": "ROCM-29371",
             "source_merge_commit": "a" * 40,
-            "target_head": "b" * 40,
+            "destination_head": "b" * 40,
         },
     )
     calls = []
+    jira_clients = []
 
     def __init__(self, config, github, jira):
         self.config = config
+        self.jira_clients.append(jira)
 
     def plan(self, source_pr, train_id, repo_dir, *, event_action=None):
         self.calls.append((source_pr, train_id, str(repo_dir), event_action))
@@ -46,7 +48,7 @@ class FakeWriter:
             message="created",
             source_pr=plan.source_pr,
             train_id=plan.train_id,
-            target_branch=plan.target_branch,
+            destination_branch=plan.destination_branch,
             pull_request_url="https://github.com/ROCm/TheRock/pull/9000",
         )
 
@@ -79,22 +81,27 @@ class FakeJira:
         self.token = token
 
 
-def config_file(tmp_path, mode="create-draft"):
+def config_file(tmp_path, mode="create-draft", *, require_jira=True):
     path = tmp_path / "config.json"
     path.write_text(
         json.dumps(
             {
-                "schema_version": 1,
+                "schema_version": 2,
                 "trains": [
                     {
                         "id": "10.1-20260811",
-                        "jira_fix_version": "10.1.0a20260811",
+                        "label": "cherry-pick:10.1-20260811",
                         "state": "active",
                         "mode": mode,
+                        "requirements": (
+                            {"jira_fix_version": "10.1.0a20260811"}
+                            if require_jira
+                            else {}
+                        ),
                         "repositories": {
                             "ROCm/TheRock": {
                                 "source_branch": "main",
-                                "target_branch": "release/test",
+                                "destination_branch": "release/test",
                             }
                         },
                     }
@@ -175,7 +182,7 @@ def test_create_draft_runs_writer_and_publishes_sticky_status(tmp_path):
     assert json.loads(output.getvalue())["status"] == "draft_created"
     assert FakeWriter.calls
     assert FakeGitHub.instances[-1].comments[0][3]["marker"].startswith(
-        "<!-- express-train-status:"
+        "<!-- cherry-pick-status:"
     )
 
 
@@ -197,7 +204,7 @@ def test_sync_labels_adds_only_configured_train_label(tmp_path):
     assert code == 0
     label = FakeGitHub.instances[-1].labels[0]
     assert label[0:2] == ("ROCm", "TheRock")
-    assert label[2]["name"] == "express-train:10.1-20260811"
+    assert label[2]["name"] == "cherry-pick:10.1-20260811"
 
 
 def test_missing_credentials_fails_without_echoing_secret(tmp_path):
@@ -223,6 +230,30 @@ def test_missing_credentials_fails_without_echoing_secret(tmp_path):
     assert code == 2
     assert "GITHUB_TOKEN" in error.getvalue()
     assert output.getvalue() == ""
+
+
+def test_plan_without_jira_requirement_needs_no_jira_credentials(tmp_path):
+    FakePlanner.jira_clients.clear()
+    output = io.StringIO()
+    code = main(
+        [
+            "--config",
+            str(config_file(tmp_path, require_jira=False)),
+            "plan",
+            "--source-pr",
+            FakePlanner.result.source_pr,
+            "--train",
+            "10.1-20260811",
+            "--repo-dir",
+            str(tmp_path),
+        ],
+        environ={"GITHUB_TOKEN": "github-token"},
+        stdout=output,
+        **dependencies(),
+    )
+
+    assert code == 0
+    assert FakePlanner.jira_clients[-1] is None
 
 
 def test_reconcile_discovers_and_plans_labeled_merged_prs(tmp_path):
@@ -289,7 +320,7 @@ def test_publish_result_needs_no_jira_credentials_and_removes_invalid_label(tmp_
         message="wrong train",
         source_pr=FakePlanner.result.source_pr,
         train_id="10.1-20260811",
-        target_branch="release/test",
+        destination_branch="release/test",
     )
     result_file = tmp_path / "result.json"
     result_file.write_text(json.dumps(invalid.as_dict()))
@@ -313,7 +344,7 @@ def test_publish_result_needs_no_jira_credentials_and_removes_invalid_label(tmp_
         "ROCm",
         "TheRock",
         7282,
-        "express-train:10.1-20260811",
+        "cherry-pick:10.1-20260811",
     )
 
 
