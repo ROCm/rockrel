@@ -46,6 +46,7 @@ The Git history preserves red tests before each implementation slice:
 | `d95e31c`, `df3343b` cross-repository token boundaries | `d047503` permission-narrowed workflow tokens and artifact feedback |
 | `a73f954`, `fe4884c`, `eb23de0`, `52d557c` event and recovery paths | early-result gating, label-specific cancellation, abandoned-PR recovery, and two-phase reconciliation |
 | `671d73f`, `ce37bca` generic destination-train contracts | `280e6f7` schema v2, optional policy, and generic workflows |
+| `ae40df4` unsafe ref cases | `ecd1639` fail-closed Git ref validation |
 
 Each red state was run locally and failed for the intended missing module,
 interface, or workflow behavior. Red commits were not pushed independently.
@@ -62,7 +63,7 @@ git diff --check
 
 Results on 2026-08-14:
 
-- 161 tests passed.
+- 165 tests passed.
 - Trailing whitespace, EOF, YAML, merge-conflict, large-file, line-ending,
   no-tabs, and actionlint hooks passed.
 - The seven 0811 requests are captured in
