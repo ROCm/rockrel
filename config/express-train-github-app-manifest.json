@@ -1,0 +1,17 @@
+{
+  "name": "ROCm Express Train Cherry Pick",
+  "url": "https://github.com/ROCm/rockrel",
+  "hook_attributes": {
+    "url": "https://github.com/ROCm/rockrel",
+    "active": false
+  },
+  "redirect_url": "https://github.com/ROCm/rockrel",
+  "public": false,
+  "default_events": [],
+  "default_permissions": {
+    "administration": "read",
+    "contents": "write",
+    "issues": "write",
+    "pull_requests": "write"
+  }
+}

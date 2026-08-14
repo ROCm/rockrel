@@ -19,6 +19,20 @@
 7. Apply the label to a non-production fixture PR and inspect the sticky status.
 8. Promote to `shadow`, then `create-draft` only after operator review.
 
+## Install the GitHub App
+
+Use `config/express-train-github-app-manifest.json` as the reviewed permission
+source. Create a private organization-owned App with webhooks disabled, install
+it only on rockrel, TheRock, rocm-systems, and rocm-libraries, and confirm the
+installed permissions exactly match the manifest. Do not add Actions or
+Workflows permission.
+
+Store its App ID and private key as selected-repository organization secrets
+named `ROCM_CHERRYPICK_APP_ID` and `ROCM_CHERRYPICK_APP_PRIVATE_KEY`. Store the
+Jira endpoint and token as `ROCM_CHERRYPICK_JIRA_URL` and
+`ROCM_CHERRYPICK_JIRA_TOKEN`. The automation must remain in `validate` mode
+until a read-only credential and permission review succeeds.
+
 ## Review a generated draft
 
 1. Confirm the source PR URL, aggregate merge SHA, Jira issue, and train ID.

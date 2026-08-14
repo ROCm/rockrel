@@ -36,6 +36,7 @@ The Git history preserves red tests before each implementation slice:
 | `10c4b70`, `1187b5c` covering evidence | `82cefb6` coverage detector |
 | `86b2c05` immutable renderer | `66ca3cd` renderer |
 | `9fb1439` validation-mode token boundary | `f3438b6` conditional write-token job |
+| `7b2e3bc` least-privilege App contract | version-controlled App manifest |
 
 Each red state was run locally and failed for the intended missing module,
 interface, or workflow behavior. Red commits were not pushed independently.
@@ -52,7 +53,7 @@ git diff --check
 
 Results on 2026-08-14:
 
-- 132 tests passed.
+- 133 tests passed.
 - Trailing whitespace, EOF, YAML, merge-conflict, large-file, line-ending,
   no-tabs, and actionlint hooks passed.
 - The seven 0811 requests are captured in
