@@ -55,6 +55,7 @@ def build_parser() -> argparse.ArgumentParser:
         help="Repeat once for every repository configured for the train.",
     )
     reconcile.add_argument("--publish-status", action="store_true")
+    reconcile.add_argument("--create-drafts", action="store_true")
     return parser
 
 
@@ -159,6 +160,7 @@ def main(
             )
             return 2
         results = []
+        writer = writer_factory(github) if args.create_drafts else None
         for repository in train.repositories:
             owner, repo = repository.split("/", 1)
             source_urls = github.search_merged_labeled_pull_requests(
@@ -168,6 +170,10 @@ def main(
                 result = planner.plan(
                     source_url, train.id, repo_directories[repository]
                 )
+                if writer is not None:
+                    result = writer.create(
+                        repo_directories[repository], train, result
+                    )
                 if args.publish_status:
                     source_owner, source_repo, number = parse_pull_request_url(
                         source_url
@@ -184,7 +190,7 @@ def main(
             json.dumps(
                 {
                     "status": "reconciled",
-                    "mode": "plan",
+                    "mode": "create-draft" if args.create_drafts else "plan",
                     "train_id": train.id,
                     "results": results,
                 },

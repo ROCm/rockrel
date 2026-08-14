@@ -19,6 +19,8 @@
   external action to a full SHA and pass actionlint.
 - Cross-repository planning and reconciliation use permission-narrowed,
   read-only App tokens; feedback and draft writes use separate gated tokens.
+- Scheduled recovery uses a read phase followed by a write phase containing
+  only `create-draft` trains, and replans every request before writing.
 
 ## Test-first record
 
@@ -40,6 +42,7 @@ The Git history preserves red tests before each implementation slice:
 | `9fb1439` validation-mode token boundary | `f3438b6` conditional write-token job |
 | `7b2e3bc` least-privilege App contract | version-controlled App manifest |
 | `d95e31c`, `df3343b` cross-repository token boundaries | `d047503` permission-narrowed workflow tokens and artifact feedback |
+| `a73f954`, `fe4884c`, `eb23de0`, `52d557c` event and recovery paths | early-result gating, label-specific cancellation, abandoned-PR recovery, and two-phase reconciliation |
 
 Each red state was run locally and failed for the intended missing module,
 interface, or workflow behavior. Red commits were not pushed independently.
@@ -56,7 +59,7 @@ git diff --check
 
 Results on 2026-08-14:
 
-- 139 tests passed.
+- 143 tests passed.
 - Trailing whitespace, EOF, YAML, merge-conflict, large-file, line-ending,
   no-tabs, and actionlint hooks passed.
 - The seven 0811 requests are captured in

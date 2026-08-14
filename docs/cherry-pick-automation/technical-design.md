@@ -62,6 +62,7 @@ The module exposes:
 python -m scripts.express_train plan --source-pr URL --train ID --repo-dir PATH
 python -m scripts.express_train create-draft --source-pr URL --train ID --repo-dir PATH
 python -m scripts.express_train reconcile --train ID --repo-dir OWNER/REPO=PATH
+python -m scripts.express_train reconcile --train ID --repo-dir OWNER/REPO=PATH --create-drafts
 python -m scripts.express_train sync-labels --train ID
 python -m scripts.express_train publish-result --result-file FILE
 ```
@@ -69,8 +70,9 @@ python -m scripts.express_train publish-result --result-file FILE
 Commands write one JSON result to stdout and diagnostics to stderr. `plan` is
 read-only. `create-draft` checks the configured mode and refuses to write unless
 it is `create-draft`. Reconciliation delegates each discovered request through
-the same planner; it has no separate decision logic. `publish-result` validates
-a trusted plan artifact before updating the sticky source-PR comment.
+the same planner and, only in its separately gated write phase, the same draft
+writer; it has no separate decision logic. `publish-result` validates a trusted
+plan artifact before updating the sticky source-PR comment.
 
 The result contains `status`, `reason_code`, source and target identifiers,
 fresh ref SHAs, Jira evidence, containment evidence, optional covering or
@@ -162,6 +164,11 @@ The event-feedback and draft jobs are gated on the configured train mode
 `create-draft`. Manual plans, `validate`, and `shadow` do not generate an App
 installation token with write permissions. The built-in workflow token remains
 contents-read-only in every workflow.
+
+Scheduled reconciliation is also two-phase. Its first matrix plans every active
+train with a read-only token. A second matrix contains only trains whose pinned
+configuration mode is `create-draft`; it replans before invoking the shared
+writer. A failed read phase prevents the write phase from starting.
 
 ## Security boundaries
 

@@ -22,6 +22,7 @@ jobs:
     runs-on: ubuntu-24.04
     outputs:
       trains: ${{ steps.trains.outputs.trains }}
+      write_trains: ${{ steps.trains.outputs.write_trains }}
       automation_ref: ${{ steps.ref.outputs.value }}
     steps:
       - name: Resolve automation ref
@@ -52,12 +53,19 @@ jobs:
 
           config = json.load(open("config/express-trains.json"))
           requested = os.environ.get("REQUESTED_TRAIN", "")
-          trains = [item["id"] for item in config["trains"] if item["state"] == "active"]
+          trains = [
+              {"id": item["id"], "mode": item["mode"]}
+              for item in config["trains"]
+              if item["state"] == "active"
+          ]
           if requested:
-              if requested not in trains:
+              matches = [item for item in trains if item["id"] == requested]
+              if not matches:
                   raise SystemExit(f"requested train is not active: {requested}")
-              trains = [requested]
+              trains = matches
           print(f"trains={json.dumps(trains)}")
+          write_trains = [item for item in trains if item["mode"] == "create-draft"]
+          print(f"write_trains={json.dumps(write_trains)}")
           PY
 
   reconcile:
@@ -125,7 +133,7 @@ jobs:
           python3 -m scripts.express_train \
             --config config/express-trains.json \
             reconcile \
-            --train "${{ matrix.train }}" \
+            --train "${{ matrix.train.id }}" \
             --repo-dir "ROCm/TheRock=$GITHUB_WORKSPACE/sources/TheRock" \
             --repo-dir "ROCm/rocm-systems=$GITHUB_WORKSPACE/sources/rocm-systems" \
             --repo-dir "ROCm/rocm-libraries=$GITHUB_WORKSPACE/sources/rocm-libraries" \
@@ -135,6 +143,84 @@ jobs:
         if: always()
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         with:
-          name: express-train-reconcile-${{ matrix.train }}-${{ github.run_id }}
+          name: express-train-reconcile-${{ matrix.train.id }}-${{ github.run_id }}
           path: ${{ runner.temp }}/express-train-reconcile.json
+          if-no-files-found: warn
+
+  create-drafts:
+    needs: [discover, reconcile]
+    if: >-
+      needs.reconcile.result == 'success' &&
+      needs.discover.outputs.write_trains != '[]'
+    strategy:
+      fail-fast: false
+      matrix:
+        train: ${{ fromJSON(needs.discover.outputs.write_trains) }}
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Create scoped draft-writer GitHub App token
+        id: write-token
+        uses: actions/create-github-app-token@bcd2ba49218906704ab6c1aa796996da409d3eb1
+        with:
+          client-id: ${{ secrets.ROCM_CHERRYPICK_APP_CLIENT_ID }}
+          private-key: ${{ secrets.ROCM_CHERRYPICK_APP_PRIVATE_KEY }}
+          owner: ROCm
+          repositories: |-
+            TheRock
+            rocm-systems
+            rocm-libraries
+          permission-administration: read
+          permission-contents: write
+          permission-issues: write
+          permission-pull-requests: write
+      - name: Check out pinned automation
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803
+        with:
+          ref: ${{ needs.discover.outputs.automation_ref }}
+          path: automation
+          persist-credentials: false
+      - name: Check out TheRock with App credentials
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803
+        with:
+          repository: ROCm/TheRock
+          token: ${{ steps.write-token.outputs.token }}
+          fetch-depth: 0
+          path: sources/TheRock
+      - name: Check out rocm-systems with App credentials
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803
+        with:
+          repository: ROCm/rocm-systems
+          token: ${{ steps.write-token.outputs.token }}
+          fetch-depth: 0
+          path: sources/rocm-systems
+      - name: Check out rocm-libraries with App credentials
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803
+        with:
+          repository: ROCm/rocm-libraries
+          token: ${{ steps.write-token.outputs.token }}
+          fetch-depth: 0
+          path: sources/rocm-libraries
+      - name: Reconcile and create draft pull requests
+        env:
+          GITHUB_TOKEN: ${{ steps.write-token.outputs.token }}
+          JIRA_URL: ${{ secrets.ROCM_CHERRYPICK_JIRA_URL }}
+          JIRA_TOKEN: ${{ secrets.ROCM_CHERRYPICK_JIRA_TOKEN }}
+        run: |
+          python3 -m scripts.express_train \
+            --config config/express-trains.json \
+            reconcile \
+            --train "${{ matrix.train.id }}" \
+            --repo-dir "ROCm/TheRock=$GITHUB_WORKSPACE/sources/TheRock" \
+            --repo-dir "ROCm/rocm-systems=$GITHUB_WORKSPACE/sources/rocm-systems" \
+            --repo-dir "ROCm/rocm-libraries=$GITHUB_WORKSPACE/sources/rocm-libraries" \
+            --create-drafts \
+            --publish-status \
+            | tee "$RUNNER_TEMP/express-train-reconcile-create.json"
+        working-directory: automation
+      - name: Upload creation evidence
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: express-train-reconcile-create-${{ matrix.train.id }}-${{ github.run_id }}
+          path: ${{ runner.temp }}/express-train-reconcile-create.json
           if-no-files-found: warn

@@ -115,26 +115,29 @@ def test_source_template_uses_only_named_secrets_and_safe_event_metadata():
 
 def test_reconciliation_defaults_to_plan_only():
     text = workflow_text(RECONCILE)
+    plan_job = _job(text, "reconcile", "create-drafts")
     assert "mode: plan" in text
     assert "schedule:" in text
     assert "python3 -m scripts.express_train" in text
     assert '            reconcile \\' in text
     assert "uses: ROCm/rockrel/.github/workflows/" not in text
-    assert f"actions/create-github-app-token@{APP_TOKEN_SHA}" in text
-    assert "permission-administration: read" in text
-    assert "permission-contents: read" in text
-    assert "permission-issues: read" in text
-    assert "permission-pull-requests: read" in text
-    assert "permission-contents: write" not in text
-    assert "permission-issues: write" not in text
-    assert "permission-pull-requests: write" not in text
+    assert f"actions/create-github-app-token@{APP_TOKEN_SHA}" in plan_job
+    assert "permission-administration: read" in plan_job
+    assert "permission-contents: read" in plan_job
+    assert "permission-issues: read" in plan_job
+    assert "permission-pull-requests: read" in plan_job
+    assert "permission-contents: write" not in plan_job
+    assert "permission-issues: write" not in plan_job
+    assert "permission-pull-requests: write" not in plan_job
     assert "github.token" not in text
 
 
 def test_reconciliation_write_phase_is_mode_gated_and_permission_narrowed():
     text = workflow_text(RECONCILE)
     assert '"mode": item["mode"]' in text
-    assert "matrix.train.mode == 'create-draft'" in text
+    assert 'item["mode"] == "create-draft"' in text
+    assert "needs.discover.outputs.write_trains != '[]'" in text
+    assert "fromJSON(needs.discover.outputs.write_trains)" in text
     assert "needs.reconcile.result == 'success'" in text
     assert "--create-drafts" in text
     create = _job(text, "create-drafts")
