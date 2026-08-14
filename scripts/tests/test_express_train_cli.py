@@ -66,6 +66,9 @@ class FakeGitHub:
     def upsert_comment(self, owner, repo, number, **kwargs):
         self.comments.append((owner, repo, number, kwargs))
 
+    def remove_label(self, owner, repo, number, label):
+        self.labels.append((owner, repo, number, label))
+
     def search_merged_labeled_pull_requests(self, owner, repo, label):
         return [FakePlanner.result.source_pr]
 
@@ -245,3 +248,61 @@ def test_reconcile_discovers_and_plans_labeled_merged_prs(tmp_path):
     assert payload["mode"] == "plan"
     assert payload["results"][0]["source_pr"].endswith("/pull/7282")
     assert FakePlanner.calls[-1][2] == str(tmp_path)
+
+
+def test_publish_result_needs_no_jira_credentials_and_removes_invalid_label(tmp_path):
+    FakeGitHub.instances.clear()
+    invalid = Result(
+        status=Status.INVALID,
+        reason_code="jira_fix_version_mismatch",
+        message="wrong train",
+        source_pr=FakePlanner.result.source_pr,
+        train_id="10.1-20260811",
+        target_branch="release/test",
+    )
+    result_file = tmp_path / "result.json"
+    result_file.write_text(json.dumps(invalid.as_dict()))
+
+    code = main(
+        [
+            "--config",
+            str(config_file(tmp_path)),
+            "publish-result",
+            "--result-file",
+            str(result_file),
+        ],
+        environ={"GITHUB_TOKEN": "feedback-token"},
+        **dependencies(),
+    )
+
+    assert code == 0
+    github = FakeGitHub.instances[-1]
+    assert github.comments[0][0:3] == ("ROCm", "TheRock", 7282)
+    assert github.labels[-1] == (
+        "ROCm",
+        "TheRock",
+        7282,
+        "express-train:10.1-20260811",
+    )
+
+
+def test_publish_result_rejects_unknown_or_malformed_result(tmp_path):
+    result_file = tmp_path / "result.json"
+    result_file.write_text('{"status":"surprise"}')
+    error = io.StringIO()
+
+    code = main(
+        [
+            "--config",
+            str(config_file(tmp_path)),
+            "publish-result",
+            "--result-file",
+            str(result_file),
+        ],
+        environ={"GITHUB_TOKEN": "feedback-token"},
+        stderr=error,
+        **dependencies(),
+    )
+
+    assert code == 2
+    assert "invalid result file" in error.getvalue()
