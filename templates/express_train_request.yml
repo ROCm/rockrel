@@ -1,5 +1,5 @@
-# Copy this file to .github/workflows/express_train_request.yml and replace
-# ROCKREL_AUTOMATION_SHA with the reviewed immutable rockrel commit SHA.
+# Generated callers must pin both rockrel references below to the same reviewed
+# immutable commit SHA. Use scripts/render_express_train_workflow.py.
 name: Express Train cherry-pick request
 
 on:
