@@ -1,207 +1,213 @@
-# Express Train cherry-pick automation: technical design
+# Label-driven cherry-pick automation: technical design
 
 ## Architecture
 
-The system uses thin event workflows in TheRock, rocm-systems, and
-rocm-libraries and a reusable implementation workflow in rockrel. Source
-workflows listen to `pull_request_target` events `labeled`, `unlabeled`, and
-`closed`. They pass immutable event metadata to a rockrel workflow referenced by
-a full commit SHA.
+The system is a generic, configuration-driven cherry-pick controller. Thin
+event workflows in TheRock, rocm-systems, and rocm-libraries listen for label
+changes and call an immutable reusable workflow in rockrel. A train is resolved
+from its exact configured label and supplies the destination release branch.
+No workflow, module, marker, or App identity is Express Train-specific.
 
-The reusable workflow checks out rockrel itself at the same explicitly supplied
-SHA and invokes a standard-library Python CLI. It does not check out an
-unmerged pull-request head. A separate scheduled workflow reconciles merged,
-labeled PRs after missed deliveries or abandoned covering PRs.
+The reusable workflow checks out rockrel at the same full SHA supplied by the
+caller and invokes a standard-library Python CLI. It never checks out an
+unmerged PR head. Scheduled reconciliation repeats the same planner for missed
+events and abandoned generated PRs.
 
-Planning and reconciliation authenticate with a GitHub App installation token
-whose requested permissions are explicitly narrowed to read-only access. The
-workflow's built-in `GITHUB_TOKEN` is not used for cross-repository API calls.
-Event feedback and draft creation are separate jobs with separate, narrowly
-scoped tokens and mode gates.
+Planning uses a permission-narrowed read-only GitHub App token. Event feedback,
+label synchronization, and draft creation use separate tokens with only their
+required permissions and mode gates.
 
 ## Components
 
-- `scripts/express_train/`: policy, GitHub/Jira clients, git decision engine,
-  orchestration, and CLI.
-- `config/express-trains.json`: version-controlled train definitions.
-- `.github/workflows/express_train_cherry_pick.yml`: reusable and manual entry
-  point.
-- `.github/workflows/express_train_reconcile.yml`: scheduled/manual recovery.
-- `.github/workflows/express_train_sync_labels.yml`: label provisioning.
-- A small `.github/workflows/express_train_request.yml` caller in each source
-  repository.
+- `scripts/cherry_pick/`: models, configuration, policy, GitHub/Jira clients,
+  Git decisions, orchestration, and draft writer.
+- `config/cherry-pick-trains.json`: schema-versioned train catalog.
+- `config/cherry-pick-github-app-manifest.json`: maximum App permissions.
+- `.github/workflows/cherry_pick.yml`: reusable/manual plan and draft entry.
+- `.github/workflows/cherry_pick_reconcile.yml`: scheduled/manual recovery.
+- `.github/workflows/cherry_pick_sync_labels.yml`: configured-label provisioning.
+- `templates/cherry_pick_request.yml`: generated caller used by each source repo.
+- `scripts/render_cherry_pick_workflow.py`: immutable caller renderer.
 
 ## Configuration contract
 
-The root JSON object has `schema_version` and `trains`. Each train has:
+Schema version 2 separates train identity, label, destination, and optional
+policy:
 
 ```json
 {
-  "id": "10.1-20260811",
-  "jira_fix_version": "10.1.0a20260811",
-  "state": "active",
-  "mode": "validate",
-  "repositories": {
-    "ROCm/TheRock": {
-      "source_branch": "main",
-      "target_branch": "release/bkc/therock-10.1-20260811"
+  "schema_version": 2,
+  "trains": [
+    {
+      "id": "10.1-20260811",
+      "label": "cherry-pick:10.1-20260811",
+      "state": "active",
+      "mode": "validate",
+      "requirements": {
+        "jira_fix_version": "10.1.0a20260811"
+      },
+      "repositories": {
+        "ROCm/TheRock": {
+          "source_branch": "main",
+          "destination_branch": "release/bkc/therock-10.1-20260811"
+        },
+        "ROCm/rocm-systems": {
+          "source_branch": "develop",
+          "destination_branch": "release/bkc/therock-10.1-20260811"
+        }
+      }
     }
-  }
+  ]
 }
 ```
 
-Repository keys must be unique and drawn from the allowlist. Train IDs must
-match `[a-zA-Z0-9][a-zA-Z0-9._-]{0,63}`. Target branches must begin with
-`release/`. Duplicate labels or repository mappings are rejected at load time.
+Train IDs match `[A-Za-z0-9][A-Za-z0-9._-]{0,63}`. Labels must be unique,
+equal `cherry-pick:<train-id>`, and use the reserved namespace. Repository keys
+come from the supported allowlist. Source branches and destination branches are
+validated as safe Git ref components; destination branches must start with
+`release/`. `requirements` is optional. Its currently supported key is
+`jira_fix_version`; unknown requirements fail configuration loading.
+
+The catalog resolves both `train(id)` and `train_for_label(label)`. Workflows
+may discover namespaced labels from event metadata, but policy always verifies
+the exact configured label from the canonical PR response.
 
 ## Command contract
 
-The module exposes:
-
 ```text
-python -m scripts.express_train plan --source-pr URL --train ID --repo-dir PATH
-python -m scripts.express_train create-draft --source-pr URL --train ID --repo-dir PATH
-python -m scripts.express_train reconcile --train ID --repo-dir OWNER/REPO=PATH
-python -m scripts.express_train reconcile --train ID --repo-dir OWNER/REPO=PATH --create-drafts
-python -m scripts.express_train sync-labels --train ID
-python -m scripts.express_train publish-result --result-file FILE
+python -m scripts.cherry_pick plan --source-pr URL --train ID --repo-dir PATH
+python -m scripts.cherry_pick create-draft --source-pr URL --train ID --repo-dir PATH
+python -m scripts.cherry_pick reconcile --train ID --repo-dir OWNER/REPO=PATH
+python -m scripts.cherry_pick reconcile --train ID --repo-dir OWNER/REPO=PATH --create-drafts
+python -m scripts.cherry_pick sync-labels --train ID
+python -m scripts.cherry_pick publish-result --result-file FILE
 ```
 
-Commands write one JSON result to stdout and diagnostics to stderr. `plan` is
-read-only. `create-draft` checks the configured mode and refuses to write unless
-it is `create-draft`. Reconciliation delegates each discovered request through
-the same planner and, only in its separately gated write phase, the same draft
-writer; it has no separate decision logic. `publish-result` validates a trusted
-plan artifact before updating the sticky source-PR comment.
+Commands emit one JSON result on stdout and diagnostics on stderr. `plan` is
+read-only. `create-draft` refuses writes unless both the request and pinned
+train mode allow them. `reconcile` uses the same planner/writer. `publish-result`
+validates a trusted result artifact before updating source-PR feedback.
 
-The result contains `status`, `reason_code`, source and target identifiers,
-fresh ref SHAs, Jira evidence, containment evidence, optional covering or
-created PR URL, and a workflow correlation ID.
+The result uses `destination_branch` rather than `target_branch` and includes
+status, reason, source/train identifiers, canonical SHAs, optional policy
+evidence, coverage evidence, and an optional covering or generated PR URL.
 
 ## Event handling
 
-1. Parse the repository, PR number, action, label, and sender from the event.
-2. Ignore labels outside the `express-train:` namespace.
-3. Resolve the named train from the pinned configuration.
-4. For `unlabeled` or an unmerged `closed`, update the sticky status to
-   `cancelled`.
-5. Validate the label actor from the PR timeline and current repository
-   permission.
-6. Validate source base, Jira Fix Version, and exact target branch.
-7. If open, report `waiting_for_merge`; if merged, build a plan.
-8. In `validate` or `shadow`, report the plan without obtaining write tokens.
-9. In `create-draft`, execute only a `cherry_pick_required` plan.
+1. Read only event action, label name, PR URL, and current label names.
+2. Ignore labels outside `cherry-pick:`.
+3. Convert each namespaced label to a train ID and resolve the exact configured
+   label in the pinned catalog.
+4. Fetch the canonical PR and verify the configured label is still present.
+5. Treat `unlabeled` as cancellation only when that specific train label is
+   absent.
+6. Validate label actor, source branch, optional policy, and destination branch.
+7. If merged, evaluate containment, existing coverage, and trial application.
+8. In `validate` or `shadow`, publish artifacts without minting write tokens.
+9. In `create-draft`, write only a `cherry_pick_required` plan.
 
-Deterministic validation failures may remove the train label. Transport errors,
-rate limits, timeouts, and unavailable evidence return `blocked` and retain it.
+Deterministic failures may remove only the affected label. Transport failures,
+rate limits, and unavailable evidence return `blocked` and retain it.
+
+## Policy model
+
+Core policy is common to every train: active configuration, supported repo,
+configured source, authorized label actor, canonical merge commit, existing
+protected destination, and safe evidence.
+
+Optional policy is applied only when declared. For
+`requirements.jira_fix_version`, the planner extracts ROCm Jira keys from the
+source title/body and requires one exact matching Fix Version. With the
+requirement omitted, Jira credentials and Jira calls are not needed for that
+decision. Additional policy types require a schema change and tests.
 
 ## Git decision engine
 
-All Git operations use argument arrays with `shell=False`. The engine creates a
-disposable clone or worktree and fetches the exact canonical source commit and
-target ref.
+All Git operations use argument arrays with `shell=False` and disposable
+worktrees. The engine:
 
-Decision order:
+1. Resolves the aggregate source commit and exact destination head.
+2. Checks exact ancestry.
+3. Finds open or merged PRs owning the source/train identity.
+4. Proves ordinary patch or gitlink coverage where possible.
+5. Runs a no-commit aggregate cherry-pick against the destination.
+6. Returns contained, covered, clean-required, conflict, or blocked evidence.
 
-1. Verify the source PR is merged and identify its aggregate merge commit.
-2. Fetch the exact target head.
-3. Search target PRs for an idempotency marker or deterministic automation
-   branch.
-4. Test whether the source is already reachable from the target.
-5. For ordinary commits, test a no-commit cherry-pick in a disposable worktree.
-6. For TheRock gitlink changes, compare old, desired, and target component pins
-   directionally using component-repository ancestry.
-7. Search open target PR heads for exact source markers and proven coverage.
-8. Return `cherry_pick_required` only when applying the aggregate change is
-   clean and non-empty.
-
-An empty trial application is supporting evidence but does not by itself equate
-arbitrary commits. A conflict returns `manual_resolution_required`. The engine
-never modifies the operator's checkout.
+An empty trial application is positive patch-equivalence evidence; a conflict
+is never containment. Gitlink coverage requires directional ancestry or common
+`cherry picked from` provenance. A closed-unmerged PR is not coverage.
 
 ## Idempotency and writes
 
-The identity key is source repository, source PR number, and train ID. Generated
-branches use:
+The identity key remains source repository, source PR number, and train ID:
 
 ```text
 shared/cherry-pick/<train-id>/<source-pr-number>
 ```
 
-Generated PR bodies include an HTML marker containing the identity key and
-source merge SHA. Before push, the writer refetches the target and compares it
-with the planned head. It recomputes once on movement and stops on a second
-race.
+Generic HTML markers use `cherry-pick`, not `express-train`. Before pushing, the
+writer refetches the destination and compares it with the planned head. The
+workflow's initial read plan and write-job replan tolerate one movement; a
+movement after the write replan stops safely.
 
-The writer uses `git cherry-pick -x`, pushes with an expected old-object lease,
-and creates a draft PR. If push succeeds but PR creation fails, replay reuses the
-same branch. Existing marker, branch, draft, merged PR, or proven covering PR
-prevents a duplicate.
+The writer uses `git cherry-pick -x`, a creation lease for the deterministic
+branch, and GitHub's `draft: true` field. It has no method for ready-for-review,
+approval, merge, or auto-merge.
 
 ## GitHub and Jira access
 
-A dedicated GitHub App is installed only on rockrel, TheRock, rocm-systems, and
-rocm-libraries with maximum repository permissions:
-
-- Metadata: read
-- Contents: write
-- Pull requests: write
-- Issues: write
-- Administration: read
-
-Jira credentials and the GitHub App Client ID/private key are organization
-Actions secrets restricted to those repositories and passed by explicit name.
-Every token request narrows the installation maximum further:
+The private GitHub App maximum is administration read, contents write, issues
+write, and pull requests write. Each token request narrows that maximum:
 
 | Job | Token permissions |
 | --- | --- |
-| Plan and reconcile | Administration read, contents read, issues read, pull requests read |
+| Plan and reconcile-read | Administration read, contents read, issues read, pull requests read |
 | Event feedback | Issues write only |
-| Draft creation | Administration read, contents write, issues write, pull requests write |
+| Draft creation and reconcile-write | Administration read, contents write, issues write, pull requests write |
 | Label synchronization | Issues write only |
 
-The event-feedback and draft jobs are gated on the configured train mode
-`create-draft`. Manual plans, `validate`, and `shadow` do not generate an App
-installation token with write permissions. The built-in workflow token remains
-contents-read-only in every workflow.
-
-Scheduled reconciliation is also two-phase. Its first matrix plans every active
-train with a read-only token. A second matrix contains only trains whose pinned
-configuration mode is `create-draft`; it replans before invoking the shared
-writer. A failed read phase prevents the write phase from starting.
+The built-in workflow token remains contents-read-only. App Client ID/private
+key and Jira credentials are explicit selected-repository secrets. A train with
+no Jira requirement performs no Jira request, though the first workflow version
+may still receive the named secrets until secret inputs are split in a later
+compatible revision.
 
 ## Security boundaries
 
-- The privileged event is `pull_request_target`, but source PR code and
-  artifacts are never checked out, imported, sourced, or executed.
-- Reusable workflow references and the rockrel checkout use the same full SHA.
-- Workflow permissions are explicit and default to read-only.
-- User-controlled titles, bodies, labels, and branch names are passed as data,
-  never interpolated into shell scripts.
-- Logs redact Authorization, App private keys, Jira tokens, and installation
-  tokens.
-- Draft creation is the terminal write operation; the implementation contains
-  no ready, review, merge, or auto-merge client method.
-- App tokens are repository-scoped and permission-narrowed when minted. The App
-  action is pinned to the immutable v3.2.0 commit.
+- Privileged event workflows never execute PR-head code or artifacts.
+- Reusable workflow reference and automation checkout use one full SHA.
+- User-controlled strings are data, never shell source.
+- Tokens are repository-scoped and permission-narrowed.
+- Logs and artifacts do not expose credentials.
+- Draft creation is the terminal remote write.
+- `validate`, `shadow`, and manual plan cannot mint write tokens.
 
 ## Testing strategy
 
-Development is red-green-refactor. Unit tests cover configuration, policies,
-events, result serialization, and client behavior. Git integration tests create
-disposable bare repositories for contained, clean, conflicting, racing, and
-gitlink histories. HTTP clients use injectable transports and deterministic
-fixtures. Workflow contract tests parse YAML as text and actionlint validates
-syntax.
+Development remains red-green-refactor. Tests cover schema v2, configurable
+labels, optional Jira policy, pure qualification, Git integration, clients,
+orchestration, recovery, workflow token boundaries, rendering, and absence of
+legacy Express Train identifiers. Each source repository has a local caller
+contract test. The seven 0811 cases remain a data fixture for one train.
 
-The seven 0811 candidates form a regression corpus. Live validation remains
-read-only until the shadow results match expected outcomes.
+## Migration
+
+This implementation has not been deployed, so migration is a local atomic
+rename rather than a compatibility period:
+
+1. Commit this PRD and design before implementation.
+2. Add failing schema/naming/optional-policy tests.
+3. Rename central modules, workflows, renderer, template, config, tests, and App
+   manifest to generic cherry-pick names.
+4. Change configured labels from `express-train:` to `cherry-pick:`.
+5. Render and test all three callers at the final local rockrel SHA.
+6. Keep all public deployment actions in the operator TODO.
 
 ## Deployment
 
-1. Merge central rockrel automation after operator review.
-2. Pin source-repository callers to the immutable merged SHA.
-3. Install the App and configure selected-repository secrets.
-4. Activate `validate`, then `shadow`, then one `create-draft` pilot.
-5. Disable writes by changing train mode; workflow removal is not required for
-   rollback.
+1. Review and merge central rockrel automation after local approval.
+2. Mark rockrel `Unit Tests` required through a reviewed ruleset change.
+3. Re-render callers at the immutable merged SHA and review draft PRs.
+4. Install/configure the App and synchronize configured labels.
+5. Validate, shadow, then pilot one destination train in `create-draft` mode.
+6. Disable a train through configuration to stop new writes.

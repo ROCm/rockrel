@@ -1,152 +1,168 @@
-# Express Train cherry-pick automation: product requirements
+# Label-driven cherry-pick automation: product requirements
 
 ## Problem
 
-ROCm Express Train operators currently translate a list of qualifying pull
-requests into release-branch cherry-pick pull requests by hand. The work spans
-TheRock, rocm-systems, and rocm-libraries, is sensitive to the exact source and
-target branches, and is easy to duplicate or apply to the wrong train.
+ROCm release operators repeatedly move merged changes from development branches
+to destination release branches. The mechanics are the same whether the
+destination is called an Express Train, a nightly train, a stabilization train,
+or another release line: validate a labeled request, determine whether the
+change is already present, and create a draft cherry-pick pull request only when
+one is needed.
 
-The product will provide a GitHub-native request mechanism: an authorized
-operator labels a source pull request with an Express Train identifier. After
-the source pull request is merged, automation validates the request and creates
-a draft pull request against the configured release branch.
+The product must therefore model a **train as a configured destination release
+branch**, not as a special Express Train workflow. Express Train policy is one
+configuration profile of the generic automation.
 
-The operator experience is modeled on LinkedIn's label-driven cherry-pick
-automation, but ROCm deliberately retains manual review and merge control.
+## Definitions
+
+- **Train:** a stable ID and label mapped to a destination release branch in one
+  or more supported repositories.
+- **Request label:** the exact configured label that requests evaluation for a
+  train, conventionally `cherry-pick:<train-id>`.
+- **Source PR:** a canonical merged PR based on an allowed development branch.
+- **Generated PR:** a draft PR containing the aggregate source change and based
+  on the train's exact destination branch.
+- **Train policy:** optional qualification requirements such as a Jira Fix
+  Version. Policies are data; they are not baked into the automation identity.
 
 ## Goals
 
-- Make a repository label the primary cherry-pick request interface.
-- Validate the train, repository, source branch, labeler, Jira Fix Version, and
-  target branch before writing anything.
-- Produce at most one draft pull request per source PR, repository, and train.
-- Detect changes that are already contained or covered by an existing pull
-  request instead of creating duplicates.
-- Report a durable, understandable status on the source pull request.
-- Recover safely from duplicate events, target movement, and interrupted runs.
-- Keep policy and implementation centralized in ROCm/rockrel.
+- Make a repository label the GitHub-native request interface for any configured
+  destination-branch train.
+- Keep train labels, destinations, source branches, lifecycle, rollout mode, and
+  optional policy in version-controlled configuration.
+- Validate repository, source branch, labeler authority, optional train policy,
+  and the exact destination branch before writing anything.
+- Produce at most one active draft PR per source PR, repository, and train.
+- Detect changes already contained or covered by another PR instead of creating
+  duplicates.
+- Recover safely from duplicate events, missed deliveries, abandoned generated
+  PRs, destination movement, and interrupted runs.
+- Keep policy and implementation centralized in ROCm/rockrel while using thin
+  callers in TheRock, rocm-systems, and rocm-libraries.
 
 ## Non-goals
 
-- Automatically marking generated pull requests ready for review.
-- Automatically approving, merging, or enabling auto-merge.
-- Resolving cherry-pick conflicts automatically.
-- Inferring dependency ordering from prose.
-- Creating a second TheRock pin update for a component-repository request.
-- Replacing Jira, GitHub branch rules, CI, or required reviewers.
+- Automatically marking generated PRs ready, approving, merging, or enabling
+  auto-merge.
+- Automatically resolving conflicts or dependency ordering.
+- Treating a nightly build that contains a change as proof that a different
+  destination branch contains it.
+- Replacing Jira, branch protection, CI, or repository reviewers.
+- Assuming every train uses Jira or Express Train policy.
 
 ## Users
 
-- **Express Train operator:** configures trains, applies labels, reviews results,
-  and decides when generated drafts are ready.
-- **Source PR author:** receives status and remediation details on the original
-  pull request.
-- **Repository maintainer:** reviews the generated draft under the target
-  repository's normal branch rules.
-- **Automation administrator:** installs the GitHub App, manages secrets, and
-  disables or replays automation.
+- **Release operator:** defines trains, applies labels, reviews evidence, and
+  controls rollout.
+- **Source PR author:** receives status and remediation details on the source PR.
+- **Repository maintainer:** reviews generated drafts under normal branch rules.
+- **Automation administrator:** manages the GitHub App, secrets, required
+  checks, and emergency disablement.
 
 ## User experience
 
-### Request
+### Configure a train
 
-An operator applies a repository label with this exact form:
+An operator adds a train with an explicit label and per-repository destination:
 
-```text
-express-train:<train-id>
+```json
+{
+  "id": "10.1-20260811",
+  "label": "cherry-pick:10.1-20260811",
+  "state": "active",
+  "mode": "validate",
+  "requirements": {
+    "jira_fix_version": "10.1.0a20260811"
+  },
+  "repositories": {
+    "ROCm/TheRock": {
+      "source_branch": "main",
+      "destination_branch": "release/bkc/therock-10.1-20260811"
+    }
+  }
+}
 ```
 
-Example:
+Another train may omit `requirements.jira_fix_version`; it then has no Jira Fix
+Version gate. Adding a new destination train must require configuration only,
+not a new workflow or code path.
 
-```text
-express-train:10.1-20260811
-```
+### Request a cherry-pick
 
-The train ID is stable operator-facing vocabulary. A version-controlled rockrel
-configuration maps it to exact repository branches and the Jira Fix Version.
-
-Labels may be applied before merge or after merge. A valid post-merge label is
-an explicit recovery request and runs immediately.
+An authorized operator applies the configured label to a source PR. Labels may
+be applied before or after merge. A valid post-merge label runs immediately.
+Removing one train label cancels only that train's request; it must not cancel
+other labels on the PR.
 
 ### Qualification
 
-A request qualifies only when all of the following are true:
+A request qualifies only when all applicable rules pass:
 
-1. The label maps to an active train.
-2. The source repository is TheRock, rocm-systems, or rocm-libraries.
-3. The source PR base is `main` for TheRock or `develop` for the component
-   repositories.
-4. The actor that applied the label currently has `write`, `maintain`, or
-   `admin` permission in that repository.
-5. The source PR is merged and its aggregate merge commit is available from the
-   canonical repository.
-6. At least one ROCm Jira issue referenced by the PR has the exact Fix Version
-   configured for the train.
-7. The configured target branch exists and is governed by pull-request rules.
+1. The exact label maps to one active configured train.
+2. The source repository is configured for that train.
+3. The source PR base equals that repository's configured source branch.
+4. The label actor currently has `write`, `maintain`, or `admin` permission.
+5. The source PR is merged and its aggregate merge commit is available.
+6. If the train configures a Jira Fix Version, at least one referenced ROCm Jira
+   issue has that exact Fix Version.
+7. The exact destination branch exists and is governed by PR rules.
 
 An open qualifying PR receives `waiting_for_merge`. Closing without merge or
-removing the label records `cancelled`.
+removing the configured label records `cancelled`.
 
 ### Outcomes
 
-Each source PR/train pair has exactly one current outcome:
-
 | Status | Meaning | Write behavior |
 | --- | --- | --- |
-| `waiting_for_merge` | Request is valid but the source is open | None |
-| `invalid` | A deterministic policy rule failed | Remove invalid train label |
-| `blocked` | Required evidence or a service is temporarily unavailable | None; retain label |
-| `already_contained` | Exact target already contains the change | None |
-| `covered_by_existing_pr` | An existing target PR covers the change | None |
-| `cherry_pick_required` | Read-only planning proved a clean change is needed | None |
-| `draft_created` | A draft target PR exists | Draft only |
-| `manual_resolution_required` | Conflict or ambiguous repository state | None |
-| `cancelled` | Request was removed or PR closed without merge | None |
-
-Automation updates one sticky source-PR comment instead of adding a comment for
-every delivery. The comment identifies the train, decision, evidence summary,
-workflow run, and generated or covering PR when applicable.
+| `waiting_for_merge` | Valid request; source is open | None |
+| `invalid` | A deterministic rule failed | Remove only the invalid train label |
+| `blocked` | Required evidence is temporarily unavailable | Retain label; no branch |
+| `already_contained` | Exact destination contains the change | None |
+| `covered_by_existing_pr` | An active or merged destination PR covers it | None |
+| `cherry_pick_required` | Clean non-empty application is proven | None during planning |
+| `draft_created` | One draft destination PR exists | Draft only |
+| `manual_resolution_required` | Conflict or ambiguous state | None |
+| `cancelled` | Request removed or source closed unmerged | None |
 
 ## Safety requirements
 
-- Generated pull requests are always drafts.
-- The automation has no code path or permission request for ready-for-review,
-  approval, merge, or auto-merge operations.
-- A conflict is never treated as evidence that the change is present.
-- Every decision uses freshly fetched canonical refs.
-- Before push, the target head is fetched again. One target movement causes a
-  complete recomputation; a second movement stops the run safely.
-- `pull_request_target` workflows never check out or execute the source PR head.
-- Temporary GitHub or Jira failures retain the label and create no branch.
-- Dry-run and shadow modes cannot acquire write credentials.
+- Generated PRs always remain drafts until an operator acts.
+- No code path or token permission may mark ready, approve, merge, or auto-merge.
+- Conflicts are never interpreted as containment.
+- Decisions use canonical refs and the exact configured destination branch.
+- The destination head is checked again before push; movement causes a full
+  replan, and a second movement stops safely.
+- Privileged workflows never check out or execute source PR head code.
+- Temporary GitHub or Jira failures retain labels and create no branch.
+- `validate` and `shadow` modes cannot acquire write credentials.
+- A closed, unmerged generated PR does not permanently suppress recovery.
 
 ## Configuration and lifecycle
 
-Each train declares an ID, Jira Fix Version, state, mode, and per-repository
-source and target branches. Supported states are `active` and `inactive`.
-Supported modes are `disabled`, `validate`, `shadow`, and `create-draft`.
+Each train declares an ID, exact label, state, mode, optional requirements, and
+one or more repository source/destination mappings. Supported states are
+`active` and `inactive`; supported modes are `disabled`, `validate`, `shadow`,
+and `create-draft`.
 
-Activating a train synchronizes its label to the three supported repositories.
-Inactivating a train prevents new requests without deleting historical labels
-or comments.
+Train labels must use the reserved `cherry-pick:` namespace and be unique.
+Destination branches must begin with `release/`. Activating a train synchronizes
+its label; inactivating it prevents new requests without deleting history.
 
 ## Success criteria
 
-- Applying a valid label to a merged qualifying PR creates exactly one draft
-  against the configured target branch.
-- Replaying the same request has no additional write effect.
-- Invalid requests explain the exact failed rule.
-- Existing or covering changes do not produce duplicate PRs.
-- Conflicts produce no remote branch.
-- All seven 0811 reference cases resolve deterministically, including TheRock
-  PR 7282 being associated with its existing covering descendant-pin PR.
-- A later nightly or similarly named release never substitutes for the exact
-  configured target.
-- Unit, Git integration, contract, workflow, and security tests pass.
+- Adding a train is a configuration-only change.
+- Applying its label to a qualifying merged PR creates exactly one draft against
+  its exact destination branch when the train is in `create-draft` mode.
+- A train with no Jira requirement can qualify without a Jira reference.
+- A train with a Jira requirement fails closed on missing or mismatched evidence.
+- Replays and scheduled reconciliation have no duplicate write effect.
+- Existing, covered, conflicting, and abandoned-PR cases resolve deterministically.
+- The seven 0811 cases remain a regression corpus for one configured train.
+- Unit, Git integration, workflow, security, and repository-local caller tests pass.
 
 ## Rollout
 
-Rollout progresses through `validate`, `shadow`, and `create-draft`. The first
-live write is a controlled pilot. Expanding writes requires operator review of
-the pilot result. Production enablement does not relax the draft-only rule.
+Every train progresses independently through `validate`, `shadow`, and
+`create-draft`. The first write for a new train is a reviewed pilot. Expanding
+writes requires operator review and never relaxes the draft-only rule.
