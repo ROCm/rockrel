@@ -252,8 +252,12 @@ class Planner:
                 target_branch=target_branch,
             )
         for candidate in target_pulls:
-            if marker in (candidate.get("body") or "") or (
-                candidate.get("head", {}).get("ref") == branch_name
+            owns_identity = candidate.get("state") == "open" or bool(
+                candidate.get("merged_at")
+            )
+            if owns_identity and (
+                marker in (candidate.get("body") or "")
+                or candidate.get("head", {}).get("ref") == branch_name
             ):
                 return Result(
                     status=Status.COVERED_BY_EXISTING_PR,
