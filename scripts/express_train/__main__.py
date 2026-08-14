@@ -35,6 +35,17 @@ def build_parser() -> argparse.ArgumentParser:
 
     sync = subparsers.add_parser("sync-labels")
     sync.add_argument("--train", required=True)
+
+    reconcile = subparsers.add_parser("reconcile")
+    reconcile.add_argument("--train", required=True)
+    reconcile.add_argument(
+        "--repo-dir",
+        action="append",
+        required=True,
+        metavar="OWNER/REPO=PATH",
+        help="Repeat once for every repository configured for the train.",
+    )
+    reconcile.add_argument("--publish-status", action="store_true")
     return parser
 
 
@@ -97,6 +108,61 @@ def main(
         return 2
     jira = jira_factory(jira_url, jira_token)
     planner = planner_factory(config, github, jira)
+
+    if args.command == "reconcile":
+        repo_directories: dict[str, Path] = {}
+        for assignment in args.repo_dir:
+            if "=" not in assignment:
+                print(
+                    f"error: --repo-dir must be OWNER/REPO=PATH, got {assignment!r}",
+                    file=stderr,
+                )
+                return 2
+            repository, directory = assignment.split("=", 1)
+            repo_directories[repository] = Path(directory)
+        missing = sorted(set(train.repositories) - set(repo_directories))
+        if missing:
+            print(
+                "error: missing --repo-dir mappings for " + ", ".join(missing),
+                file=stderr,
+            )
+            return 2
+        results = []
+        for repository in train.repositories:
+            owner, repo = repository.split("/", 1)
+            source_urls = github.search_merged_labeled_pull_requests(
+                owner, repo, train.label
+            )
+            for source_url in source_urls:
+                result = planner.plan(
+                    source_url, train.id, repo_directories[repository]
+                )
+                if args.publish_status:
+                    source_owner, source_repo, number = parse_pull_request_url(
+                        source_url
+                    )
+                    github.upsert_comment(
+                        source_owner,
+                        source_repo,
+                        number,
+                        marker=status_marker(train.id),
+                        body=render_status_comment(result),
+                    )
+                results.append(result.as_dict())
+        print(
+            json.dumps(
+                {
+                    "status": "reconciled",
+                    "mode": "plan",
+                    "train_id": train.id,
+                    "results": results,
+                },
+                sort_keys=True,
+            ),
+            file=stdout,
+        )
+        return 0
+
     result = planner.plan(args.source_pr, args.train, args.repo_dir)
 
     if args.command == "create-draft":

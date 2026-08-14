@@ -1,0 +1,166 @@
+name: Express Train cherry-pick
+
+on:
+  workflow_call:
+    inputs:
+      source_pr:
+        description: Canonical GitHub source pull request URL
+        required: true
+        type: string
+      train_id:
+        description: Express Train configuration ID
+        required: true
+        type: string
+      automation_ref:
+        description: Full immutable rockrel commit SHA
+        required: true
+        type: string
+      mode:
+        description: Read-only plan or draft creation
+        required: true
+        type: string
+    secrets:
+      app_id:
+        required: true
+      app_private_key:
+        required: true
+      jira_url:
+        required: true
+      jira_token:
+        required: true
+  workflow_dispatch:
+    inputs:
+      source_pr:
+        description: Canonical GitHub source pull request URL
+        required: true
+        type: string
+      train_id:
+        description: Express Train configuration ID
+        required: true
+        type: string
+      automation_ref:
+        description: Full immutable rockrel commit SHA
+        required: true
+        type: string
+      mode:
+        description: Read-only plan or draft creation
+        required: true
+        default: plan
+        type: choice
+        options: [plan, create-draft]
+
+permissions:
+  contents: read
+  issues: write
+  pull-requests: read
+
+jobs:
+  plan:
+    name: Validate and plan
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Validate immutable automation ref
+        env:
+          AUTOMATION_REF: ${{ inputs.automation_ref }}
+        run: |
+          if [[ ! "$AUTOMATION_REF" =~ ^[0-9a-f]{40}$ ]]; then
+            echo "automation_ref must be a full lowercase commit SHA" >&2
+            exit 2
+          fi
+      - name: Resolve source repository
+        id: source
+        env:
+          SOURCE_PR: ${{ inputs.source_pr }}
+        run: |
+          python3 -c 'import os,re; m=re.fullmatch(r"https://github.com/([^/]+)/([^/]+)/pull/[1-9][0-9]*/?", os.environ["SOURCE_PR"]); assert m, "invalid source PR URL"; print(f"repository={m.group(1)}/{m.group(2)}")' >> "$GITHUB_OUTPUT"
+      - name: Check out pinned automation
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803
+        with:
+          repository: ROCm/rockrel
+          ref: ${{ inputs.automation_ref }}
+          path: automation
+          persist-credentials: false
+      - name: Check out canonical source repository
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803
+        with:
+          repository: ${{ steps.source.outputs.repository }}
+          fetch-depth: 0
+          path: source
+          persist-credentials: false
+      - name: Plan request
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+          JIRA_URL: ${{ secrets.jira_url || secrets.ROCM_CHERRYPICK_JIRA_URL }}
+          JIRA_TOKEN: ${{ secrets.jira_token || secrets.ROCM_CHERRYPICK_JIRA_TOKEN }}
+        run: |
+          python3 -m scripts.express_train \
+            --config config/express-trains.json \
+            plan \
+            --source-pr "${{ inputs.source_pr }}" \
+            --train "${{ inputs.train_id }}" \
+            --repo-dir "$GITHUB_WORKSPACE/source" \
+            --publish-status | tee "$RUNNER_TEMP/express-train-plan.json"
+        working-directory: automation
+      - name: Upload plan evidence
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: express-train-plan-${{ github.run_id }}
+          path: ${{ runner.temp }}/express-train-plan.json
+          if-no-files-found: warn
+
+  create-draft:
+    name: Create draft
+    if: inputs.mode == 'create-draft'
+    needs: plan
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Resolve source repository
+        id: source
+        env:
+          SOURCE_PR: ${{ inputs.source_pr }}
+        run: |
+          python3 -c 'import os,re; m=re.fullmatch(r"https://github.com/([^/]+)/([^/]+)/pull/[1-9][0-9]*/?", os.environ["SOURCE_PR"]); assert m, "invalid source PR URL"; print(f"repository={m.group(1)}/{m.group(2)}"); print(f"name={m.group(2)}")' >> "$GITHUB_OUTPUT"
+      - name: Create scoped GitHub App token
+        id: app-token
+        uses: actions/create-github-app-token@fee1f7d63c2ff003460e3d139729b119787bc349
+        with:
+          app-id: ${{ secrets.app_id || secrets.ROCM_CHERRYPICK_APP_ID }}
+          private-key: ${{ secrets.app_private_key || secrets.ROCM_CHERRYPICK_APP_PRIVATE_KEY }}
+          owner: ROCm
+          repositories: ${{ steps.source.outputs.name }}
+      - name: Check out pinned automation
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803
+        with:
+          repository: ROCm/rockrel
+          ref: ${{ inputs.automation_ref }}
+          path: automation
+          persist-credentials: false
+      - name: Check out canonical source repository with App credentials
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803
+        with:
+          repository: ${{ steps.source.outputs.repository }}
+          token: ${{ steps.app-token.outputs.token }}
+          fetch-depth: 0
+          path: source
+      - name: Replan and create draft
+        env:
+          GITHUB_TOKEN: ${{ steps.app-token.outputs.token }}
+          JIRA_URL: ${{ secrets.jira_url || secrets.ROCM_CHERRYPICK_JIRA_URL }}
+          JIRA_TOKEN: ${{ secrets.jira_token || secrets.ROCM_CHERRYPICK_JIRA_TOKEN }}
+        run: |
+          python3 -m scripts.express_train \
+            --config config/express-trains.json \
+            create-draft \
+            --source-pr "${{ inputs.source_pr }}" \
+            --train "${{ inputs.train_id }}" \
+            --repo-dir "$GITHUB_WORKSPACE/source" \
+            --publish-status | tee "$RUNNER_TEMP/express-train-create.json"
+        working-directory: automation
+      - name: Upload creation evidence
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: express-train-create-${{ github.run_id }}
+          path: ${{ runner.temp }}/express-train-create.json
+          if-no-files-found: warn

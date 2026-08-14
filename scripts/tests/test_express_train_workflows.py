@@ -61,5 +61,6 @@ def test_reconciliation_defaults_to_plan_only():
     text = workflow_text(RECONCILE)
     assert "mode: plan" in text
     assert "schedule:" in text
-    assert "python3 -m scripts.express_train reconcile" in text
+    assert "python3 -m scripts.express_train" in text
+    assert '            reconcile \\' in text
     assert "uses: ROCm/rockrel/.github/workflows/" not in text
