@@ -1,0 +1,122 @@
+name: Reconcile Express Train requests
+
+on:
+  schedule:
+    - cron: "17 6 * * *"
+  workflow_dispatch:
+    inputs:
+      train_id:
+        description: Express Train ID, or leave empty for every active train
+        required: false
+        type: string
+      automation_ref:
+        description: Full immutable rockrel commit SHA
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+jobs:
+  discover:
+    runs-on: ubuntu-24.04
+    outputs:
+      trains: ${{ steps.trains.outputs.trains }}
+      automation_ref: ${{ steps.ref.outputs.value }}
+    steps:
+      - name: Resolve automation ref
+        id: ref
+        env:
+          REQUESTED_REF: ${{ inputs.automation_ref }}
+          CURRENT_SHA: ${{ github.sha }}
+        run: |
+          value="${REQUESTED_REF:-$CURRENT_SHA}"
+          if [[ ! "$value" =~ ^[0-9a-f]{40}$ ]]; then
+            echo "automation_ref must be a full lowercase commit SHA" >&2
+            exit 2
+          fi
+          echo "value=$value" >> "$GITHUB_OUTPUT"
+      - name: Check out pinned automation
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803
+        with:
+          ref: ${{ steps.ref.outputs.value }}
+          persist-credentials: false
+      - name: Select active trains
+        id: trains
+        env:
+          REQUESTED_TRAIN: ${{ inputs.train_id }}
+        run: |
+          python3 - <<'PY' >> "$GITHUB_OUTPUT"
+          import json
+          import os
+
+          config = json.load(open("config/express-trains.json"))
+          requested = os.environ.get("REQUESTED_TRAIN", "")
+          trains = [item["id"] for item in config["trains"] if item["state"] == "active"]
+          if requested:
+              if requested not in trains:
+                  raise SystemExit(f"requested train is not active: {requested}")
+              trains = [requested]
+          print(f"trains={json.dumps(trains)}")
+          PY
+
+  reconcile:
+    needs: discover
+    if: needs.discover.outputs.trains != '[]'
+    strategy:
+      fail-fast: false
+      matrix:
+        train: ${{ fromJSON(needs.discover.outputs.trains) }}
+    runs-on: ubuntu-24.04
+    env:
+      mode: plan
+    steps:
+      - name: Check out pinned automation
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803
+        with:
+          ref: ${{ needs.discover.outputs.automation_ref }}
+          path: automation
+          persist-credentials: false
+      - name: Check out TheRock
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803
+        with:
+          repository: ROCm/TheRock
+          fetch-depth: 0
+          path: sources/TheRock
+          persist-credentials: false
+      - name: Check out rocm-systems
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803
+        with:
+          repository: ROCm/rocm-systems
+          fetch-depth: 0
+          path: sources/rocm-systems
+          persist-credentials: false
+      - name: Check out rocm-libraries
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803
+        with:
+          repository: ROCm/rocm-libraries
+          fetch-depth: 0
+          path: sources/rocm-libraries
+          persist-credentials: false
+      - name: Reconcile labeled merged pull requests in plan mode
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+          JIRA_URL: ${{ secrets.ROCM_CHERRYPICK_JIRA_URL }}
+          JIRA_TOKEN: ${{ secrets.ROCM_CHERRYPICK_JIRA_TOKEN }}
+        run: |
+          python3 -m scripts.express_train \
+            --config config/express-trains.json \
+            reconcile \
+            --train "${{ matrix.train }}" \
+            --repo-dir "ROCm/TheRock=$GITHUB_WORKSPACE/sources/TheRock" \
+            --repo-dir "ROCm/rocm-systems=$GITHUB_WORKSPACE/sources/rocm-systems" \
+            --repo-dir "ROCm/rocm-libraries=$GITHUB_WORKSPACE/sources/rocm-libraries" \
+            | tee "$RUNNER_TEMP/express-train-reconcile.json"
+        working-directory: automation
+      - name: Upload reconciliation evidence
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: express-train-reconcile-${{ matrix.train }}-${{ github.run_id }}
+          path: ${{ runner.temp }}/express-train-reconcile.json
+          if-no-files-found: warn

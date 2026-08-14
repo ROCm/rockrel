@@ -191,6 +191,32 @@ class GitHubClient:
             raise ApiError(0, "GitHub pulls response was not an array")
         return response
 
+    def search_merged_labeled_pull_requests(
+        self,
+        owner: str,
+        repo: str,
+        label: str,
+    ) -> list[str]:
+        query = urllib.parse.urlencode(
+            {
+                "q": (
+                    f'repo:{owner}/{repo} is:pr is:merged label:"{label}"'
+                ),
+                "per_page": 100,
+            }
+        )
+        response = self._request("GET", f"/search/issues?{query}")
+        items = response.get("items", [])
+        if not isinstance(items, list):
+            raise ApiError(0, "GitHub search response omitted its items array")
+        return [
+            item["html_url"]
+            for item in items
+            if isinstance(item, dict)
+            and isinstance(item.get("pull_request"), dict)
+            and isinstance(item.get("html_url"), str)
+        ]
+
     def remove_label(
         self, owner: str, repo: str, number: int, label: str
     ) -> None:
