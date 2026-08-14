@@ -45,7 +45,10 @@ def test_privileged_workflow_never_references_pull_request_head_code():
 def test_app_write_token_is_limited_to_create_draft_job():
     text = workflow_text(CENTRAL)
     assert "actions/create-github-app-token@fee1f7d63c2ff003460e3d139729b119787bc349" in text
-    assert "if: inputs.mode == 'create-draft'" in text
+    assert "needs.plan.outputs.train_mode == 'create-draft'" in text
+    assert "needs.plan.outputs.status == 'cherry_pick_required'" in text
+    assert "train_mode: ${{ steps.result.outputs.train_mode }}" in text
+    assert "status: ${{ steps.result.outputs.status }}" in text
     assert "permissions:\n  contents: read" in text
     assert "secrets: inherit" not in text
 
