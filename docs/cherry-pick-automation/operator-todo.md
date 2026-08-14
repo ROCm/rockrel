@@ -1,4 +1,4 @@
-# Express Train automation: operator GitHub TODO
+# Label-driven cherry-pick automation: operator GitHub TODO
 
 This is the complete queue of public GitHub actions. None of these actions are
 authorized during local review. Check off an item only after an operator has
@@ -30,18 +30,18 @@ These checks are read-only. Do not reopen or reuse those PRs during review.
 - [ ] After the `Unit Tests` check exists on rockrel's default branch, configure
   branch protection/rulesets to make `Unit Tests` a required status check.
 - [ ] Verify branch protection rejects a fixture PR whose `Unit Tests` check
-  fails before relying on the requirement for Express Train changes.
+  fails before relying on it for destination-train changes.
 
 ## GitHub App and credentials
 
 - [ ] Create the private, webhook-disabled GitHub App from
-  `config/express-train-github-app-manifest.json`.
+  `config/cherry-pick-github-app-manifest.json`.
 - [ ] Install it only on ROCm/rockrel, ROCm/TheRock, ROCm/rocm-systems, and
   ROCm/rocm-libraries.
 - [ ] Verify the installation maximum is exactly administration read, contents
   write, issues write, and pull requests write; do not grant Actions or
   Workflows permission.
-- [ ] Create selected-repository organization secrets
+- [ ] For trains that declare Jira policy, create selected-repository organization secrets
   `ROCM_CHERRYPICK_APP_CLIENT_ID` and
   `ROCM_CHERRYPICK_APP_PRIVATE_KEY` for those four repositories.
 - [ ] Create selected-repository organization secrets
@@ -72,7 +72,7 @@ These checks are read-only. Do not reopen or reuse those PRs during review.
 - [ ] Select one low-risk pilot and promote only that reviewed train to
   `create-draft` through a configuration PR.
 - [ ] Apply the train label to the approved pilot source PR.
-- [ ] Confirm exactly one target PR is created and that it remains a draft.
+- [ ] Confirm exactly one destination PR is created and that it remains a draft.
 - [ ] Do not mark any generated draft ready until an operator separately
   confirms the source SHA, Jira Fix Version, exact base branch, diff, CI, and
   dependency ordering.

@@ -1,4 +1,4 @@
-"""Prove when an existing target pull request covers a source change."""
+"""Prove when an existing destination pull request covers a source change."""
 
 from __future__ import annotations
 
@@ -134,7 +134,7 @@ def find_covering_pull(
     source_sha: str,
     candidate: dict[str, Any],
 ) -> dict[str, Any] | None:
-    """Return positive coverage evidence for an open target PR, otherwise None."""
+    """Return positive coverage evidence for an open destination PR, or None."""
 
     if str(candidate.get("state", "")).lower() != "open":
         return None

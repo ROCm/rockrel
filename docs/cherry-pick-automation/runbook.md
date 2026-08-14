@@ -1,4 +1,4 @@
-# Express Train cherry-pick automation runbook
+# Label-driven cherry-pick automation runbook
 
 ## Operating principles
 
@@ -10,9 +10,9 @@
 
 ## Add a train
 
-1. Add a unique train entry to `config/express-trains.json` in `validate` mode.
-2. Confirm exact source and target branches for all enabled repositories.
-3. Confirm the Jira Fix Version spelling with Jira.
+1. Add a unique train entry to `config/cherry-pick-trains.json` in `validate` mode.
+2. Confirm exact source and destination branches for all enabled repositories.
+3. If the train requires Jira policy, confirm the Fix Version spelling with Jira.
 4. Run the configuration and workflow test suites.
 5. Review and merge the configuration pull request.
 6. Dispatch the label synchronization workflow for the train.
@@ -21,7 +21,7 @@
 
 ## Install the GitHub App
 
-Use `config/express-train-github-app-manifest.json` as the reviewed permission
+Use `config/cherry-pick-github-app-manifest.json` as the reviewed permission
 source. Create a private organization-owned App with webhooks disabled, install
 it only on rockrel, TheRock, rocm-systems, and rocm-libraries, and confirm the
 installed permissions exactly match the manifest. Do not add Actions or
@@ -41,10 +41,10 @@ implementation. The ordered, operator-owned actions are maintained in
 
 ## Review a generated draft
 
-1. Confirm the source PR URL, aggregate merge SHA, Jira issue, and train ID.
+1. Confirm the source PR URL, aggregate merge SHA, applicable policy, and train ID.
 2. Confirm the draft base is the exact configured release branch.
 3. Review the cherry-picked diff and provenance marker.
-4. Distinguish target-branch CI from checks inherited from the source PR.
+4. Distinguish destination-branch CI from checks inherited from the source PR.
 5. Resolve dependency ordering with the component owner when Jira records a
    dependency.
 6. An operator may mark the draft ready only after completing this review.
@@ -54,7 +54,7 @@ The automation never performs step 6.
 ## Replay
 
 Run the manual workflow in `plan` mode with the source PR URL and train ID. If
-the plan is `cherry_pick_required`, review the exact target head and then
+the plan is `cherry_pick_required`, review the exact destination head and then
 dispatch `create-draft`. Replays are idempotent and return an existing branch or
 PR when one is already associated with the identity key.
 
@@ -99,7 +99,7 @@ draft PRs automatically.
 - Final unit, integration, workflow, and security tests pass.
 - Shadow results are attached for representative requests.
 - App installation repositories and permissions are recorded.
-- Train configuration, Jira Fix Version, and exact target branches are recorded.
+- Train configuration, optional Jira policy, and exact destinations are recorded.
 - Generated implementation and pilot pull requests are still drafts.
 - Every public GitHub mutation in `operator-todo.md` has explicit operator
   approval before execution.

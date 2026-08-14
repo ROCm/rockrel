@@ -167,10 +167,9 @@ write, and pull requests write. Each token request narrows that maximum:
 | Label synchronization | Issues write only |
 
 The built-in workflow token remains contents-read-only. App Client ID/private
-key and Jira credentials are explicit selected-repository secrets. A train with
-no Jira requirement performs no Jira request, though the first workflow version
-may still receive the named secrets until secret inputs are split in a later
-compatible revision.
+key are required selected-repository secrets. Jira credentials are optional
+secret inputs and are required only for trains declaring Jira policy. A train
+with no Jira requirement performs no Jira request.
 
 ## Security boundaries
 

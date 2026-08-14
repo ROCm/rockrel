@@ -1,4 +1,4 @@
-"""ROCm Cherry-pick cherry-pick automation."""
+"""ROCm label-driven cherry-pick automation."""
 
 from .models import Result, Status
 

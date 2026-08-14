@@ -1,18 +1,18 @@
-# Express Train cherry-pick automation implementation report
+# Label-driven cherry-pick automation implementation report
 
 ## Delivered
 
 - Product requirements, technical design, and operator runbook were committed
   before production code.
 - Train configuration and label parsing are fail-closed.
-- Qualification validates repository, base branch, label actor permission, Jira
-  Fix Version, target existence, and target protection.
+- Qualification validates repository, base branch, label actor permission,
+  optional train requirements, destination existence, and protection.
 - Git planning uses disposable worktrees for contained, clean, empty, conflict,
   merge-commit, and gitlink cases.
 - GitHub and Jira clients use injectable transports and bounded requests.
 - Existing identity markers, deterministic branches, ordinary patch coverage,
   and gitlink cherry-pick provenance prevent duplicate PRs.
-- The write path uses a target-head lease, `git cherry-pick -x`, a deterministic
+- The write path uses a destination-head lease, `git cherry-pick -x`, a deterministic
   branch, and GitHub's `draft: true` API field.
 - The implementation has no ready-for-review, review, merge, or auto-merge API.
 - Reusable, reconciliation, label-sync, and source-template workflows pin every
@@ -45,6 +45,7 @@ The Git history preserves red tests before each implementation slice:
 | `7b2e3bc` least-privilege App contract | version-controlled App manifest |
 | `d95e31c`, `df3343b` cross-repository token boundaries | `d047503` permission-narrowed workflow tokens and artifact feedback |
 | `a73f954`, `fe4884c`, `eb23de0`, `52d557c` event and recovery paths | early-result gating, label-specific cancellation, abandoned-PR recovery, and two-phase reconciliation |
+| `671d73f`, `ce37bca` generic destination-train contracts | `280e6f7` schema v2, optional policy, and generic workflows |
 
 Each red state was run locally and failed for the intended missing module,
 interface, or workflow behavior. Red commits were not pushed independently.
@@ -61,11 +62,11 @@ git diff --check
 
 Results on 2026-08-14:
 
-- 146 tests passed.
+- 161 tests passed.
 - Trailing whitespace, EOF, YAML, merge-conflict, large-file, line-ending,
   no-tabs, and actionlint hooks passed.
 - The seven 0811 requests are captured in
-  `scripts/tests/fixtures/express_train_0811.json`.
+  `scripts/tests/fixtures/cherry_pick_0811.json`.
 - Live read-only validation proved all six ordinary cases through an empty
   trial application against their covering PR heads.
 - Live read-only validation of TheRock #7282 against #7357 returned

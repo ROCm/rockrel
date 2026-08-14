@@ -12,16 +12,16 @@ Per-commit builds | [TheRock](https://github.com/ROCm/TheRock), [rocm-libraries]
 
 _The name of this repo has been shortened to workaround this [known Windows path length issue](https://github.com/ROCm/rocm-libraries/issues/2096)._
 
-## Express Train cherry-pick automation
+## Label-driven cherry-pick automation
 
-The label-triggered, draft-only Express Train cherry-pick workflow is documented
+The label-triggered, draft-only destination-train workflow is documented
 in the [product requirements](docs/cherry-pick-automation/product-requirements.md),
 [technical design](docs/cherry-pick-automation/technical-design.md), and
 [operator runbook](docs/cherry-pick-automation/runbook.md). Public GitHub work
 is held in the local-only
 [operator TODO](docs/cherry-pick-automation/operator-todo.md). Train-to-branch and
-Jira Fix Version mappings are version controlled in
-[`config/express-trains.json`](config/express-trains.json).
+optional Jira policy are version controlled in
+[`config/cherry-pick-trains.json`](config/cherry-pick-trains.json).
 
 ## Release FAQ (Frequently Asked Questions)
 
