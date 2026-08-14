@@ -27,6 +27,10 @@ These checks are read-only. Do not reopen or reuse those PRs during review.
 - [ ] Run repository CI and security review on the draft.
 - [ ] Merge the central PR only after normal rockrel approval.
 - [ ] Record the immutable merged rockrel commit SHA.
+- [ ] After the `Unit Tests` check exists on rockrel's default branch, configure
+  branch protection/rulesets to make `Unit Tests` a required status check.
+- [ ] Verify branch protection rejects a fixture PR whose `Unit Tests` check
+  fails before relying on the requirement for Express Train changes.
 
 ## GitHub App and credentials
 

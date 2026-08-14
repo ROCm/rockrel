@@ -21,6 +21,8 @@
   read-only App tokens; feedback and draft writes use separate gated tokens.
 - Scheduled recovery uses a read phase followed by a write phase containing
   only `create-draft` trains, and replans every request before writing.
+- A dedicated read-only rockrel unit-test workflow runs the complete suite, and
+  pre-commit enforces TheRock's `*_test.py` file-naming convention.
 
 ## Test-first record
 
@@ -59,7 +61,7 @@ git diff --check
 
 Results on 2026-08-14:
 
-- 143 tests passed.
+- 146 tests passed.
 - Trailing whitespace, EOF, YAML, merge-conflict, large-file, line-ending,
   no-tabs, and actionlint hooks passed.
 - The seven 0811 requests are captured in

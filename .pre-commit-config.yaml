@@ -23,3 +23,11 @@ repos:
   hooks:
     - id: actionlint
       args: [-shellcheck=, -ignore, 'label ".+" is unknown']
+
+- repo: local
+  hooks:
+  - id: test-file-naming
+    name: Enforce *_test.py naming for scripts tests
+    entry: "Test files must use the *_test.py naming convention, not test_*.py"
+    language: fail
+    files: '^scripts/tests/test_[^/]*\.py$'
