@@ -69,6 +69,9 @@ jobs:
   plan:
     name: Validate and plan
     runs-on: ubuntu-24.04
+    outputs:
+      status: ${{ steps.result.outputs.status }}
+      train_mode: ${{ steps.result.outputs.train_mode }}
     steps:
       - name: Validate immutable automation ref
         env:
@@ -113,6 +116,12 @@ jobs:
             --event-action "${{ inputs.event_action }}" \
             --publish-status | tee "$RUNNER_TEMP/express-train-plan.json"
         working-directory: automation
+      - name: Export plan decision
+        id: result
+        run: |
+          python3 -c 'import json,os; value=json.load(open(os.environ["PLAN_FILE"])); print("status={}".format(value["status"])); print("train_mode={}".format(value["evidence"]["train_mode"]))' >> "$GITHUB_OUTPUT"
+        env:
+          PLAN_FILE: ${{ runner.temp }}/express-train-plan.json
       - name: Upload plan evidence
         if: always()
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
@@ -123,7 +132,10 @@ jobs:
 
   create-draft:
     name: Create draft
-    if: inputs.mode == 'create-draft'
+    if: >-
+      inputs.mode == 'create-draft' &&
+      needs.plan.outputs.train_mode == 'create-draft' &&
+      needs.plan.outputs.status == 'cherry_pick_required'
     needs: plan
     runs-on: ubuntu-24.04
     steps:
