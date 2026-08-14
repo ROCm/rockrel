@@ -35,6 +35,7 @@ The Git history preserves red tests before each implementation slice:
 | `a19b8da` unlabeled cancellation | `d3c6ded` event handling |
 | `10c4b70`, `1187b5c` covering evidence | `82cefb6` coverage detector |
 | `86b2c05` immutable renderer | `66ca3cd` renderer |
+| `9fb1439` validation-mode token boundary | `f3438b6` conditional write-token job |
 
 Each red state was run locally and failed for the intended missing module,
 interface, or workflow behavior. Red commits were not pushed independently.
