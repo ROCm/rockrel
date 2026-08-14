@@ -174,6 +174,22 @@ def test_unlabeled_event_is_cancelled_even_after_label_is_removed(tmp_path):
     client.label_actor.assert_not_called()
 
 
+def test_unlabeling_an_unrelated_label_does_not_cancel_present_train(tmp_path):
+    evaluator = Mock(
+        return_value=Result(
+            status=Status.CHERRY_PICK_REQUIRED,
+            reason_code="clean_trial_application",
+            message="clean",
+        )
+    )
+    result = Planner(config(), github(), jira(), evaluator=evaluator).plan(
+        SOURCE_URL, "10.1-20260811", tmp_path, event_action="unlabeled"
+    )
+
+    assert result.status is Status.CHERRY_PICK_REQUIRED
+    evaluator.assert_called_once()
+
+
 def test_jira_transport_failure_blocks(tmp_path):
     jira_client = jira()
     jira_client.fix_versions.side_effect = RuntimeError("timeout")
