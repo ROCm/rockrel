@@ -36,20 +36,20 @@ def test_every_automation_module_has_a_corresponding_test_module():
     expected = {
         "scripts/create_release_branch.py": "scripts/tests/create_release_branch_test.py",
         "scripts/rock_tagging.py": "scripts/tests/rock_tagging_test.py",
-        "scripts/render_express_train_workflow.py": (
-            "scripts/tests/render_express_train_workflow_test.py"
+        "scripts/render_cherry_pick_workflow.py": (
+            "scripts/tests/render_cherry_pick_workflow_test.py"
         ),
-        "scripts/express_train/clients.py": "scripts/tests/express_train_clients_test.py",
-        "scripts/express_train/config.py": "scripts/tests/express_train_config_test.py",
-        "scripts/express_train/coverage.py": "scripts/tests/express_train_coverage_test.py",
-        "scripts/express_train/git.py": "scripts/tests/express_train_git_test.py",
-        "scripts/express_train/models.py": "scripts/tests/express_train_cli_test.py",
-        "scripts/express_train/orchestrator.py": (
-            "scripts/tests/express_train_orchestrator_test.py"
+        "scripts/cherry_pick/clients.py": "scripts/tests/cherry_pick_clients_test.py",
+        "scripts/cherry_pick/config.py": "scripts/tests/cherry_pick_config_test.py",
+        "scripts/cherry_pick/coverage.py": "scripts/tests/cherry_pick_coverage_test.py",
+        "scripts/cherry_pick/git.py": "scripts/tests/cherry_pick_git_test.py",
+        "scripts/cherry_pick/models.py": "scripts/tests/cherry_pick_cli_test.py",
+        "scripts/cherry_pick/orchestrator.py": (
+            "scripts/tests/cherry_pick_orchestrator_test.py"
         ),
-        "scripts/express_train/policy.py": "scripts/tests/express_train_policy_test.py",
-        "scripts/express_train/writer.py": "scripts/tests/express_train_writer_test.py",
-        "scripts/express_train/__main__.py": "scripts/tests/express_train_cli_test.py",
+        "scripts/cherry_pick/policy.py": "scripts/tests/cherry_pick_policy_test.py",
+        "scripts/cherry_pick/writer.py": "scripts/tests/cherry_pick_writer_test.py",
+        "scripts/cherry_pick/__main__.py": "scripts/tests/cherry_pick_cli_test.py",
     }
     for implementation, test in expected.items():
         assert (ROOT / implementation).exists(), implementation
