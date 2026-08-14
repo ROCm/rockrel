@@ -73,14 +73,17 @@ def _required_string(value: dict[str, Any], key: str, context: str) -> str:
 def _valid_branch(branch: str) -> bool:
     """Apply the safety-relevant subset of git-check-ref-format rules."""
 
+    components = branch.split("/")
     return not (
-        branch.startswith("-")
+        branch == "@"
+        or branch.startswith("-")
         or branch.startswith("/")
         or branch.endswith(("/", "."))
         or ".." in branch
         or "//" in branch
         or "@{" in branch
-        or branch.endswith(".lock")
+        or any(component.startswith(".") for component in components)
+        or any(component.endswith(".lock") for component in components)
         or any(character.isspace() or ord(character) < 32 for character in branch)
         or any(character in "~^:?*[\\" for character in branch)
     )
