@@ -104,6 +104,8 @@ class Planner:
         source_url: str,
         train_id: str,
         repo_dir: str | Path,
+        *,
+        event_action: str | None = None,
     ) -> Result:
         owner, repo, number = parse_pull_request_url(source_url)
         repository = f"{owner}/{repo}"
@@ -113,6 +115,20 @@ class Planner:
             repository_config.target_branch if repository_config else None
         )
         pull = self.github.pull(owner, repo, number)
+        if event_action == "unlabeled":
+            return Result(
+                status=Status.CANCELLED,
+                reason_code="train_label_removed",
+                message="The Express Train request label was removed.",
+                source_pr=source_url,
+                train_id=train_id,
+                target_branch=target_branch,
+                evidence={
+                    "source_number": number,
+                    "source_repository": repository,
+                    "event_action": event_action,
+                },
+            )
         current_labels = {
             item.get("name")
             for item in pull.get("labels", [])
@@ -185,6 +201,7 @@ class Planner:
             "jira_keys": jira_keys,
             "target_head": branch.get("sha"),
             "train_mode": train.mode,
+            "event_action": event_action,
         }
         qualified = self._with_context(
             qualified,

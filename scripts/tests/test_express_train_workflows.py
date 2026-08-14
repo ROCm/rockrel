@@ -55,8 +55,8 @@ def test_source_template_uses_only_named_secrets_and_safe_event_metadata():
     assert "pull_request_target:" in text
     assert "types: [labeled, unlabeled, closed]" in text
     assert "secrets: inherit" not in text
-    assert "app_id: ${{ secrets.ROCM_CHERRYPICK_APP_ID }}" in text
-    assert "jira_token: ${{ secrets.ROCM_CHERRYPICK_JIRA_TOKEN }}" in text
+    assert "ROCM_CHERRYPICK_APP_ID: ${{ secrets.ROCM_CHERRYPICK_APP_ID }}" in text
+    assert "ROCM_CHERRYPICK_JIRA_TOKEN: ${{ secrets.ROCM_CHERRYPICK_JIRA_TOKEN }}" in text
     assert "event_action: ${{ github.event.action }}" in text
 
 

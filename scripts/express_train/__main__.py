@@ -32,6 +32,11 @@ def build_parser() -> argparse.ArgumentParser:
         subparser.add_argument("--train", required=True)
         subparser.add_argument("--repo-dir", type=Path, required=True)
         subparser.add_argument("--publish-status", action="store_true")
+        subparser.add_argument(
+            "--event-action",
+            choices=("labeled", "unlabeled", "closed", "manual"),
+            default="manual",
+        )
 
     sync = subparsers.add_parser("sync-labels")
     sync.add_argument("--train", required=True)
@@ -163,7 +168,12 @@ def main(
         )
         return 0
 
-    result = planner.plan(args.source_pr, args.train, args.repo_dir)
+    result = planner.plan(
+        args.source_pr,
+        args.train,
+        args.repo_dir,
+        event_action=args.event_action,
+    )
 
     if args.command == "create-draft":
         writer = writer_factory(github)

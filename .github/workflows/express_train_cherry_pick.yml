@@ -19,14 +19,19 @@ on:
         description: Read-only plan or draft creation
         required: true
         type: string
+      event_action:
+        description: Source pull request event action
+        required: false
+        default: manual
+        type: string
     secrets:
-      app_id:
+      ROCM_CHERRYPICK_APP_ID:
+        required: false
+      ROCM_CHERRYPICK_APP_PRIVATE_KEY:
+        required: false
+      ROCM_CHERRYPICK_JIRA_URL:
         required: true
-      app_private_key:
-        required: true
-      jira_url:
-        required: true
-      jira_token:
+      ROCM_CHERRYPICK_JIRA_TOKEN:
         required: true
   workflow_dispatch:
     inputs:
@@ -48,6 +53,12 @@ on:
         default: plan
         type: choice
         options: [plan, create-draft]
+      event_action:
+        description: Source pull request event action
+        required: false
+        default: manual
+        type: choice
+        options: [manual, labeled, unlabeled, closed]
 
 permissions:
   contents: read
@@ -90,8 +101,8 @@ jobs:
       - name: Plan request
         env:
           GITHUB_TOKEN: ${{ github.token }}
-          JIRA_URL: ${{ secrets.jira_url || secrets.ROCM_CHERRYPICK_JIRA_URL }}
-          JIRA_TOKEN: ${{ secrets.jira_token || secrets.ROCM_CHERRYPICK_JIRA_TOKEN }}
+          JIRA_URL: ${{ secrets.ROCM_CHERRYPICK_JIRA_URL }}
+          JIRA_TOKEN: ${{ secrets.ROCM_CHERRYPICK_JIRA_TOKEN }}
         run: |
           python3 -m scripts.express_train \
             --config config/express-trains.json \
@@ -99,6 +110,7 @@ jobs:
             --source-pr "${{ inputs.source_pr }}" \
             --train "${{ inputs.train_id }}" \
             --repo-dir "$GITHUB_WORKSPACE/source" \
+            --event-action "${{ inputs.event_action }}" \
             --publish-status | tee "$RUNNER_TEMP/express-train-plan.json"
         working-directory: automation
       - name: Upload plan evidence
@@ -125,8 +137,8 @@ jobs:
         id: app-token
         uses: actions/create-github-app-token@fee1f7d63c2ff003460e3d139729b119787bc349
         with:
-          app-id: ${{ secrets.app_id || secrets.ROCM_CHERRYPICK_APP_ID }}
-          private-key: ${{ secrets.app_private_key || secrets.ROCM_CHERRYPICK_APP_PRIVATE_KEY }}
+          app-id: ${{ secrets.ROCM_CHERRYPICK_APP_ID }}
+          private-key: ${{ secrets.ROCM_CHERRYPICK_APP_PRIVATE_KEY }}
           owner: ROCm
           repositories: ${{ steps.source.outputs.name }}
       - name: Check out pinned automation
@@ -146,8 +158,8 @@ jobs:
       - name: Replan and create draft
         env:
           GITHUB_TOKEN: ${{ steps.app-token.outputs.token }}
-          JIRA_URL: ${{ secrets.jira_url || secrets.ROCM_CHERRYPICK_JIRA_URL }}
-          JIRA_TOKEN: ${{ secrets.jira_token || secrets.ROCM_CHERRYPICK_JIRA_TOKEN }}
+          JIRA_URL: ${{ secrets.ROCM_CHERRYPICK_JIRA_URL }}
+          JIRA_TOKEN: ${{ secrets.ROCM_CHERRYPICK_JIRA_TOKEN }}
         run: |
           python3 -m scripts.express_train \
             --config config/express-trains.json \
@@ -155,6 +167,7 @@ jobs:
             --source-pr "${{ inputs.source_pr }}" \
             --train "${{ inputs.train_id }}" \
             --repo-dir "$GITHUB_WORKSPACE/source" \
+            --event-action "${{ inputs.event_action }}" \
             --publish-status | tee "$RUNNER_TEMP/express-train-create.json"
         working-directory: automation
       - name: Upload creation evidence

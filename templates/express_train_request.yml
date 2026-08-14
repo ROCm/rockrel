@@ -49,8 +49,9 @@ jobs:
       train_id: ${{ matrix.train }}
       automation_ref: ROCKREL_AUTOMATION_SHA
       mode: create-draft
+      event_action: ${{ github.event.action }}
     secrets:
-      app_id: ${{ secrets.ROCM_CHERRYPICK_APP_ID }}
-      app_private_key: ${{ secrets.ROCM_CHERRYPICK_APP_PRIVATE_KEY }}
-      jira_url: ${{ secrets.ROCM_CHERRYPICK_JIRA_URL }}
-      jira_token: ${{ secrets.ROCM_CHERRYPICK_JIRA_TOKEN }}
+      ROCM_CHERRYPICK_APP_ID: ${{ secrets.ROCM_CHERRYPICK_APP_ID }}
+      ROCM_CHERRYPICK_APP_PRIVATE_KEY: ${{ secrets.ROCM_CHERRYPICK_APP_PRIVATE_KEY }}
+      ROCM_CHERRYPICK_JIRA_URL: ${{ secrets.ROCM_CHERRYPICK_JIRA_URL }}
+      ROCM_CHERRYPICK_JIRA_TOKEN: ${{ secrets.ROCM_CHERRYPICK_JIRA_TOKEN }}
