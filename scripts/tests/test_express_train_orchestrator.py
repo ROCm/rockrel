@@ -101,6 +101,37 @@ def test_deterministic_branch_prevents_duplicate_without_marker(tmp_path):
     assert result.status is Status.COVERED_BY_EXISTING_PR
 
 
+def test_proven_covering_pull_prevents_duplicate_without_marker(tmp_path):
+    candidate = {
+        "number": 7357,
+        "state": "open",
+        "html_url": "https://github.com/ROCm/TheRock/pull/7357",
+        "body": "independent compiler pin update",
+        "head": {"ref": "users/compiler-update", "sha": "c" * 40},
+    }
+    coverage = Mock(
+        return_value={
+            "reason": "gitlink_cherry_pick_provenance",
+            "paths": ["compiler/amd-llvm"],
+            "pull_request_url": candidate["html_url"],
+        }
+    )
+    evaluator = Mock()
+    result = Planner(
+        config(),
+        github([candidate]),
+        jira(),
+        evaluator=evaluator,
+        coverage_evaluator=coverage,
+    ).plan(SOURCE_URL, "10.1-20260811", tmp_path)
+
+    assert result.status is Status.COVERED_BY_EXISTING_PR
+    assert result.reason_code == "gitlink_cherry_pick_provenance"
+    assert result.pull_request_url.endswith("/7357")
+    coverage.assert_called_once()
+    evaluator.assert_not_called()
+
+
 def test_clean_plan_includes_source_and_target_evidence(tmp_path):
     evaluator = Mock(
         return_value=Result(
