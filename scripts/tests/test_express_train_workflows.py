@@ -131,6 +131,20 @@ def test_reconciliation_defaults_to_plan_only():
     assert "github.token" not in text
 
 
+def test_reconciliation_write_phase_is_mode_gated_and_permission_narrowed():
+    text = workflow_text(RECONCILE)
+    assert '"mode": item["mode"]' in text
+    assert "matrix.train.mode == 'create-draft'" in text
+    assert "needs.reconcile.result == 'success'" in text
+    assert "--create-drafts" in text
+    create = _job(text, "create-drafts")
+    assert f"actions/create-github-app-token@{APP_TOKEN_SHA}" in create
+    assert "permission-administration: read" in create
+    assert "permission-contents: write" in create
+    assert "permission-issues: write" in create
+    assert "permission-pull-requests: write" in create
+
+
 def test_label_sync_token_requests_only_issues_write():
     text = workflow_text(SYNC)
     assert f"actions/create-github-app-token@{APP_TOKEN_SHA}" in text

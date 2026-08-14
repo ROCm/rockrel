@@ -250,6 +250,37 @@ def test_reconcile_discovers_and_plans_labeled_merged_prs(tmp_path):
     assert FakePlanner.calls[-1][2] == str(tmp_path)
 
 
+def test_reconcile_create_drafts_replans_and_publishes_status(tmp_path):
+    FakePlanner.calls.clear()
+    FakeWriter.calls.clear()
+    FakeGitHub.instances.clear()
+    output = io.StringIO()
+
+    code = main(
+        [
+            "--config",
+            str(config_file(tmp_path)),
+            "reconcile",
+            "--train",
+            "10.1-20260811",
+            "--repo-dir",
+            f"ROCm/TheRock={tmp_path}",
+            "--create-drafts",
+            "--publish-status",
+        ],
+        environ=environment(),
+        stdout=output,
+        **dependencies(),
+    )
+
+    payload = json.loads(output.getvalue())
+    assert code == 0
+    assert payload["mode"] == "create-draft"
+    assert payload["results"][0]["status"] == "draft_created"
+    assert FakeWriter.calls[-1][1] == "10.1-20260811"
+    assert FakeGitHub.instances[-1].comments
+
+
 def test_publish_result_needs_no_jira_credentials_and_removes_invalid_label(tmp_path):
     FakeGitHub.instances.clear()
     invalid = Result(
