@@ -27,11 +27,17 @@ it only on rockrel, TheRock, rocm-systems, and rocm-libraries, and confirm the
 installed permissions exactly match the manifest. Do not add Actions or
 Workflows permission.
 
-Store its App ID and private key as selected-repository organization secrets
-named `ROCM_CHERRYPICK_APP_ID` and `ROCM_CHERRYPICK_APP_PRIVATE_KEY`. Store the
-Jira endpoint and token as `ROCM_CHERRYPICK_JIRA_URL` and
-`ROCM_CHERRYPICK_JIRA_TOKEN`. The automation must remain in `validate` mode
-until a read-only credential and permission review succeeds.
+Store its Client ID and private key as selected-repository organization secrets
+named `ROCM_CHERRYPICK_APP_CLIENT_ID` and
+`ROCM_CHERRYPICK_APP_PRIVATE_KEY`. Store the Jira endpoint and token as
+`ROCM_CHERRYPICK_JIRA_URL` and `ROCM_CHERRYPICK_JIRA_TOKEN`. Restrict all four
+secrets to rockrel, TheRock, rocm-systems, and rocm-libraries. The automation
+must remain in `validate` mode until a read-only credential and permission
+review succeeds.
+
+Do not perform these public-repository actions while reviewing the local
+implementation. The ordered, operator-owned actions are maintained in
+`operator-todo.md`.
 
 ## Review a generated draft
 
@@ -95,3 +101,5 @@ draft PRs automatically.
 - App installation repositories and permissions are recorded.
 - Train configuration, Jira Fix Version, and exact target branches are recorded.
 - Generated implementation and pilot pull requests are still drafts.
+- Every public GitHub mutation in `operator-todo.md` has explicit operator
+  approval before execution.

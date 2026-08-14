@@ -25,10 +25,10 @@ on:
         default: manual
         type: string
     secrets:
-      ROCM_CHERRYPICK_APP_ID:
-        required: false
+      ROCM_CHERRYPICK_APP_CLIENT_ID:
+        required: true
       ROCM_CHERRYPICK_APP_PRIVATE_KEY:
-        required: false
+        required: true
       ROCM_CHERRYPICK_JIRA_URL:
         required: true
       ROCM_CHERRYPICK_JIRA_TOKEN:
@@ -62,8 +62,6 @@ on:
 
 permissions:
   contents: read
-  issues: write
-  pull-requests: read
 
 jobs:
   plan:
@@ -72,6 +70,8 @@ jobs:
     outputs:
       status: ${{ steps.result.outputs.status }}
       train_mode: ${{ steps.result.outputs.train_mode }}
+      source_repository: ${{ steps.source.outputs.repository }}
+      source_name: ${{ steps.source.outputs.name }}
     steps:
       - name: Validate immutable automation ref
         env:
@@ -86,7 +86,19 @@ jobs:
         env:
           SOURCE_PR: ${{ inputs.source_pr }}
         run: |
-          python3 -c 'import os,re; m=re.fullmatch(r"https://github.com/([^/]+)/([^/]+)/pull/[1-9][0-9]*/?", os.environ["SOURCE_PR"]); assert m, "invalid source PR URL"; print(f"repository={m.group(1)}/{m.group(2)}")' >> "$GITHUB_OUTPUT"
+          python3 -c 'import os,re; m=re.fullmatch(r"https://github.com/([^/]+)/([^/]+)/pull/[1-9][0-9]*/?", os.environ["SOURCE_PR"]); assert m, "invalid source PR URL"; print(f"repository={m.group(1)}/{m.group(2)}"); print(f"name={m.group(2)}")' >> "$GITHUB_OUTPUT"
+      - name: Create scoped read-only GitHub App token
+        id: read-token
+        uses: actions/create-github-app-token@bcd2ba49218906704ab6c1aa796996da409d3eb1
+        with:
+          client-id: ${{ secrets.ROCM_CHERRYPICK_APP_CLIENT_ID }}
+          private-key: ${{ secrets.ROCM_CHERRYPICK_APP_PRIVATE_KEY }}
+          owner: ROCm
+          repositories: ${{ steps.source.outputs.name }}
+          permission-administration: read
+          permission-contents: read
+          permission-issues: read
+          permission-pull-requests: read
       - name: Check out pinned automation
         uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803
         with:
@@ -98,12 +110,13 @@ jobs:
         uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803
         with:
           repository: ${{ steps.source.outputs.repository }}
+          token: ${{ steps.read-token.outputs.token }}
           fetch-depth: 0
           path: source
           persist-credentials: false
       - name: Plan request
         env:
-          GITHUB_TOKEN: ${{ github.token }}
+          GITHUB_TOKEN: ${{ steps.read-token.outputs.token }}
           JIRA_URL: ${{ secrets.ROCM_CHERRYPICK_JIRA_URL }}
           JIRA_TOKEN: ${{ secrets.ROCM_CHERRYPICK_JIRA_TOKEN }}
         run: |
@@ -114,7 +127,7 @@ jobs:
             --train "${{ inputs.train_id }}" \
             --repo-dir "$GITHUB_WORKSPACE/source" \
             --event-action "${{ inputs.event_action }}" \
-            --publish-status | tee "$RUNNER_TEMP/express-train-plan.json"
+            | tee "$RUNNER_TEMP/express-train-plan.json"
         working-directory: automation
       - name: Export plan decision
         id: result
@@ -129,6 +142,47 @@ jobs:
           name: express-train-plan-${{ github.run_id }}
           path: ${{ runner.temp }}/express-train-plan.json
           if-no-files-found: warn
+
+  feedback:
+    name: Publish event feedback
+    if: >-
+      needs.plan.result == 'success' &&
+      inputs.event_action != 'manual' &&
+      needs.plan.outputs.train_mode == 'create-draft' &&
+      needs.plan.outputs.status != 'cherry_pick_required'
+    needs: plan
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Create issue-feedback GitHub App token
+        id: feedback-token
+        uses: actions/create-github-app-token@bcd2ba49218906704ab6c1aa796996da409d3eb1
+        with:
+          client-id: ${{ secrets.ROCM_CHERRYPICK_APP_CLIENT_ID }}
+          private-key: ${{ secrets.ROCM_CHERRYPICK_APP_PRIVATE_KEY }}
+          owner: ROCm
+          repositories: ${{ needs.plan.outputs.source_name }}
+          permission-issues: write
+      - name: Check out pinned automation
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803
+        with:
+          repository: ROCm/rockrel
+          ref: ${{ inputs.automation_ref }}
+          path: automation
+          persist-credentials: false
+      - name: Download plan evidence
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c
+        with:
+          name: express-train-plan-${{ github.run_id }}
+          path: ${{ runner.temp }}/express-train-feedback
+      - name: Publish sticky result
+        env:
+          GITHUB_TOKEN: ${{ steps.feedback-token.outputs.token }}
+        run: |
+          python3 -m scripts.express_train \
+            --config config/express-trains.json \
+            publish-result \
+            --result-file "$RUNNER_TEMP/express-train-feedback/express-train-plan.json"
+        working-directory: automation
 
   create-draft:
     name: Create draft
@@ -147,12 +201,16 @@ jobs:
           python3 -c 'import os,re; m=re.fullmatch(r"https://github.com/([^/]+)/([^/]+)/pull/[1-9][0-9]*/?", os.environ["SOURCE_PR"]); assert m, "invalid source PR URL"; print(f"repository={m.group(1)}/{m.group(2)}"); print(f"name={m.group(2)}")' >> "$GITHUB_OUTPUT"
       - name: Create scoped GitHub App token
         id: app-token
-        uses: actions/create-github-app-token@fee1f7d63c2ff003460e3d139729b119787bc349
+        uses: actions/create-github-app-token@bcd2ba49218906704ab6c1aa796996da409d3eb1
         with:
-          app-id: ${{ secrets.ROCM_CHERRYPICK_APP_ID }}
+          client-id: ${{ secrets.ROCM_CHERRYPICK_APP_CLIENT_ID }}
           private-key: ${{ secrets.ROCM_CHERRYPICK_APP_PRIVATE_KEY }}
           owner: ROCm
           repositories: ${{ steps.source.outputs.name }}
+          permission-administration: read
+          permission-contents: write
+          permission-issues: write
+          permission-pull-requests: write
       - name: Check out pinned automation
         uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803
         with:

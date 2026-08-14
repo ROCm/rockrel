@@ -17,6 +17,8 @@
 - The implementation has no ready-for-review, review, merge, or auto-merge API.
 - Reusable, reconciliation, label-sync, and source-template workflows pin every
   external action to a full SHA and pass actionlint.
+- Cross-repository planning and reconciliation use permission-narrowed,
+  read-only App tokens; feedback and draft writes use separate gated tokens.
 
 ## Test-first record
 
@@ -37,6 +39,7 @@ The Git history preserves red tests before each implementation slice:
 | `86b2c05` immutable renderer | `66ca3cd` renderer |
 | `9fb1439` validation-mode token boundary | `f3438b6` conditional write-token job |
 | `7b2e3bc` least-privilege App contract | version-controlled App manifest |
+| `d95e31c`, `df3343b` cross-repository token boundaries | permission-narrowed workflow tokens and artifact feedback |
 
 Each red state was run locally and failed for the intended missing module,
 interface, or workflow behavior. Red commits were not pushed independently.
@@ -66,7 +69,9 @@ Results on 2026-08-14:
 
 ## Activation prerequisites
 
-Engineering implementation does not itself grant production authority. Before
+Engineering implementation does not itself grant production authority. No
+public GitHub action should be taken from this local checkout. The ordered
+operator actions are recorded in `operator-todo.md`. Before
 write mode can run, an ROCm organization administrator must:
 
 1. Install the dedicated GitHub App on rockrel, TheRock, rocm-systems, and

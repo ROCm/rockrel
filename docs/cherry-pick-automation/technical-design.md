@@ -13,6 +13,12 @@ SHA and invokes a standard-library Python CLI. It does not check out an
 unmerged pull-request head. A separate scheduled workflow reconciles merged,
 labeled PRs after missed deliveries or abandoned covering PRs.
 
+Planning and reconciliation authenticate with a GitHub App installation token
+whose requested permissions are explicitly narrowed to read-only access. The
+workflow's built-in `GITHUB_TOKEN` is not used for cross-repository API calls.
+Event feedback and draft creation are separate jobs with separate, narrowly
+scoped tokens and mode gates.
+
 ## Components
 
 - `scripts/express_train/`: policy, GitHub/Jira clients, git decision engine,
@@ -53,16 +59,18 @@ match `[a-zA-Z0-9][a-zA-Z0-9._-]{0,63}`. Target branches must begin with
 The module exposes:
 
 ```text
-python -m scripts.express_train plan --source-pr URL --train ID --json
-python -m scripts.express_train create-draft --source-pr URL --train ID --json
-python -m scripts.express_train reconcile --train ID --json
-python -m scripts.express_train sync-labels --train ID --json
+python -m scripts.express_train plan --source-pr URL --train ID --repo-dir PATH
+python -m scripts.express_train create-draft --source-pr URL --train ID --repo-dir PATH
+python -m scripts.express_train reconcile --train ID --repo-dir OWNER/REPO=PATH
+python -m scripts.express_train sync-labels --train ID
+python -m scripts.express_train publish-result --result-file FILE
 ```
 
 Commands write one JSON result to stdout and diagnostics to stderr. `plan` is
 read-only. `create-draft` checks the configured mode and refuses to write unless
 it is `create-draft`. Reconciliation delegates each discovered request through
-the same planner and writer; it has no separate decision logic.
+the same planner; it has no separate decision logic. `publish-result` validates
+a trusted plan artifact before updating the sticky source-PR comment.
 
 The result contains `status`, `reason_code`, source and target identifiers,
 fresh ref SHAs, Jira evidence, containment evidence, optional covering or
@@ -131,7 +139,7 @@ prevents a duplicate.
 ## GitHub and Jira access
 
 A dedicated GitHub App is installed only on rockrel, TheRock, rocm-systems, and
-rocm-libraries with repository permissions:
+rocm-libraries with maximum repository permissions:
 
 - Metadata: read
 - Contents: write
@@ -139,9 +147,21 @@ rocm-libraries with repository permissions:
 - Issues: write
 - Administration: read
 
-Jira credentials and the GitHub App ID/private key are organization Actions
-secrets restricted to those repositories and passed by explicit name. Read-only
-modes do not generate an App installation token with write permissions.
+Jira credentials and the GitHub App Client ID/private key are organization
+Actions secrets restricted to those repositories and passed by explicit name.
+Every token request narrows the installation maximum further:
+
+| Job | Token permissions |
+| --- | --- |
+| Plan and reconcile | Administration read, contents read, issues read, pull requests read |
+| Event feedback | Issues write only |
+| Draft creation | Administration read, contents write, issues write, pull requests write |
+| Label synchronization | Issues write only |
+
+The event-feedback and draft jobs are gated on the configured train mode
+`create-draft`. Manual plans, `validate`, and `shadow` do not generate an App
+installation token with write permissions. The built-in workflow token remains
+contents-read-only in every workflow.
 
 ## Security boundaries
 
@@ -155,6 +175,8 @@ modes do not generate an App installation token with write permissions.
   tokens.
 - Draft creation is the terminal write operation; the implementation contains
   no ready, review, merge, or auto-merge client method.
+- App tokens are repository-scoped and permission-narrowed when minted. The App
+  action is pinned to the immutable v3.2.0 commit.
 
 ## Testing strategy
 

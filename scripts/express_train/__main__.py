@@ -12,6 +12,7 @@ from typing import TextIO
 
 from .clients import GitHubClient, JiraClient, parse_pull_request_url
 from .config import load_config
+from .models import Result
 from .orchestrator import Planner, render_status_comment, status_marker
 from .writer import DraftWriter
 
@@ -40,6 +41,9 @@ def build_parser() -> argparse.ArgumentParser:
 
     sync = subparsers.add_parser("sync-labels")
     sync.add_argument("--train", required=True)
+
+    publish = subparsers.add_parser("publish-result")
+    publish.add_argument("--result-file", type=Path, required=True)
 
     reconcile = subparsers.add_parser("reconcile")
     reconcile.add_argument("--train", required=True)
@@ -81,6 +85,28 @@ def main(
         return 2
     github = github_factory(github_token)
     config = load_config(args.config)
+
+    if args.command == "publish-result":
+        try:
+            payload = json.loads(args.result_file.read_text())
+            result = Result.from_dict(payload)
+            train = config.train(result.train_id)
+            owner, repo, number = parse_pull_request_url(result.source_pr)
+        except (OSError, json.JSONDecodeError, TypeError, ValueError) as exc:
+            print(f"error: invalid result file: {exc}", file=stderr)
+            return 2
+        github.upsert_comment(
+            owner,
+            repo,
+            number,
+            marker=status_marker(train.id),
+            body=render_status_comment(result),
+        )
+        if result.status.value == "invalid":
+            github.remove_label(owner, repo, number, train.label)
+        print(json.dumps(result.as_dict(), sort_keys=True), file=stdout)
+        return 0
+
     train = config.train(args.train)
 
     if args.command == "sync-labels":

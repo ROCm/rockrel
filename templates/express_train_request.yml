@@ -8,8 +8,6 @@ on:
 
 permissions:
   contents: read
-  issues: write
-  pull-requests: read
 
 jobs:
   discover:
@@ -51,7 +49,7 @@ jobs:
       mode: create-draft
       event_action: ${{ github.event.action }}
     secrets:
-      ROCM_CHERRYPICK_APP_ID: ${{ secrets.ROCM_CHERRYPICK_APP_ID }}
+      ROCM_CHERRYPICK_APP_CLIENT_ID: ${{ secrets.ROCM_CHERRYPICK_APP_CLIENT_ID }}
       ROCM_CHERRYPICK_APP_PRIVATE_KEY: ${{ secrets.ROCM_CHERRYPICK_APP_PRIVATE_KEY }}
       ROCM_CHERRYPICK_JIRA_URL: ${{ secrets.ROCM_CHERRYPICK_JIRA_URL }}
       ROCM_CHERRYPICK_JIRA_TOKEN: ${{ secrets.ROCM_CHERRYPICK_JIRA_TOKEN }}
