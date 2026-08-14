@@ -159,6 +159,7 @@ def test_missing_train_label_is_invalid(tmp_path):
     )
     assert result.status is Status.INVALID
     assert result.reason_code == "train_label_missing"
+    assert result.evidence["train_mode"] == "validate"
 
 
 def test_unlabeled_event_is_cancelled_even_after_label_is_removed(tmp_path):
@@ -169,6 +170,7 @@ def test_unlabeled_event_is_cancelled_even_after_label_is_removed(tmp_path):
     )
     assert result.status is Status.CANCELLED
     assert result.reason_code == "train_label_removed"
+    assert result.evidence["train_mode"] == "validate"
     client.label_actor.assert_not_called()
 
 
