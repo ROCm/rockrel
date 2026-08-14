@@ -136,3 +136,27 @@ def test_github_create_pull_forces_draft_true():
     assert url.endswith("/pull/1")
     payload = json.loads(transport.requests[0][3].decode())
     assert payload["draft"] is True
+
+
+def test_github_search_returns_only_pull_request_urls():
+    transport = FakeTransport(
+        [
+            {
+                "items": [
+                    {
+                        "html_url": "https://github.com/ROCm/TheRock/pull/7282",
+                        "pull_request": {"url": "api-url"},
+                    },
+                    {"html_url": "https://github.com/ROCm/TheRock/issues/1"},
+                ]
+            }
+        ]
+    )
+    github = GitHubClient("token", transport=transport)
+
+    urls = github.search_merged_labeled_pull_requests(
+        "ROCm", "TheRock", "express-train:10.1-20260811"
+    )
+
+    assert urls == ["https://github.com/ROCm/TheRock/pull/7282"]
+    assert "is%3Amerged" in transport.requests[0][1]
