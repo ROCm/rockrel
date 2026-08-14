@@ -27,8 +27,8 @@ class FakePlanner:
     def __init__(self, config, github, jira):
         self.config = config
 
-    def plan(self, source_pr, train_id, repo_dir):
-        self.calls.append((source_pr, train_id, str(repo_dir)))
+    def plan(self, source_pr, train_id, repo_dir, *, event_action=None):
+        self.calls.append((source_pr, train_id, str(repo_dir), event_action))
         return self.result
 
 
@@ -134,6 +134,8 @@ def test_plan_emits_json_and_never_constructs_writer(tmp_path):
             "10.1-20260811",
             "--repo-dir",
             str(tmp_path),
+            "--event-action",
+            "unlabeled",
         ],
         environ=environment(),
         stdout=output,
@@ -142,6 +144,7 @@ def test_plan_emits_json_and_never_constructs_writer(tmp_path):
     assert code == 0
     assert json.loads(output.getvalue())["status"] == "cherry_pick_required"
     assert FakeWriter.calls == []
+    assert FakePlanner.calls[-1][3] == "unlabeled"
 
 
 def test_create_draft_runs_writer_and_publishes_sticky_status(tmp_path):

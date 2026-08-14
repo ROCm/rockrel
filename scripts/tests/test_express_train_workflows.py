@@ -22,6 +22,8 @@ def test_central_workflow_supports_reuse_and_manual_replay():
     assert "source_pr:" in text
     assert "train_id:" in text
     assert "automation_ref:" in text
+    assert "event_action:" in text
+    assert "--event-action" in text
 
 
 def test_workflows_pin_every_external_action_to_full_sha():
@@ -55,6 +57,7 @@ def test_source_template_uses_only_named_secrets_and_safe_event_metadata():
     assert "secrets: inherit" not in text
     assert "app_id: ${{ secrets.ROCM_CHERRYPICK_APP_ID }}" in text
     assert "jira_token: ${{ secrets.ROCM_CHERRYPICK_JIRA_TOKEN }}" in text
+    assert "event_action: ${{ github.event.action }}" in text
 
 
 def test_reconciliation_defaults_to_plan_only():

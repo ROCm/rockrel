@@ -130,6 +130,17 @@ def test_missing_train_label_is_invalid(tmp_path):
     assert result.reason_code == "train_label_missing"
 
 
+def test_unlabeled_event_is_cancelled_even_after_label_is_removed(tmp_path):
+    client = github()
+    client.pull.return_value["labels"] = []
+    result = Planner(config(), client, jira()).plan(
+        SOURCE_URL, "10.1-20260811", tmp_path, event_action="unlabeled"
+    )
+    assert result.status is Status.CANCELLED
+    assert result.reason_code == "train_label_removed"
+    client.label_actor.assert_not_called()
+
+
 def test_jira_transport_failure_blocks(tmp_path):
     jira_client = jira()
     jira_client.fix_versions.side_effect = RuntimeError("timeout")
