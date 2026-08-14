@@ -57,6 +57,8 @@ Results on 2026-08-14:
   no-tabs, and actionlint hooks passed.
 - The seven 0811 requests are captured in
   `scripts/tests/fixtures/express_train_0811.json`.
+- Live read-only validation proved all six ordinary cases through an empty
+  trial application against their covering PR heads.
 - Live read-only validation of TheRock #7282 against #7357 returned
   `gitlink_cherry_pick_provenance`, using desired pin `a01cdbd92d1f`, covering
   pin `d177931e65e6`, and common original commit `1109d68feb1b`.

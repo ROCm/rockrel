@@ -15,6 +15,9 @@ def test_0811_fixture_contains_all_seven_unique_source_requests():
     assert len(cases) == 7
     assert len({case["source_pr"] for case in cases}) == 7
     assert len({case["covering_pr"] for case in cases}) == 7
+    reasons = [case["expected_reason"] for case in cases]
+    assert reasons.count("empty_trial_application") == 6
+    assert reasons.count("gitlink_cherry_pick_provenance") == 1
 
 
 def test_0811_covering_prs_stay_in_the_source_repository():
