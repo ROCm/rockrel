@@ -43,6 +43,14 @@ def test_privileged_workflow_never_references_pull_request_head_code():
         assert "ref: ${{ github.event.pull_request" not in text
 
 
+def test_builtin_github_tokens_are_read_only():
+    for path in (CENTRAL, RECONCILE, SYNC, TEMPLATE):
+        header = workflow_text(path).split("jobs:", 1)[0]
+        assert "permissions:\n  contents: read" in header
+        assert "issues: write" not in header
+        assert "pull-requests: write" not in header
+
+
 def _job(text, name, next_name=None):
     start = text.index(f"  {name}:\n")
     end = text.index(f"  {next_name}:\n", start) if next_name else len(text)
