@@ -18,11 +18,13 @@ on:
         type: string
         required: true
       release_type:
-        description: 'Release type: "dev", "nightly", or "prerelease". Selects the S3 bucket.'
+        description: 'Release type: "dev", "dev-bkc", "nightly", "nightly-bkc", or "prerelease". Selects the S3 bucket.'
         type: choice
         options:
           - dev
+          - dev-bkc
           - nightly
+          - nightly-bkc
           - prerelease
         default: dev
       cache_type:
