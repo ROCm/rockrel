@@ -160,3 +160,18 @@ def test_github_search_returns_only_pull_request_urls():
 
     assert urls == ["https://github.com/ROCm/TheRock/pull/7282"]
     assert "is%3Amerged" in transport.requests[0][1]
+
+
+def test_github_commit_and_compare_use_encoded_commit_paths():
+    transport = FakeTransport(
+        [
+            {"sha": "a" * 40, "commit": {"message": "source"}},
+            {"status": "ahead", "commits": []},
+        ]
+    )
+    github = GitHubClient("token", transport=transport)
+    assert github.commit("ROCm", "llvm-project", "a" * 40)["sha"] == "a" * 40
+    assert github.compare("ROCm", "llvm-project", "a" * 40, "b" * 40)[
+        "status"
+    ] == "ahead"
+    assert "/compare/" in transport.requests[1][1]
