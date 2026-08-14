@@ -120,7 +120,12 @@ class Planner:
             repository_config.target_branch if repository_config else None
         )
         pull = self.github.pull(owner, repo, number)
-        if event_action == "unlabeled":
+        current_labels = {
+            item.get("name")
+            for item in pull.get("labels", [])
+            if isinstance(item, dict)
+        }
+        if event_action == "unlabeled" and train.label not in current_labels:
             return Result(
                 status=Status.CANCELLED,
                 reason_code="train_label_removed",
@@ -135,11 +140,6 @@ class Planner:
                     "train_mode": train.mode,
                 },
             )
-        current_labels = {
-            item.get("name")
-            for item in pull.get("labels", [])
-            if isinstance(item, dict)
-        }
         if train.label not in current_labels:
             return Result(
                 status=Status.INVALID,
