@@ -119,7 +119,20 @@ def test_accepts_configurable_safe_source_branch(tmp_path):
     )
 
 
-@pytest.mark.parametrize("branch", ["", "../main", "main..old", "bad branch", "-main"])
+@pytest.mark.parametrize(
+    "branch",
+    [
+        "",
+        "../main",
+        "main..old",
+        "bad branch",
+        "-main",
+        "@",
+        ".hidden/main",
+        "topic/.hidden",
+        "topic/name.lock",
+    ],
+)
 def test_rejects_unsafe_source_branch(tmp_path, branch):
     train = valid_train(
         repositories={
