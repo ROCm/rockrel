@@ -74,6 +74,7 @@ def test_existing_marker_prevents_duplicate(tmp_path):
     marker = identity_marker("ROCm/TheRock", 7282, "10.1-20260811")
     existing = {
         "html_url": "https://github.com/ROCm/TheRock/pull/7357",
+        "state": "open",
         "body": f"Existing coverage\n{marker}",
         "head": {"ref": "some-branch", "sha": "c" * 40},
     }
@@ -89,6 +90,7 @@ def test_existing_marker_prevents_duplicate(tmp_path):
 def test_deterministic_branch_prevents_duplicate_without_marker(tmp_path):
     existing = {
         "html_url": "https://github.com/ROCm/TheRock/pull/9000",
+        "state": "open",
         "body": "",
         "head": {
             "ref": "shared/cherry-pick/10.1-20260811/7282",
@@ -99,6 +101,34 @@ def test_deterministic_branch_prevents_duplicate_without_marker(tmp_path):
         SOURCE_URL, "10.1-20260811", tmp_path
     )
     assert result.status is Status.COVERED_BY_EXISTING_PR
+
+
+def test_closed_unmerged_identity_is_replanned_for_recovery(tmp_path):
+    marker = identity_marker("ROCm/TheRock", 7282, "10.1-20260811")
+    abandoned = {
+        "html_url": "https://github.com/ROCm/TheRock/pull/9000",
+        "state": "closed",
+        "merged_at": None,
+        "body": marker,
+        "head": {
+            "ref": "shared/cherry-pick/10.1-20260811/7282",
+            "sha": "c" * 40,
+        },
+    }
+    evaluator = Mock(
+        return_value=Result(
+            status=Status.CHERRY_PICK_REQUIRED,
+            reason_code="clean_trial_application",
+            message="clean",
+        )
+    )
+
+    result = Planner(
+        config(), github([abandoned]), jira(), evaluator=evaluator
+    ).plan(SOURCE_URL, "10.1-20260811", tmp_path)
+
+    assert result.status is Status.CHERRY_PICK_REQUIRED
+    evaluator.assert_called_once()
 
 
 def test_proven_covering_pull_prevents_duplicate_without_marker(tmp_path):
