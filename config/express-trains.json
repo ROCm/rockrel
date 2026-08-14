@@ -1,0 +1,25 @@
+{
+  "schema_version": 1,
+  "trains": [
+    {
+      "id": "10.1-20260811",
+      "jira_fix_version": "10.1.0a20260811",
+      "state": "active",
+      "mode": "validate",
+      "repositories": {
+        "ROCm/TheRock": {
+          "source_branch": "main",
+          "target_branch": "release/bkc/therock-10.1-20260811"
+        },
+        "ROCm/rocm-systems": {
+          "source_branch": "develop",
+          "target_branch": "release/bkc/therock-10.1-20260811"
+        },
+        "ROCm/rocm-libraries": {
+          "source_branch": "develop",
+          "target_branch": "release/bkc/therock-10.1-20260811"
+        }
+      }
+    }
+  ]
+}
