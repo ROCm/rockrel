@@ -132,6 +132,7 @@ class Planner:
                     "source_number": number,
                     "source_repository": repository,
                     "event_action": event_action,
+                    "train_mode": train.mode,
                 },
             )
         current_labels = {
@@ -147,6 +148,12 @@ class Planner:
                 source_pr=source_url,
                 train_id=train_id,
                 target_branch=target_branch,
+                evidence={
+                    "source_number": number,
+                    "source_repository": repository,
+                    "event_action": event_action,
+                    "train_mode": train.mode,
+                },
             )
 
         errors: list[str] = []
