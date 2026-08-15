@@ -237,6 +237,59 @@ def test_existing_expected_draft_is_idempotent(repositories):
     github.create_pull.assert_not_called()
 
 
+def test_closed_unmerged_pull_does_not_suppress_recovery(repositories):
+    repo, _remote, base, source = repositories
+    abandoned = {
+        "html_url": "https://github.com/ROCm/TheRock/pull/8999",
+        "state": "closed",
+        "merged_at": None,
+        "head": {"ref": "shared/cherry-pick/10.1-20260811/7282"},
+        "base": {"ref": "release/test"},
+    }
+    github = github_client(existing=abandoned)
+
+    result = draft_writer(github).create(repo, train(), plan(base, source))
+
+    assert result.status is Status.DRAFT_CREATED
+    assert result.pull_request_url.endswith("/9000")
+    github.create_pull.assert_called_once()
+
+
+def test_existing_pull_never_hides_a_mismatched_branch_tree(repositories):
+    repo, remote, base, source = repositories
+    git(repo, "checkout", "--detach", base)
+    commit_file(repo, "operator.txt", "operator\n", "operator change")
+    branch = "shared/cherry-pick/10.1-20260811/7282"
+    git(repo, "push", "origin", f"HEAD:refs/heads/{branch}")
+    existing = {
+        "html_url": "https://github.com/ROCm/TheRock/pull/9000",
+        "state": "open",
+        "draft": True,
+        "head": {"ref": branch},
+        "base": {"ref": "release/test"},
+    }
+    github = github_client(existing=existing)
+
+    result = draft_writer(github).create(repo, train(), plan(base, source))
+
+    assert result.status is Status.BLOCKED_POLICY
+    assert result.reason_code == "automation_branch_mismatch"
+    github.create_pull.assert_not_called()
+
+
+def test_pull_lookup_api_failure_is_structured_before_git_writes(repositories):
+    repo, remote, base, source = repositories
+    github = github_client()
+    github.pull_for_head.side_effect = ApiError(503, "unavailable")
+
+    result = draft_writer(github).create(repo, train(), plan(base, source))
+
+    assert result.status is Status.BLOCKED_EVIDENCE
+    assert result.reason_code == "existing_pull_evidence_unavailable"
+    branch = "refs/heads/shared/cherry-pick/10.1-20260811/7282"
+    assert git(remote, "show-ref", "--verify", branch, check=False) == ""
+
+
 def test_existing_branch_with_different_tree_is_never_overwritten(repositories):
     repo, remote, base, source = repositories
     git(repo, "checkout", "--detach", base)

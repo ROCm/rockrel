@@ -161,6 +161,26 @@ def test_complete_containment_is_positive_but_partial_range_is_ambiguous(repo):
     assert result.reason_code == "partial_changeset_containment"
 
 
+def test_patch_equivalent_subset_of_rebase_range_is_not_full_containment(repo):
+    _base, first, second = topic_with_two_commits(repo)
+    original_head = second
+    git(repo, "checkout", "main")
+    destination = commit_file(repo, "main.txt", "main\n", "advance")
+    git(repo, "checkout", "topic")
+    git(repo, "rebase", "main")
+    merged = git(repo, "rev-parse", "HEAD")
+    changeset = prove(repo, merged, original_head, (first, second))
+
+    git(repo, "checkout", "--detach", destination)
+    git(repo, "cherry-pick", first)
+    git(repo, "commit", "--amend", "-m", "equivalent first")
+    partial_target = git(repo, "rev-parse", "HEAD")
+
+    result = evaluate(repo, changeset, partial_target)
+    assert result.status is Status.BLOCKED_AMBIGUOUS_CHANGESET
+    assert result.reason_code == "partial_changeset_containment"
+
+
 def test_patch_equivalent_full_changeset_is_contained(repo):
     base = git(repo, "rev-parse", "HEAD")
     git(repo, "checkout", "-b", "topic")

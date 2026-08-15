@@ -97,6 +97,28 @@ def test_github_client_does_not_retry_permanent_errors():
     assert len(transport.requests) == 1
 
 
+def test_github_client_retries_only_rate_limit_403_errors():
+    rate_limited = FakeTransport(
+        [ApiError(403, "API rate limit exceeded"), {"permission": "write"}]
+    )
+    github = GitHubClient(
+        "token",
+        transport=rate_limited,
+        retry_policy=retry_policy(max_attempts=2, base_delay_seconds=0),
+        sleep=lambda _delay: None,
+    )
+    assert github.permission("ROCm", "TheRock", "operator") == "write"
+
+    forbidden = GitHubClient(
+        "token",
+        transport=FakeTransport([ApiError(403, "forbidden")]),
+        retry_policy=retry_policy(max_attempts=2, base_delay_seconds=0),
+        sleep=lambda _delay: None,
+    )
+    with pytest.raises(ApiError, match="forbidden"):
+        forbidden.permission("ROCm", "TheRock", "operator")
+
+
 def test_github_client_finds_last_exact_label_actor_across_pages():
     first_page = [
         {
