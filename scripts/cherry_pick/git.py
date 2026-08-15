@@ -5,6 +5,7 @@
 
 from __future__ import annotations
 
+import os
 import subprocess
 import tempfile
 from dataclasses import asdict, dataclass
@@ -52,6 +53,13 @@ def _run(
     *args: str,
     check: bool = False,
 ) -> subprocess.CompletedProcess[str]:
+    environment = dict(os.environ)
+    environment.update(
+        {
+            "GIT_NO_LAZY_FETCH": "1",
+            "GIT_TERMINAL_PROMPT": "0",
+        }
+    )
     return subprocess.run(
         ["git", *args],
         cwd=repo,
@@ -60,6 +68,7 @@ def _run(
         stdout=subprocess.PIPE,
         stderr=subprocess.PIPE,
         stdin=subprocess.DEVNULL,
+        env=environment,
     )
 
 
@@ -93,6 +102,13 @@ def _is_ancestor(repo: Path, ancestor: str, descendant: str) -> bool | None:
 
 
 def _patch_id(repo: Path, patch: str) -> str | None:
+    environment = dict(os.environ)
+    environment.update(
+        {
+            "GIT_NO_LAZY_FETCH": "1",
+            "GIT_TERMINAL_PROMPT": "0",
+        }
+    )
     result = subprocess.run(
         ["git", "patch-id", "--stable"],
         cwd=repo,
@@ -101,6 +117,7 @@ def _patch_id(repo: Path, patch: str) -> str | None:
         input=patch,
         stdout=subprocess.PIPE,
         stderr=subprocess.PIPE,
+        env=environment,
     )
     if result.returncode != 0:
         raise ChangesetError("could not prove normalized patch identity")
@@ -287,6 +304,7 @@ def evaluate_changeset(
             "The destination ref is unavailable.",
             changeset=changeset,
         )
+    destination_tree = _tree(repo_path, target)
     resolved_commits = tuple(_resolve(repo_path, item) for item in changeset.commits)
     if any(item is None for item in resolved_commits):
         return _git_result(
@@ -412,13 +430,27 @@ def evaluate_changeset(
                     changeset=changeset,
                     target=target,
                 )
+            planned_tree = _run(worktree, "write-tree")
+            if planned_tree.returncode != 0 or not planned_tree.stdout.strip():
+                return _git_result(
+                    Status.BLOCKED_EVIDENCE,
+                    "planned_tree_unavailable",
+                    "Git could not record the planned destination tree.",
+                    changeset=changeset,
+                    target=target,
+                    extra={"destination_tree": destination_tree},
+                )
             return _git_result(
                 Status.DRAFT_PLANNED,
                 "clean_trial_application",
                 "The complete proven changeset applies cleanly and is non-empty.",
                 changeset=changeset,
                 target=target,
-                extra={"patch_equivalent": False},
+                extra={
+                    "destination_tree": destination_tree,
+                    "planned_tree": planned_tree.stdout.strip(),
+                    "patch_equivalent": False,
+                },
             )
         finally:
             _run(repo_path, "worktree", "remove", "--force", str(worktree))
