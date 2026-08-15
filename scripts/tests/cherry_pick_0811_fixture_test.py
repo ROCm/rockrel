@@ -1,3 +1,6 @@
+# Copyright Advanced Micro Devices, Inc.
+# SPDX-License-Identifier: MIT
+
 import json
 from pathlib import Path
 
@@ -18,6 +21,10 @@ def test_0811_fixture_contains_all_seven_unique_source_requests():
     reasons = [case["expected_reason"] for case in cases]
     assert reasons.count("empty_trial_application") == 6
     assert reasons.count("gitlink_cherry_pick_provenance") == 1
+    representations = [case["merge_representation"] for case in cases]
+    assert representations.count("single") == 2
+    assert representations.count("squash") == 3
+    assert representations.count("merge_commit") == 2
 
 
 def test_0811_covering_prs_stay_in_the_source_repository():

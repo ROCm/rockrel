@@ -1,3 +1,6 @@
+# Copyright Advanced Micro Devices, Inc.
+# SPDX-License-Identifier: MIT
+
 import json
 from pathlib import Path
 
@@ -12,10 +15,10 @@ def test_app_manifest_is_private_webhookless_and_least_privilege():
     assert manifest["hook_attributes"]["active"] is False
     assert manifest["default_events"] == []
     assert manifest["default_permissions"] == {
-        "administration": "read",
         "contents": "write",
         "issues": "write",
         "pull_requests": "write",
     }
+    assert "administration" not in manifest["default_permissions"]
     assert "workflows" not in manifest["default_permissions"]
     assert "actions" not in manifest["default_permissions"]

@@ -1,3 +1,6 @@
+# Copyright Advanced Micro Devices, Inc.
+# SPDX-License-Identifier: MIT
+
 import io
 import json
 
@@ -5,23 +8,34 @@ from scripts.cherry_pick.__main__ import main
 from scripts.cherry_pick.models import Result, Status
 
 
-class FakePlanner:
-    result = Result(
-        status=Status.CHERRY_PICK_REQUIRED,
+SOURCE_URL = "https://github.com/ROCm/TheRock/pull/7282"
+TEST_WRITE_CAPABILITY = object()
+
+
+def planned_result():
+    return Result(
+        status=Status.DRAFT_PLANNED,
         reason_code="clean_trial_application",
         message="clean",
-        source_pr="https://github.com/ROCm/TheRock/pull/7282",
+        source_pr=SOURCE_URL,
+        source_repository="ROCm/TheRock",
         train_id="10.1-20260811",
         destination_branch="release/test",
         evidence={
-            "source_repository": "ROCm/TheRock",
             "source_number": 7282,
             "source_title": "Change ROCM-29371",
             "source_body": "ROCM-29371",
+            "source_head": "a" * 40,
             "source_merge_commit": "a" * 40,
             "destination_head": "b" * 40,
+            "changeset_kind": "single",
+            "ordered_commits": ["a" * 40],
+            "mainline": None,
         },
     )
+
+
+class FakePlanner:
     calls = []
     jira_clients = []
 
@@ -31,14 +45,14 @@ class FakePlanner:
 
     def plan(self, source_pr, train_id, repo_dir, *, event_action=None):
         self.calls.append((source_pr, train_id, str(repo_dir), event_action))
-        return self.result
+        return planned_result()
 
 
 class FakeWriter:
     calls = []
 
-    def __init__(self, github):
-        pass
+    def __init__(self, github, *, capability):
+        assert capability is TEST_WRITE_CAPABILITY
 
     def create(self, repo_dir, train, plan):
         self.calls.append((str(repo_dir), train.id, plan.status))
@@ -47,6 +61,7 @@ class FakeWriter:
             reason_code="draft_pull_created",
             message="created",
             source_pr=plan.source_pr,
+            source_repository=plan.source_repository,
             train_id=plan.train_id,
             destination_branch=plan.destination_branch,
             pull_request_url="https://github.com/ROCm/TheRock/pull/9000",
@@ -72,7 +87,7 @@ class FakeGitHub:
         self.labels.append((owner, repo, number, label))
 
     def search_merged_labeled_pull_requests(self, owner, repo, label):
-        return [FakePlanner.result.source_pr]
+        return [SOURCE_URL]
 
 
 class FakeJira:
@@ -86,7 +101,7 @@ def config_file(tmp_path, mode="create-draft", *, require_jira=True):
     path.write_text(
         json.dumps(
             {
-                "schema_version": 2,
+                "schema_version": 3,
                 "trains": [
                     {
                         "id": "10.1-20260811",
@@ -94,13 +109,16 @@ def config_file(tmp_path, mode="create-draft", *, require_jira=True):
                         "state": "active",
                         "mode": mode,
                         "requirements": (
-                            {"jira_fix_version": "10.1.0a20260811"}
+                            {
+                                "jira_fix_version": "10.1.0a20260811",
+                                "block_on_dependencies": True,
+                            }
                             if require_jira
                             else {}
                         ),
                         "repositories": {
                             "ROCm/TheRock": {
-                                "source_branch": "main",
+                                "source_branches": ["main"],
                                 "destination_branch": "release/test",
                             }
                         },
@@ -139,27 +157,58 @@ def test_plan_emits_json_and_never_constructs_writer(tmp_path):
             str(config_file(tmp_path)),
             "plan",
             "--source-pr",
-            FakePlanner.result.source_pr,
+            SOURCE_URL,
             "--train",
             "10.1-20260811",
             "--repo-dir",
             str(tmp_path),
             "--event-action",
-            "unlabeled",
+            "manual",
         ],
         environ=environment(),
         stdout=output,
         **dependencies(),
     )
     assert code == 0
-    assert json.loads(output.getvalue())["status"] == "cherry_pick_required"
+    assert json.loads(output.getvalue())["status"] == "draft_planned"
     assert FakeWriter.calls == []
-    assert FakePlanner.calls[-1][3] == "unlabeled"
 
 
-def test_create_draft_runs_writer_and_publishes_sticky_status(tmp_path):
+def test_write_commands_fail_closed_without_injected_capability(tmp_path):
+    for command in (
+        [
+            "create-draft",
+            "--source-pr",
+            SOURCE_URL,
+            "--train",
+            "10.1-20260811",
+            "--repo-dir",
+            str(tmp_path),
+        ],
+        ["sync-labels", "--train", "10.1-20260811"],
+        [
+            "reconcile",
+            "--train",
+            "10.1-20260811",
+            "--repo-dir",
+            f"ROCm/TheRock={tmp_path}",
+            "--create-drafts",
+        ],
+    ):
+        error = io.StringIO()
+        code = main(
+            ["--config", str(config_file(tmp_path)), *command],
+            environ=environment(),
+            stderr=error,
+            **dependencies(),
+        )
+        assert code == 2
+        assert "remote write capability" in error.getvalue().lower()
+    assert FakeWriter.calls == []
+
+
+def test_injected_test_capability_exercises_draft_path_only_with_fakes(tmp_path):
     FakeWriter.calls.clear()
-    FakeGitHub.instances.clear()
     output = io.StringIO()
     code = main(
         [
@@ -167,47 +216,94 @@ def test_create_draft_runs_writer_and_publishes_sticky_status(tmp_path):
             str(config_file(tmp_path)),
             "create-draft",
             "--source-pr",
-            FakePlanner.result.source_pr,
+            SOURCE_URL,
             "--train",
             "10.1-20260811",
             "--repo-dir",
             str(tmp_path),
-            "--publish-status",
         ],
         environ=environment(),
         stdout=output,
+        write_capability=TEST_WRITE_CAPABILITY,
         **dependencies(),
     )
     assert code == 0
     assert json.loads(output.getvalue())["status"] == "draft_created"
     assert FakeWriter.calls
-    assert FakeGitHub.instances[-1].comments[0][3]["marker"].startswith(
-        "<!-- cherry-pick-status:"
+
+
+def test_plan_without_jira_requirement_needs_no_jira_credentials(tmp_path):
+    FakePlanner.jira_clients.clear()
+    output = io.StringIO()
+    code = main(
+        [
+            "--config",
+            str(config_file(tmp_path, require_jira=False)),
+            "plan",
+            "--source-pr",
+            SOURCE_URL,
+            "--train",
+            "10.1-20260811",
+            "--repo-dir",
+            str(tmp_path),
+        ],
+        environ={"GITHUB_TOKEN": "github-token"},
+        stdout=output,
+        **dependencies(),
     )
+    assert code == 0
+    assert FakePlanner.jira_clients[-1] is None
 
 
-def test_sync_labels_adds_only_configured_train_label(tmp_path):
-    FakeGitHub.instances.clear()
+def test_reconcile_plan_is_read_only_and_discovers_labeled_prs(tmp_path):
+    FakePlanner.calls.clear()
     output = io.StringIO()
     code = main(
         [
             "--config",
             str(config_file(tmp_path)),
-            "sync-labels",
+            "reconcile",
             "--train",
             "10.1-20260811",
+            "--repo-dir",
+            f"ROCm/TheRock={tmp_path}",
         ],
         environ=environment(),
         stdout=output,
         **dependencies(),
     )
+    payload = json.loads(output.getvalue())
     assert code == 0
-    label = FakeGitHub.instances[-1].labels[0]
-    assert label[0:2] == ("ROCm", "TheRock")
-    assert label[2]["name"] == "cherry-pick:10.1-20260811"
+    assert payload["mode"] == "plan"
+    assert payload["results"][0]["status"] == "draft_planned"
 
 
-def test_missing_credentials_fails_without_echoing_secret(tmp_path):
+def test_malformed_configuration_and_results_are_structured_cli_errors(tmp_path):
+    bad_config = tmp_path / "bad.json"
+    bad_config.write_text("{}")
+    error = io.StringIO()
+    code = main(
+        [
+            "--config",
+            str(bad_config),
+            "plan",
+            "--source-pr",
+            SOURCE_URL,
+            "--train",
+            "train",
+            "--repo-dir",
+            str(tmp_path),
+        ],
+        environ=environment(),
+        stderr=error,
+        **dependencies(),
+    )
+    assert code == 2
+    assert "configuration" in error.getvalue().lower()
+    assert "traceback" not in error.getvalue().lower()
+
+
+def test_missing_credentials_fails_without_echoing_values(tmp_path):
     output = io.StringIO()
     error = io.StringIO()
     code = main(
@@ -216,7 +312,7 @@ def test_missing_credentials_fails_without_echoing_secret(tmp_path):
             str(config_file(tmp_path)),
             "plan",
             "--source-pr",
-            FakePlanner.result.source_pr,
+            SOURCE_URL,
             "--train",
             "10.1-20260811",
             "--repo-dir",
@@ -230,141 +326,3 @@ def test_missing_credentials_fails_without_echoing_secret(tmp_path):
     assert code == 2
     assert "GITHUB_TOKEN" in error.getvalue()
     assert output.getvalue() == ""
-
-
-def test_plan_without_jira_requirement_needs_no_jira_credentials(tmp_path):
-    FakePlanner.jira_clients.clear()
-    output = io.StringIO()
-    code = main(
-        [
-            "--config",
-            str(config_file(tmp_path, require_jira=False)),
-            "plan",
-            "--source-pr",
-            FakePlanner.result.source_pr,
-            "--train",
-            "10.1-20260811",
-            "--repo-dir",
-            str(tmp_path),
-        ],
-        environ={"GITHUB_TOKEN": "github-token"},
-        stdout=output,
-        **dependencies(),
-    )
-
-    assert code == 0
-    assert FakePlanner.jira_clients[-1] is None
-
-
-def test_reconcile_discovers_and_plans_labeled_merged_prs(tmp_path):
-    FakePlanner.calls.clear()
-    output = io.StringIO()
-    code = main(
-        [
-            "--config",
-            str(config_file(tmp_path)),
-            "reconcile",
-            "--train",
-            "10.1-20260811",
-            "--repo-dir",
-            f"ROCm/TheRock={tmp_path}",
-        ],
-        environ=environment(),
-        stdout=output,
-        **dependencies(),
-    )
-    assert code == 0
-    payload = json.loads(output.getvalue())
-    assert payload["status"] == "reconciled"
-    assert payload["mode"] == "plan"
-    assert payload["results"][0]["source_pr"].endswith("/pull/7282")
-    assert FakePlanner.calls[-1][2] == str(tmp_path)
-
-
-def test_reconcile_create_drafts_replans_and_publishes_status(tmp_path):
-    FakePlanner.calls.clear()
-    FakeWriter.calls.clear()
-    FakeGitHub.instances.clear()
-    output = io.StringIO()
-
-    code = main(
-        [
-            "--config",
-            str(config_file(tmp_path)),
-            "reconcile",
-            "--train",
-            "10.1-20260811",
-            "--repo-dir",
-            f"ROCm/TheRock={tmp_path}",
-            "--create-drafts",
-            "--publish-status",
-        ],
-        environ=environment(),
-        stdout=output,
-        **dependencies(),
-    )
-
-    payload = json.loads(output.getvalue())
-    assert code == 0
-    assert payload["mode"] == "create-draft"
-    assert payload["results"][0]["status"] == "draft_created"
-    assert FakeWriter.calls[-1][1] == "10.1-20260811"
-    assert FakeGitHub.instances[-1].comments
-
-
-def test_publish_result_needs_no_jira_credentials_and_removes_invalid_label(tmp_path):
-    FakeGitHub.instances.clear()
-    invalid = Result(
-        status=Status.INVALID,
-        reason_code="jira_fix_version_mismatch",
-        message="wrong train",
-        source_pr=FakePlanner.result.source_pr,
-        train_id="10.1-20260811",
-        destination_branch="release/test",
-    )
-    result_file = tmp_path / "result.json"
-    result_file.write_text(json.dumps(invalid.as_dict()))
-
-    code = main(
-        [
-            "--config",
-            str(config_file(tmp_path)),
-            "publish-result",
-            "--result-file",
-            str(result_file),
-        ],
-        environ={"GITHUB_TOKEN": "feedback-token"},
-        **dependencies(),
-    )
-
-    assert code == 0
-    github = FakeGitHub.instances[-1]
-    assert github.comments[0][0:3] == ("ROCm", "TheRock", 7282)
-    assert github.labels[-1] == (
-        "ROCm",
-        "TheRock",
-        7282,
-        "cherry-pick:10.1-20260811",
-    )
-
-
-def test_publish_result_rejects_unknown_or_malformed_result(tmp_path):
-    result_file = tmp_path / "result.json"
-    result_file.write_text('{"status":"surprise"}')
-    error = io.StringIO()
-
-    code = main(
-        [
-            "--config",
-            str(config_file(tmp_path)),
-            "publish-result",
-            "--result-file",
-            str(result_file),
-        ],
-        environ={"GITHUB_TOKEN": "feedback-token"},
-        stderr=error,
-        **dependencies(),
-    )
-
-    assert code == 2
-    assert "invalid result file" in error.getvalue()

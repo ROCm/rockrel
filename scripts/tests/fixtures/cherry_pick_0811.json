@@ -5,12 +5,16 @@
     {
       "source_pr": "https://github.com/ROCm/TheRock/pull/7268",
       "covering_pr": "https://github.com/ROCm/TheRock/pull/7355",
-      "expected_reason": "empty_trial_application"
+      "expected_reason": "empty_trial_application",
+      "source_commit_count": 1,
+      "merge_representation": "single"
     },
     {
       "source_pr": "https://github.com/ROCm/TheRock/pull/7282",
       "covering_pr": "https://github.com/ROCm/TheRock/pull/7357",
       "expected_reason": "gitlink_cherry_pick_provenance",
+      "source_commit_count": 1,
+      "merge_representation": "single",
       "source_desired_pin": "a01cdbd92d1f931738a4897502747a68ae36eccf",
       "covering_pin": "d177931e65e6057dca59f1c5b95e643d29876db3",
       "common_origin": "1109d68feb1b746c675d8f88fb89085334f8f514",
@@ -19,27 +23,37 @@
     {
       "source_pr": "https://github.com/ROCm/rocm-systems/pull/9923",
       "covering_pr": "https://github.com/ROCm/rocm-systems/pull/10151",
-      "expected_reason": "empty_trial_application"
+      "expected_reason": "empty_trial_application",
+      "source_commit_count": 4,
+      "merge_representation": "squash"
     },
     {
       "source_pr": "https://github.com/ROCm/rocm-systems/pull/8793",
       "covering_pr": "https://github.com/ROCm/rocm-systems/pull/10152",
-      "expected_reason": "empty_trial_application"
+      "expected_reason": "empty_trial_application",
+      "source_commit_count": 2,
+      "merge_representation": "merge_commit"
     },
     {
       "source_pr": "https://github.com/ROCm/rocm-systems/pull/9716",
       "covering_pr": "https://github.com/ROCm/rocm-systems/pull/10153",
-      "expected_reason": "empty_trial_application"
+      "expected_reason": "empty_trial_application",
+      "source_commit_count": 2,
+      "merge_representation": "merge_commit"
     },
     {
       "source_pr": "https://github.com/ROCm/rocm-libraries/pull/10498",
       "covering_pr": "https://github.com/ROCm/rocm-libraries/pull/10778",
-      "expected_reason": "empty_trial_application"
+      "expected_reason": "empty_trial_application",
+      "source_commit_count": 2,
+      "merge_representation": "squash"
     },
     {
       "source_pr": "https://github.com/ROCm/rocm-libraries/pull/10251",
       "covering_pr": "https://github.com/ROCm/rocm-libraries/pull/10779",
-      "expected_reason": "empty_trial_application"
+      "expected_reason": "empty_trial_application",
+      "source_commit_count": 4,
+      "merge_representation": "squash"
     }
   ]
 }
