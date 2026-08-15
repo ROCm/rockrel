@@ -218,7 +218,9 @@ class GitHubClient:
                     body=payload,
                 )
             except ApiError as exc:
-                retryable = exc.status in RETRYABLE_HTTP_STATUSES
+                retryable = exc.status in RETRYABLE_HTTP_STATUSES or (
+                    exc.status == 403 and "rate limit" in exc.message.lower()
+                )
                 if not retryable or attempt == self.retry_policy.max_attempts:
                     raise
                 self.sleep(

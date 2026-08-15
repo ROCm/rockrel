@@ -338,12 +338,28 @@ def evaluate_changeset(
             )
         try:
             failure: subprocess.CompletedProcess[str] | None = None
+            empty_units = 0
+            applied_units = 0
             for commit in changeset.commits:
+                before_tree = _run(worktree, "write-tree").stdout.strip()
                 args = ["cherry-pick", "--no-commit"]
                 if changeset.mainline is not None:
                     args.extend(["-m", str(changeset.mainline)])
                 args.append(commit)
                 trial = _run(worktree, *args)
+                current_unmerged = _run(worktree, "ls-files", "-u").stdout.strip()
+                if current_unmerged:
+                    failure = trial
+                    break
+                after_tree = _run(worktree, "write-tree").stdout.strip()
+                if before_tree == after_tree:
+                    empty_units += 1
+                    # An empty single-commit invocation may leave sequencer
+                    # metadata. Quit clears only that metadata and preserves
+                    # previously staged changes for the remaining units.
+                    _run(worktree, "cherry-pick", "--quit")
+                    continue
+                applied_units += 1
                 if trial.returncode != 0:
                     failure = trial
                     break
@@ -358,7 +374,7 @@ def evaluate_changeset(
                     target=target,
                     extra={"conflicted": True},
                 )
-            if not status:
+            if empty_units == len(changeset.commits):
                 return _git_result(
                     Status.ALREADY_CONTAINED,
                     "complete_changeset_already_applied",
@@ -366,6 +382,18 @@ def evaluate_changeset(
                     changeset=changeset,
                     target=target,
                     extra={"patch_equivalent": True},
+                )
+            if empty_units and applied_units:
+                return _git_result(
+                    Status.BLOCKED_AMBIGUOUS_CHANGESET,
+                    "partial_changeset_containment",
+                    "Only part of the complete changeset is patch-equivalent to the destination.",
+                    changeset=changeset,
+                    target=target,
+                    extra={
+                        "empty_application_units": empty_units,
+                        "applied_application_units": applied_units,
+                    },
                 )
             if failure is not None:
                 return _git_result(
@@ -375,6 +403,14 @@ def evaluate_changeset(
                     changeset=changeset,
                     target=target,
                     extra={"stderr": failure.stderr.strip()},
+                )
+            if not status:
+                return _git_result(
+                    Status.BLOCKED_EVIDENCE,
+                    "trial_tree_state_unexpected",
+                    "The trial completed without a classifiable tree state.",
+                    changeset=changeset,
+                    target=target,
                 )
             return _git_result(
                 Status.DRAFT_PLANNED,

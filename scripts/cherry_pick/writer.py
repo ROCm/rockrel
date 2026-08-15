@@ -161,23 +161,25 @@ class DraftWriter:
         source_number = int(plan.evidence["source_number"])
         branch = automation_branch(plan.train_id, source_number)
         owner, repo_name = plan.source_repository.split("/", 1)
-        existing_pull = self.github.pull_for_head(
-            owner,
-            repo_name,
-            head=branch,
-            base=plan.destination_branch,
+        try:
+            existing_pull = self.github.pull_for_head(
+                owner,
+                repo_name,
+                head=branch,
+                base=plan.destination_branch,
+            )
+        except ApiError as exc:
+            return _result_from(
+                plan,
+                Status.BLOCKED_EVIDENCE,
+                "existing_pull_evidence_unavailable",
+                "GitHub could not establish whether the destination draft exists.",
+                evidence={"api_status": exc.status},
+            )
+        active_existing_pull = existing_pull is not None and (
+            existing_pull.get("state") == "open"
+            or bool(existing_pull.get("merged_at"))
         )
-        if existing_pull is not None:
-            url = existing_pull.get("html_url")
-            if isinstance(url, str):
-                return _result_from(
-                    plan,
-                    Status.DRAFT_EXISTS,
-                    "draft_pull_exists",
-                    "The expected destination draft already exists.",
-                    evidence={"automation_branch": branch},
-                    pull_request_url=url,
-                )
 
         expected_destination = str(plan.evidence["destination_head"])
         try:
@@ -296,6 +298,13 @@ class DraftWriter:
                         )
                     reused_branch = True
                 else:
+                    if active_existing_pull:
+                        return _result_from(
+                            plan,
+                            Status.BLOCKED_POLICY,
+                            "existing_pull_branch_missing",
+                            "An active identity PR exists but its remote branch is missing.",
+                        )
                     push = _run(
                         worktree,
                         "push",
@@ -326,6 +335,22 @@ class DraftWriter:
                                 "The creation-only branch push failed.",
                                 evidence={"push_stderr": push.stderr.strip()},
                             )
+
+                if active_existing_pull and existing_pull is not None:
+                    existing_url = existing_pull.get("html_url")
+                    if isinstance(existing_url, str):
+                        return _result_from(
+                            plan,
+                            Status.DRAFT_EXISTS,
+                            "draft_pull_exists",
+                            "The expected destination draft and branch tree already exist.",
+                            evidence={
+                                "automation_branch": branch,
+                                "automation_head": existing_branch or new_head,
+                                "reused_existing_branch": True,
+                            },
+                            pull_request_url=existing_url,
+                        )
 
                 marker = identity_marker(
                     plan.source_repository, source_number, plan.train_id

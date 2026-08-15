@@ -221,11 +221,15 @@ def test_fresh_clone_recovers_existing_branch_and_creates_missing_draft(
 
 def test_existing_expected_draft_is_idempotent(repositories):
     repo, _remote, base, source = repositories
+    branch = "shared/cherry-pick/10.1-20260811/7282"
+    git(repo, "checkout", "--detach", base)
+    git(repo, "cherry-pick", source)
+    git(repo, "push", "origin", f"HEAD:refs/heads/{branch}")
     existing = {
         "html_url": "https://github.com/ROCm/TheRock/pull/9000",
         "state": "open",
         "draft": True,
-        "head": {"ref": "shared/cherry-pick/10.1-20260811/7282"},
+        "head": {"ref": branch},
         "base": {"ref": "release/test"},
     }
     github = github_client(existing=existing)
