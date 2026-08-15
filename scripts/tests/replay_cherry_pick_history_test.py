@@ -4,6 +4,7 @@
 import importlib.util
 import json
 import subprocess
+import sys
 from pathlib import Path
 
 ROOT = Path(__file__).parents[2]
@@ -49,6 +50,19 @@ def test_cli_has_explicit_refresh_and_offline_run_contract():
     )
     assert run.command == "run"
     assert not hasattr(run, "allow_read_only_network")
+
+
+def test_cli_is_directly_executable_from_the_repository_root():
+    result = subprocess.run(
+        [sys.executable, str(SCRIPT), "--help"],
+        cwd=ROOT,
+        check=False,
+        text=True,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+    )
+    assert result.returncode == 0, result.stderr
+    assert "historical cherry-pick replays" in result.stdout
 
 
 def test_cli_source_contains_no_remote_write_or_pr_operations():
