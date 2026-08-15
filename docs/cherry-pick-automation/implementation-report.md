@@ -1,92 +1,96 @@
-# Label-driven cherry-pick automation implementation report
+# Draft — local review required
 
-## Delivered
+# Label-driven cherry-pick automation: implementation audit
 
-- Product requirements, technical design, and operator runbook were committed
-  before production code.
-- Train configuration and label parsing are fail-closed.
-- Qualification validates repository, base branch, label actor permission,
-  optional train requirements, destination existence, and protection.
-- Git planning uses disposable worktrees for contained, clean, empty, conflict,
-  merge-commit, and gitlink cases.
-- GitHub and Jira clients use injectable transports and bounded requests.
-- Existing identity markers, deterministic branches, ordinary patch coverage,
-  and gitlink cherry-pick provenance prevent duplicate PRs.
-- The write path uses a destination-head lease, `git cherry-pick -x`, a deterministic
-  branch, and GitHub's `draft: true` API field.
-- The implementation has no ready-for-review, review, merge, or auto-merge API.
-- Reusable, reconciliation, label-sync, and source-template workflows pin every
-  external action to a full SHA and pass actionlint.
-- Cross-repository planning and reconciliation use permission-narrowed,
-  read-only App tokens; feedback and draft writes use separate gated tokens.
-- Scheduled recovery uses a read phase followed by a write phase containing
-  only `create-draft` trains, and replans every request before writing.
-- A dedicated read-only rockrel unit-test workflow runs the complete suite, and
-  pre-commit enforces TheRock's `*_test.py` file-naming convention.
+## Current verdict
 
-## Test-first record
+The local implementation is a useful prototype, not a production-ready
+controller. Its central rockrel ownership, label/train model, injectable REST
+transport, disposable Git worktrees, deterministic identity, and draft-only API
+are worth retaining. The current documentation and 165 passing tests, however,
+do not prove the reliability claims previously made.
 
-The Git history preserves red tests before each implementation slice:
+No remote deployment or public review action is authorized. This report is the
+gap register that must be closed locally before human review.
 
-| Test commit | Green implementation |
-| --- | --- |
-| `324b48e` configuration contract | `cb99967` configuration loader |
-| `fae38bb` qualification policy | `bb2eb40` qualification implementation |
-| `dafd198` Git decisions | `f0f7dd8` disposable Git planner |
-| `3afafc1` API contracts | `1a06ed4` GitHub/Jira clients |
-| `32ed8fc` orchestration | `b3938a6` request planner |
-| `5f48c8b` write transaction | `3b68e0b` draft writer |
-| `6b98342` CLI contract | `14e0b89` CLI |
-| `100d24b`, `e5f87a3`, `3fd5865` workflows/reconciliation | `38441df` workflows |
-| `a19b8da` unlabeled cancellation | `d3c6ded` event handling |
-| `10c4b70`, `1187b5c` covering evidence | `82cefb6` coverage detector |
-| `86b2c05` immutable renderer | `66ca3cd` renderer |
-| `9fb1439` validation-mode token boundary | `f3438b6` conditional write-token job |
-| `7b2e3bc` least-privilege App contract | version-controlled App manifest |
-| `d95e31c`, `df3343b` cross-repository token boundaries | `d047503` permission-narrowed workflow tokens and artifact feedback |
-| `a73f954`, `fe4884c`, `eb23de0`, `52d557c` event and recovery paths | early-result gating, label-specific cancellation, abandoned-PR recovery, and two-phase reconciliation |
-| `671d73f`, `ce37bca` generic destination-train contracts | `280e6f7` schema v2, optional policy, and generic workflows |
-| `ae40df4` unsafe ref cases | `ecd1639` fail-closed Git ref validation |
+## Baseline evidence
 
-Each red state was run locally and failed for the intended missing module,
-interface, or workflow behavior. Red commits were not pushed independently.
-
-## Final verification
-
-Run from the rockrel checkout:
+Recorded before remediation product-code changes:
 
 ```text
 .venv/bin/python -m pytest -q scripts/tests
-.venv/bin/pre-commit run --all-files
+165 passed
+
 git diff --check
+passed
+
+.venv/bin/python -m black --check ...
+not run: Black is not installed in the existing local virtual environment
 ```
 
-Results on 2026-08-14:
+No dependency will be downloaded during the local-only phase. Formatting will
+use an already available repository/pre-commit environment if present; otherwise
+the missing local tool remains an explicit review limitation.
 
-- 165 tests passed.
-- Trailing whitespace, EOF, YAML, merge-conflict, large-file, line-ending,
-  no-tabs, and actionlint hooks passed.
-- The seven 0811 requests are captured in
-  `scripts/tests/fixtures/cherry_pick_0811.json`.
-- Live read-only validation proved all six ordinary cases through an empty
-  trial application against their covering PR heads.
-- Live read-only validation of TheRock #7282 against #7357 returned
-  `gitlink_cherry_pick_provenance`, using desired pin `a01cdbd92d1f`, covering
-  pin `d177931e65e6`, and common original commit `1109d68feb1b`.
+## Confirmed gaps
 
-## Activation prerequisites
+| Area | Current behavior | Required behavior | State |
+| --- | --- | --- | --- |
+| Source merge model | Treats `merge_commit_sha` as one aggregate commit | Prove squash, merge-commit, or full rebase range | Open |
+| Git identity | Relies on ambient Git config | Explicit bot name and noreply email | Open |
+| Fresh-runner recovery | Fetches a branch but resolves an absent local branch name | Fetch/resolve exact SHA or temporary ref | Open |
+| Partial write | PR API failure escapes after branch push | Structured retryable state and safe repair | Open |
+| Destination policy | Checks only `protected: true` | Require effective `pull_request` rule evidence | Open |
+| Branch names | Requires `release/` | Accept every canonical Git branch ref | Open |
+| API enumeration | Several endpoints stop at 100 | Full pagination and deterministic search windows | Open |
+| API failures | Mostly next-run recovery | Typed errors and bounded retry/backoff | Open |
+| API types | Raw `dict[str, Any]` throughout | Decode typed boundary models | Open |
+| Modes | `validate` and `shadow` are effectively identical; disabled may still plan | Four distinct lifecycle behaviors | Open |
+| Dependencies | Jira Fix Version only | Block declared dependency/order evidence | Open |
+| Containment | Empty single-commit trial can overstate aggregate certainty | Require complete proven changeset | Open |
+| Caller logic | Embedded Python repeated in three repositories | Thin caller; central discovery and fan-out | Open |
+| Caller tests | Primarily string assertions | Parsed workflows plus event behavior fixtures | Open |
+| Style | New callers fail Black; new files lack headers | Repository-native format, typing, and SPDX | Open |
+| Draft body | Minimal provenance plus source body | Match established ROCm cherry-pick structure | Open |
+| Security | App requests administration read | Metadata read plus contents/issues/PR permissions only | Open |
+| Local safety | Real transports are constructible by default CLI | Local build refuses all network/remote writes | Open |
+| Coverage | No enforced threshold | At least 90% line and branch coverage | Open |
 
-Engineering implementation does not itself grant production authority. No
-public GitHub action should be taken from this local checkout. The ordered
-operator actions are recorded in `operator-todo.md`. Before
-write mode can run, an ROCm organization administrator must:
+## Repository evidence reflected in the design
 
-1. Install the dedicated GitHub App on rockrel, TheRock, rocm-systems, and
-   rocm-libraries with the permissions in the technical design.
-2. Configure the four selected-repository secrets documented in the runbook.
-3. Review and merge the central rockrel workflow.
-4. Review source-repository caller PRs pinned to the immutable central commit.
-5. Run validation and shadow modes before changing a train to `create-draft`.
+- `rockrel` already centralizes release branch/tag operations and uses typed
+  Python, dataclasses, subprocess argument arrays, dry-run defaults, and pytest.
+- TheRock requires Black/PEP 8 style, modern specific typing, fail-fast behavior,
+  SPDX headers, pre-commit, actionlint, and `*_test.py` for this work.
+- rocm-systems and rocm-libraries use their own native validation and component
+  CI; the automation must create a normal draft and must not replace those
+  checks.
+- Current release branches include `release/bkc/therock-*`, `release/therock-*`,
+  `release/rocm-rel-*`, and `release-staging/rocm-rel-*` patterns.
+- Existing BKC effective rules require pull requests, approvals, and restricted
+  merge behavior. A boolean protected flag is not sufficient policy evidence.
+- Existing manual cherry-pick drafts include provenance, candidate/destination,
+  Jira, technical application details, test plan/results, dependencies/order,
+  and an explicit draft warning.
 
-All initial train configuration remains in `validate` mode. No production
-cherry-pick branch can be created from the committed configuration.
+## TDD remediation record
+
+The historical red/green commits remain useful provenance, but they do not
+cover the gaps above. The remediation follows a new, stricter sequence:
+
+1. Correct product/design/audit documents.
+2. Add the complete remediation tests without product changes.
+3. Record the intended failing assertions in `tdd-evidence.md`.
+4. Implement until every old and new test passes.
+5. Run local repository style, workflow, and coverage gates.
+
+The final report will replace each `Open` state with a test name, implementation
+commit/diff reference, and local verification result. A passing test count alone
+is not completion evidence.
+
+## Activation boundary
+
+All implementation changes, commits, fixtures, and evidence remain local. No
+GitHub/Jira call, remote Git operation, workflow dispatch, public CI run, branch,
+label, comment, App setting, secret, or pull request is authorized. Those tasks
+are listed—but not executed—in `REMOTE_ACTIONS_TODO.md`.

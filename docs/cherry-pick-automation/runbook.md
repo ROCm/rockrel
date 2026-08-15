@@ -1,105 +1,91 @@
+# Draft — local review required
+
 # Label-driven cherry-pick automation runbook
+
+## Current operating boundary
+
+This runbook is design documentation only. The automation is not deployed.
+During local review, do not fetch, push, call GitHub/Jira, dispatch workflows,
+or mutate any remote state. Use temporary filesystem repositories and fake
+transports for every exercise. Queue all public actions in
+`REMOTE_ACTIONS_TODO.md`.
 
 ## Operating principles
 
-- Labels request work; they do not approve or merge it.
-- Every generated pull request remains a draft until an operator acts.
-- Use `plan` before replaying any failed write.
-- Do not interpret a conflict as proof that a change is already present.
-- Disable a train in configuration to stop new work without deleting evidence.
+- A label requests evaluation; it never approves or merges a change.
+- Every future generated pull request starts and remains a draft until a person
+  acts.
+- Only the exact configured destination branch is authoritative.
+- A nightly/build occurrence is not destination containment evidence.
+- A conflict, partial match, or ambiguous history is never containment.
+- Declared dependencies or ordering requirements block v1 for operator review.
+- The automation never force-pushes, deletes branches, closes drafts, marks
+  ready, approves, merges, or enables auto-merge.
 
-## Add a train
+## Local review procedure
 
-1. Add a unique train entry to `config/cherry-pick-trains.json` in `validate` mode.
-2. Confirm exact source and destination branches for all enabled repositories.
-3. If the train requires Jira policy, confirm the Fix Version spelling with Jira.
-4. Run the configuration and workflow test suites.
-5. Review and merge the configuration pull request.
-6. Dispatch the label synchronization workflow for the train.
-7. Apply the label to a non-production fixture PR and inspect the sticky status.
-8. Promote to `shadow`, then `create-draft` only after operator review.
+1. Inspect the PRD, technical design, audit, and complete local diff.
+2. Confirm the TDD evidence shows the complete remediation suite failing before
+   implementation and passing afterward.
+3. Run unit and integration tests with local filesystem repositories and fake
+   API transports.
+4. Run repository-native formatting, pre-commit, actionlint, JSON/Markdown, SPDX,
+   coverage, and diff checks using already available local tooling.
+5. Inspect rendered source callers without publishing them.
+6. Confirm initial train configuration is `validate` and the local safety gate
+   cannot construct a real writer.
+7. Record missing tools or unavailable gates as limitations; do not download or
+   invoke a remote service to hide them.
 
-## Install the GitHub App
+## Future train setup (requires separate approval)
 
-Use `config/cherry-pick-github-app-manifest.json` as the reviewed permission
-source. Create a private organization-owned App with webhooks disabled, install
-it only on rockrel, TheRock, rocm-systems, and rocm-libraries, and confirm the
-installed permissions exactly match the manifest. Do not add Actions or
-Workflows permission.
+1. Add a unique schema-v3 train in `validate` mode.
+2. Confirm every source branch and exact destination branch.
+3. Confirm effective destination rules require a pull request.
+4. Configure Jira and dependency policy only when required.
+5. Review and merge the configuration through normal repository review.
+6. Synchronize labels only after reviewing the exact mutations.
+7. Run `validate`, then `shadow`, then a separately approved low-risk
+   `create-draft` pilot.
 
-Store its Client ID and private key as selected-repository organization secrets
-named `ROCM_CHERRYPICK_APP_CLIENT_ID` and
-`ROCM_CHERRYPICK_APP_PRIVATE_KEY`. Store the Jira endpoint and token as
-`ROCM_CHERRYPICK_JIRA_URL` and `ROCM_CHERRYPICK_JIRA_TOKEN`. Restrict all four
-secrets to rockrel, TheRock, rocm-systems, and rocm-libraries. The automation
-must remain in `validate` mode until a read-only credential and permission
-review succeeds.
+## Review a future generated draft
 
-Do not perform these public-repository actions while reviewing the local
-implementation. The ordered, operator-owned actions are maintained in
-`operator-todo.md`.
+1. Confirm source PR, canonical head, merged commit/range, and changeset proof.
+2. Confirm train, exact base branch, and planned destination SHA.
+3. Confirm Jira Fix Version and dependency/order evidence.
+4. Reproduce the application strategy and inspect `-x` provenance.
+5. Review the complete diff and repository-native CI.
+6. Confirm the PR remains a draft.
+7. Only a human may decide to mark the PR ready.
 
-## Review a generated draft
+## Replay and partial transaction
 
-1. Confirm the source PR URL, aggregate merge SHA, applicable policy, and train ID.
-2. Confirm the draft base is the exact configured release branch.
-3. Review the cherry-picked diff and provenance marker.
-4. Distinguish destination-branch CI from checks inherited from the source PR.
-5. Resolve dependency ordering with the component owner when Jira records a
-   dependency.
-6. An operator may mark the draft ready only after completing this review.
+Run read-only planning first. A future retry may repair a branch-pushed/PR-missing
+state only when the branch tree and identity exactly match the recomputed plan.
+An existing expected draft yields `draft_exists`. Any operator modification or
+tree mismatch blocks; never overwrite it.
 
-The automation never performs step 6.
+## Conflict or ambiguity
 
-## Replay
+For `blocked_conflict` or `blocked_ambiguous_changeset`:
 
-Run the manual workflow in `plan` mode with the source PR URL and train ID. If
-the plan is `cherry_pick_required`, review the exact destination head and then
-dispatch `create-draft`. Replays are idempotent and return an existing branch or
-PR when one is already associated with the identity key.
+1. Preserve the JSON evidence.
+2. Reproduce the full proven changeset in a disposable worktree.
+3. Consult the owning component team.
+4. Use a separately reviewed manual draft for any resolution.
+5. Never change the result to contained merely because application conflicted.
 
-## Conflict
+## Disable or roll back after future deployment
 
-When the status is `manual_resolution_required`:
+Set the affected train to `disabled` through a reviewed configuration change.
+Retain labels, drafts, branches, and evidence for operator disposition. Do not
+perform destructive cleanup automatically.
 
-1. Download the JSON evidence artifact.
-2. Reproduce the trial cherry-pick in a disposable worktree.
-3. Consult the owning component team for ambiguous or diverged histories.
-4. Create a separate manual draft PR when a reviewed resolution is available.
-5. Add the source/train provenance marker so reconciliation recognizes it.
+## Human handoff checklist
 
-Do not force the automation branch or alter the source status to
-`already_contained` merely because a conflict occurred.
-
-## Covering PR closes without merge
-
-The scheduled reconciler reevaluates labeled, merged source PRs. If a recorded
-covering PR closes without merge and the change remains absent, the next run
-will return `cherry_pick_required` and, in write mode, create a draft.
-
-## Disable or roll back
-
-Set the affected train mode to `disabled` for an immediate fail-closed stop.
-Retain labels and comments for auditability. If configuration cannot be merged
-quickly, disable the GitHub App installation for the affected repositories or
-remove access to the write environment. Do not delete generated branches or
-draft PRs automatically.
-
-## Credential rotation
-
-1. Generate the replacement GitHub App key or Jira token.
-2. Update the selected-repository organization secret.
-3. Run a read-only validation workflow.
-4. Revoke the previous credential.
-5. Verify logs and artifacts contain no secret material.
-
-## Operator handoff checklist
-
-- Product requirements and technical design match deployed behavior.
-- Final unit, integration, workflow, and security tests pass.
-- Shadow results are attached for representative requests.
-- App installation repositories and permissions are recorded.
-- Train configuration, optional Jira policy, and exact destinations are recorded.
-- Generated implementation and pilot pull requests are still drafts.
-- Every public GitHub mutation in `operator-todo.md` has explicit operator
-  approval before execution.
+- Product requirements and design match the reviewed implementation.
+- Red/green evidence and coverage meet the documented gates.
+- All source callers are thin, pinned, formatted, and locally tested.
+- App permissions exclude administration, Actions, and Workflows.
+- Initial modes are non-writing.
+- Every remote action has separate approval and remains queued until granted.
