@@ -65,6 +65,18 @@ state only when the branch tree and identity exactly match the recomputed plan.
 An existing expected draft yields `draft_exists`. Any operator modification or
 tree mismatch blocks; never overwrite it.
 
+## Historical replay suite
+
+Corpus refresh is the sole approved network-read exception for this local test
+suite. It writes only dedicated local bare mirrors and a reviewable manifest;
+it never writes to GitHub or an existing checkout. Replay is then run with lazy
+fetching disabled and produces reports outside the repository.
+
+The operator must review the inventory totals, ensure no case is unresolved,
+and distinguish strict exact replays from bundles, manual resolutions, reverts,
+release-native changes, and gitlink adaptations. A conflict or missing object is
+never accepted as proof that the source change was already present.
+
 ## Conflict or ambiguity
 
 For `blocked_conflict` or `blocked_ambiguous_changeset`:

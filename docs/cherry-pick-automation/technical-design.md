@@ -335,3 +335,47 @@ and contain no active transaction step. A separately reviewed activation change
 must replace those stubs only after the local evidence and coverage gate are
 accepted. No public branch, PR, App setting, secret, label, workflow, or CI
 action is part of this implementation phase.
+
+## 13. Historical replay architecture
+
+Historical validation has two deliberately separate phases.
+
+### Read-only corpus refresh
+
+A standalone replay CLI creates full bare mirrors under a caller-selected data
+root. It accepts only the official TheRock, rocm-systems, and rocm-libraries
+URLs and only invokes read-only Git fetch operations. Push URLs are replaced by
+an invalid `disabled://read-only` URL. It fetches the configured source and
+target branches, discovers explicit source PR references, and fetches the
+corresponding `refs/pull/<number>/head` refs so squash, merge-commit, and rebase
+representations can be proven locally.
+
+The refresh writes a deterministic schema-v1 manifest. Each record contains
+repository and branch identity, immutable source and destination SHAs/trees,
+source PR metadata, provenance method, case classification, and expected replay
+behavior. Target commits are enumerated along the first-parent history between
+the source/target merge base and the pinned target tip. Every enumerated commit
+must have a reviewed classification.
+
+### Offline replay
+
+Replay always exports `GIT_NO_LAZY_FETCH=1` and
+`GIT_TERMINAL_PROMPT=0`. Missing objects produce an evidence-gap exit, never a
+network request or inferred result. The runner calls only changeset proof and
+Git evaluation; it cannot construct API clients or `DraftWriter`.
+
+For a strict one-source case, the engine evaluates the source changeset against
+the historical target parent. `draft_planned` is required, and the engine's
+`planned_tree` must exactly equal the recorded historical after-tree. Commit
+IDs are not compared because cherry-pick metadata changes commit identity.
+
+Bundles, release-native changes, reverts, gitlink rollups, clean-but-adapted
+trees, and manual resolutions are preserved as diagnostic classifications. A
+conflict is never containment evidence. Any strict failure is minimized into a
+synthetic red unit test before an engine correction is made.
+
+The runner emits canonical JSON and Markdown reports with counts by repository,
+branch, and classification; engine status/reason; source, before, planned, and
+historical trees; changed or conflicted paths; and a root-cause category. Exit
+status `0` means the exhaustive strict corpus passed, `1` means a strict replay
+failed, and `2` means evidence or object completeness is insufficient.

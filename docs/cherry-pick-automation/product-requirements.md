@@ -222,6 +222,28 @@ A future generated PR must:
   the writer still checks races at transaction boundaries.
 - Existing operator-modified branches are blocked and never overwritten.
 
+## Historical replay qualification
+
+The Git application engine must be checked against successful changes already
+merged into `release/therock-7.12`, `release/therock-7.14`, and
+`release/therock-10.0` in TheRock, rocm-systems, and rocm-libraries.
+
+- Every first-parent release-only commit in a pinned branch snapshot is
+  inventoried; no commit disappears because provenance is incomplete.
+- A candidate is called a cherry-pick only with positive source-commit or
+  source-PR evidence. Titles, Jira text, similar diffs, or conflicts alone are
+  insufficient.
+- A strict eligible replay has exactly one canonical source PR changeset. The
+  engine applies it to the historical destination parent, and its planned Git
+  tree must equal the tree actually merged into the release branch.
+- Multi-source bundles, release-native fixes, reverts, gitlink adaptations, and
+  manual conflict resolutions remain in the corpus as named diagnostic cases.
+- Missing Git objects or ambiguous provenance are evidence gaps and block an
+  exhaustive result.
+- Corpus refresh may perform an explicitly approved read-only Git fetch into a
+  dedicated local mirror. Replay itself is offline and cannot fetch, push, or
+  create a pull request.
+
 ## Success criteria
 
 - All planned remediation tests are committed locally in a demonstrated red
@@ -234,7 +256,12 @@ A future generated PR must:
 - Squash, merge-commit, and rebase fixtures prove correct complete changesets.
 - Fresh-runner and post-push recovery are deterministic and idempotent.
 - Already-contained decisions require positive complete-change proof.
-- No test or implementation command contacts or mutates a real remote service.
+- Every commit in each pinned historical target snapshot is classified, every
+  provenance-qualified backport is retained, and all strict eligible replays
+  reproduce the historical destination tree.
+- Replay and tests contact no remote service. Only the separately invoked,
+  explicitly approved corpus refresh may read from official Git remotes; no
+  command mutates a remote service.
 - The final handoff is a local draft diff and evidence bundle. Remote actions
   remain an unexecuted operator TODO.
 

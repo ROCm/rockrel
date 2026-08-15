@@ -6,6 +6,12 @@ Nothing in this file is authorized by the local implementation phase. Do not
 execute any item until a human has reviewed the complete local diff and granted
 specific approval for a later remote phase.
 
+The historical replay task has one narrow exception approved on 2026-08-15:
+read-only Git fetches from the three official public ROCm repositories into a
+dedicated local corpus directory. This exception does not authorize GitHub API
+mutation, push, comment, label, workflow, App, secret, branch, or pull-request
+changes.
+
 ## Existing stopped attempt
 
 - [ ] Read-only operator verification of the state of the previously stopped
