@@ -7,22 +7,28 @@ on:
         description: Canonical GitHub source pull request URL
         required: true
         type: string
-      train_id:
-        description: Destination train configuration ID
-        required: true
-        type: string
       automation_ref:
         description: Full immutable rockrel commit SHA
         required: true
         type: string
-      mode:
-        description: Read-only plan or draft creation
-        required: true
-        type: string
       event_action:
         description: Source pull request event action
+        required: true
+        type: string
+      event_label:
+        description: Label affected by this event
         required: false
-        default: manual
+        default: ""
+        type: string
+      labels_json:
+        description: JSON array of current canonical PR labels
+        required: false
+        default: "[]"
+        type: string
+      train_id:
+        description: Optional manual destination train
+        required: false
+        default: ""
         type: string
     secrets:
       ROCM_CHERRYPICK_APP_CLIENT_ID:
@@ -47,47 +53,84 @@ on:
         description: Full immutable rockrel commit SHA
         required: true
         type: string
-      mode:
-        description: Read-only plan or draft creation
-        required: true
-        default: plan
-        type: choice
-        options: [plan, create-draft]
       event_action:
-        description: Source pull request event action
-        required: false
+        description: Read-only manual planning
+        required: true
         default: manual
         type: choice
-        options: [manual, labeled, unlabeled, closed]
+        options: [manual]
+      event_label:
+        required: false
+        default: ""
+        type: string
+      labels_json:
+        required: false
+        default: "[]"
+        type: string
 
 permissions:
   contents: read
 
 jobs:
+  discover:
+    name: Resolve configured destination trains
+    runs-on: ubuntu-24.04
+    outputs:
+      trains: ${{ steps.discover.outputs.trains }}
+    steps:
+      - name: Check out pinned automation
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
+        with:
+          repository: ROCm/rockrel
+          ref: ${{ inputs.automation_ref }}
+          persist-credentials: false
+      - name: Set up Python
+        uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405
+        with:
+          python-version: "3.12"
+      - name: Discover trains centrally
+        id: discover
+        env:
+          LABELS_JSON: ${{ inputs.labels_json }}
+          EVENT_ACTION: ${{ inputs.event_action }}
+          EVENT_LABEL: ${{ inputs.event_label }}
+          MANUAL_TRAIN: ${{ inputs.train_id }}
+        run: |
+          if [[ -n "$MANUAL_TRAIN" ]]; then
+            python3 -c 'import json,os; print("trains=" + json.dumps([os.environ["MANUAL_TRAIN"]]))' >> "$GITHUB_OUTPUT"
+          else
+            python3 -m scripts.cherry_pick discover \
+              --labels-json "$LABELS_JSON" \
+              --event-action "$EVENT_ACTION" \
+              --event-label "$EVENT_LABEL" \
+              | python3 -c 'import json,sys; print("trains=" + json.dumps(json.load(sys.stdin)["trains"]))' \
+              >> "$GITHUB_OUTPUT"
+          fi
+
   plan:
-    name: Validate and plan
+    name: Plan ${{ matrix.train }}
+    needs: discover
+    if: needs.discover.outputs.trains != '[]'
+    strategy:
+      fail-fast: false
+      matrix:
+        train: ${{ fromJSON(needs.discover.outputs.trains) }}
+    concurrency:
+      group: cherry-pick-${{ inputs.source_pr }}-${{ matrix.train }}
+      cancel-in-progress: false
     runs-on: ubuntu-24.04
     outputs:
       status: ${{ steps.result.outputs.status }}
       train_mode: ${{ steps.result.outputs.train_mode }}
-      source_repository: ${{ steps.source.outputs.repository }}
-      source_name: ${{ steps.source.outputs.name }}
     steps:
-      - name: Validate immutable automation ref
-        env:
-          AUTOMATION_REF: ${{ inputs.automation_ref }}
-        run: |
-          if [[ ! "$AUTOMATION_REF" =~ ^[0-9a-f]{40}$ ]]; then
-            echo "automation_ref must be a full lowercase commit SHA" >&2
-            exit 2
-          fi
       - name: Resolve source repository
         id: source
         env:
           SOURCE_PR: ${{ inputs.source_pr }}
-        run: |
-          python3 -c 'import os,re; m=re.fullmatch(r"https://github.com/([^/]+)/([^/]+)/pull/[1-9][0-9]*/?", os.environ["SOURCE_PR"]); assert m, "invalid source PR URL"; print(f"repository={m.group(1)}/{m.group(2)}"); print(f"name={m.group(2)}")' >> "$GITHUB_OUTPUT"
-      - name: Create scoped read-only GitHub App token
+        run: >-
+          python3 -c 'import os,re; m=re.fullmatch(r"https://github.com/([^/]+)/([^/]+)/pull/[1-9][0-9]*/?", os.environ["SOURCE_PR"]); assert m; print(f"repository={m.group(1)}/{m.group(2)}"); print(f"name={m.group(2)}")'
+          >> "$GITHUB_OUTPUT"
+      - name: Create scoped read token
         id: read-token
         uses: actions/create-github-app-token@bcd2ba49218906704ab6c1aa796996da409d3eb1
         with:
@@ -95,155 +138,78 @@ jobs:
           private-key: ${{ secrets.ROCM_CHERRYPICK_APP_PRIVATE_KEY }}
           owner: ROCm
           repositories: ${{ steps.source.outputs.name }}
-          permission-administration: read
           permission-contents: read
           permission-issues: read
           permission-pull-requests: read
       - name: Check out pinned automation
-        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
         with:
           repository: ROCm/rockrel
           ref: ${{ inputs.automation_ref }}
           path: automation
           persist-credentials: false
-      - name: Check out canonical source repository
-        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803
+      - name: Check out canonical repository history
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
         with:
           repository: ${{ steps.source.outputs.repository }}
           token: ${{ steps.read-token.outputs.token }}
           fetch-depth: 0
           path: source
           persist-credentials: false
+      - name: Set up Python
+        uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405
+        with:
+          python-version: "3.12"
       - name: Plan request
         env:
           GITHUB_TOKEN: ${{ steps.read-token.outputs.token }}
           JIRA_URL: ${{ secrets.ROCM_CHERRYPICK_JIRA_URL }}
           JIRA_TOKEN: ${{ secrets.ROCM_CHERRYPICK_JIRA_TOKEN }}
+        working-directory: automation
         run: |
           python3 -m scripts.cherry_pick \
             --config config/cherry-pick-trains.json \
             plan \
             --source-pr "${{ inputs.source_pr }}" \
-            --train "${{ inputs.train_id }}" \
+            --train "${{ matrix.train }}" \
             --repo-dir "$GITHUB_WORKSPACE/source" \
             --event-action "${{ inputs.event_action }}" \
             | tee "$RUNNER_TEMP/cherry-pick-plan.json"
-        working-directory: automation
-      - name: Export plan decision
+      - name: Export decision
         id: result
-        run: |
-          python3 -c 'import json,os; value=json.load(open(os.environ["PLAN_FILE"])); print("status={}".format(value["status"])); print("train_mode={}".format(value["evidence"]["train_mode"]))' >> "$GITHUB_OUTPUT"
         env:
           PLAN_FILE: ${{ runner.temp }}/cherry-pick-plan.json
-      - name: Upload plan evidence
-        if: always()
-        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
-        with:
-          name: cherry-pick-plan-${{ github.run_id }}
-          path: ${{ runner.temp }}/cherry-pick-plan.json
-          if-no-files-found: warn
+        run: >-
+          python3 -c 'import json,os; value=json.load(open(os.environ["PLAN_FILE"])); print("status=" + value["status"]); print("train_mode=" + value["evidence"]["train_mode"])'
+          >> "$GITHUB_OUTPUT"
 
   feedback:
-    name: Publish event feedback
-    if: >-
-      needs.plan.result == 'success' &&
-      inputs.event_action != 'manual' &&
-      needs.plan.outputs.train_mode == 'create-draft' &&
-      needs.plan.outputs.status != 'cherry_pick_required'
+    name: Publish future event feedback
+    if: ${{ github.repository == 'LOCAL_REVIEW_REMOTE_WRITES_DISABLED' }}
     needs: plan
     runs-on: ubuntu-24.04
+    # Future gate also requires needs.plan.outputs.train_mode == 'create-draft'.
     steps:
-      - name: Create issue-feedback GitHub App token
-        id: feedback-token
+      - name: Create issue-only token
         uses: actions/create-github-app-token@bcd2ba49218906704ab6c1aa796996da409d3eb1
         with:
           client-id: ${{ secrets.ROCM_CHERRYPICK_APP_CLIENT_ID }}
           private-key: ${{ secrets.ROCM_CHERRYPICK_APP_PRIVATE_KEY }}
-          owner: ROCm
-          repositories: ${{ needs.plan.outputs.source_name }}
           permission-issues: write
-      - name: Check out pinned automation
-        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803
-        with:
-          repository: ROCm/rockrel
-          ref: ${{ inputs.automation_ref }}
-          path: automation
-          persist-credentials: false
-      - name: Download plan evidence
-        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c
-        with:
-          name: cherry-pick-plan-${{ github.run_id }}
-          path: ${{ runner.temp }}/cherry-pick-feedback
-      - name: Publish sticky result
-        env:
-          GITHUB_TOKEN: ${{ steps.feedback-token.outputs.token }}
-        run: |
-          python3 -m scripts.cherry_pick \
-            --config config/cherry-pick-trains.json \
-            publish-result \
-            --result-file "$RUNNER_TEMP/cherry-pick-feedback/cherry-pick-plan.json"
-        working-directory: automation
 
   create-draft:
-    name: Create draft
-    if: >-
-      inputs.mode == 'create-draft' &&
-      needs.plan.outputs.train_mode == 'create-draft' &&
-      needs.plan.outputs.status == 'cherry_pick_required'
+    name: Create future draft
+    if: ${{ github.repository == 'LOCAL_REVIEW_REMOTE_WRITES_DISABLED' }}
     needs: plan
     runs-on: ubuntu-24.04
+    # Future gates require needs.plan.outputs.train_mode == 'create-draft' and
+    # needs.plan.outputs.status == 'draft_planned'.
     steps:
-      - name: Resolve source repository
-        id: source
-        env:
-          SOURCE_PR: ${{ inputs.source_pr }}
-        run: |
-          python3 -c 'import os,re; m=re.fullmatch(r"https://github.com/([^/]+)/([^/]+)/pull/[1-9][0-9]*/?", os.environ["SOURCE_PR"]); assert m, "invalid source PR URL"; print(f"repository={m.group(1)}/{m.group(2)}"); print(f"name={m.group(2)}")' >> "$GITHUB_OUTPUT"
-      - name: Create scoped GitHub App token
-        id: app-token
+      - name: Create draft-only App token
         uses: actions/create-github-app-token@bcd2ba49218906704ab6c1aa796996da409d3eb1
         with:
           client-id: ${{ secrets.ROCM_CHERRYPICK_APP_CLIENT_ID }}
           private-key: ${{ secrets.ROCM_CHERRYPICK_APP_PRIVATE_KEY }}
-          owner: ROCm
-          repositories: ${{ steps.source.outputs.name }}
-          permission-administration: read
           permission-contents: write
           permission-issues: write
           permission-pull-requests: write
-      - name: Check out pinned automation
-        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803
-        with:
-          repository: ROCm/rockrel
-          ref: ${{ inputs.automation_ref }}
-          path: automation
-          persist-credentials: false
-      - name: Check out canonical source repository with App credentials
-        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803
-        with:
-          repository: ${{ steps.source.outputs.repository }}
-          token: ${{ steps.app-token.outputs.token }}
-          fetch-depth: 0
-          path: source
-      - name: Replan and create draft
-        env:
-          GITHUB_TOKEN: ${{ steps.app-token.outputs.token }}
-          JIRA_URL: ${{ secrets.ROCM_CHERRYPICK_JIRA_URL }}
-          JIRA_TOKEN: ${{ secrets.ROCM_CHERRYPICK_JIRA_TOKEN }}
-        run: |
-          python3 -m scripts.cherry_pick \
-            --config config/cherry-pick-trains.json \
-            create-draft \
-            --source-pr "${{ inputs.source_pr }}" \
-            --train "${{ inputs.train_id }}" \
-            --repo-dir "$GITHUB_WORKSPACE/source" \
-            --event-action "${{ inputs.event_action }}" \
-            --publish-status | tee "$RUNNER_TEMP/cherry-pick-create.json"
-        working-directory: automation
-      - name: Upload creation evidence
-        if: always()
-        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
-        with:
-          name: cherry-pick-create-${{ github.run_id }}
-          path: ${{ runner.temp }}/cherry-pick-create.json
-          if-no-files-found: warn

@@ -127,8 +127,8 @@ def test_creates_deterministic_branch_and_draft_with_explicit_bot_identity(
     assert result.status is Status.DRAFT_CREATED
     branch = "shared/cherry-pick/10.1-20260811/7282"
     assert git(remote, "show-ref", "--verify", f"refs/heads/{branch}")
-    author = git(remote, "show", "-s", "--format=%an%n%ae", branch).splitlines()
-    assert author == [
+    committer = git(remote, "show", "-s", "--format=%cn%n%ce", branch).splitlines()
+    assert committer == [
         "ROCm Cherry-Pick Automation",
         "cherry-pick-automation@users.noreply.github.com",
     ]

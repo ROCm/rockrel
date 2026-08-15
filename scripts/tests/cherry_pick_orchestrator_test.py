@@ -187,7 +187,9 @@ def test_open_pr_awaits_merge_without_changeset_work(tmp_path):
 def test_unlabeled_event_cancels_only_absent_train_label(tmp_path):
     client = github()
     client.pull.return_value["labels"] = []
-    controller, proof, _evaluator = planner(github_client=client)
+    controller, proof, _evaluator = planner(
+        catalog=config(mode="shadow"), github_client=client
+    )
     result = controller.plan(
         SOURCE_URL, "10.1-20260811", tmp_path, event_action="unlabeled"
     )

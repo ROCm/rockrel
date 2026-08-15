@@ -109,7 +109,10 @@ def test_all_remote_write_jobs_are_literal_disabled_for_local_review():
     sync = workflow_text(SYNC)
 
     for write_job in (feedback, create, job(reconcile, "create-drafts"), sync):
-        assert "if: ${{ false }} # LOCAL_REVIEW_REMOTE_WRITES_DISABLED" in write_job
+        assert (
+            "if: ${{ github.repository == 'LOCAL_REVIEW_REMOTE_WRITES_DISABLED' }}"
+            in write_job
+        )
     assert "permission-issues: write" in feedback
     assert "permission-contents: write" in create
     assert "permission-pull-requests: write" in create

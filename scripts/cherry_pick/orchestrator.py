@@ -1,15 +1,28 @@
-"""Orchestrate one source pull request and one destination-branch train."""
+# Copyright Advanced Micro Devices, Inc.
+# SPDX-License-Identifier: MIT
+
+"""Read-only orchestration for label-driven cherry-pick requests."""
 
 from __future__ import annotations
 
-from collections.abc import Callable
+from collections.abc import Callable, Iterable
 from pathlib import Path
-from typing import Any
 
-from .clients import GitHubClient, JiraClient, extract_jira_keys, parse_pull_request_url
+from .clients import (
+    GitHubClient,
+    JiraClient,
+    extract_dependency_trailers,
+    extract_jira_keys,
+    parse_pull_request_url,
+)
 from .config import TrainCatalog
 from .coverage import find_covering_pull
-from .git import evaluate_cherry_pick
+from .git import (
+    Changeset,
+    ChangesetError,
+    evaluate_changeset,
+    prove_changeset,
+)
 from .models import Result, Status
 from .policy import QualificationFacts, qualify_request
 
@@ -26,24 +39,110 @@ def status_marker(train_id: str) -> str:
     return f"<!-- cherry-pick-status:{train_id} -->"
 
 
+def discover_train_ids(
+    catalog: TrainCatalog,
+    *,
+    current_labels: tuple[str, ...],
+    event_action: str,
+    event_label: str,
+) -> tuple[str, ...]:
+    """Resolve event labels centrally without trusting them as configuration."""
+
+    labels = set(current_labels)
+    if event_action == "unlabeled" and event_label:
+        labels.add(event_label)
+    train_ids = {
+        train.id
+        for train in catalog.trains.values()
+        if train.label in labels
+        and train.state == "active"
+        and train.mode in {"shadow", "create-draft"}
+    }
+    return tuple(sorted(train_ids))
+
+
 def render_pull_body(
     *,
     marker: str,
     source_url: str,
+    source_repository: str,
     source_sha: str,
+    source_head: str,
     train_id: str,
+    destination_branch: str,
+    destination_head: str,
+    changeset_kind: str,
+    ordered_commits: tuple[str, ...],
+    mainline: int | None,
+    jira_keys: tuple[str, ...],
+    jira_fix_versions: tuple[str, ...],
+    unresolved_dependencies: tuple[str, ...],
+    proof_method: str,
     source_body: str,
 ) -> str:
-    return (
-        f"{marker}\n"
-        f"Cherry-picks [`{source_sha}`]({source_url}/commits/{source_sha}) from "
-        f"{source_url} for train `{train_id}`.\n\n"
-        "This pull request was created as a draft and remains a draft until an "
-        "operator completes destination-branch review. The automation never marks it "
-        "ready or merges it.\n\n"
-        "## Source pull request\n\n"
-        f"{source_body.strip() or '_No source description was provided._'}\n"
+    """Render an operator-grade ROCm draft description."""
+
+    commits = "\n".join(f"  - `{commit}`" for commit in ordered_commits)
+    jira = ", ".join(f"`{key}`" for key in jira_keys) or "_None_"
+    versions = ", ".join(f"`{item}`" for item in jira_fix_versions) or "_None_"
+    dependencies = (
+        "\n".join(f"  - {item}" for item in unresolved_dependencies)
+        if unresolved_dependencies
+        else "  - None declared"
     )
+    command = "git cherry-pick -x"
+    if mainline is not None:
+        command += f" -m {mainline}"
+    command += " " + " ".join(ordered_commits)
+    original = source_body.strip() or "_No source description was provided._"
+    return f"""{marker}
+# Operator review required
+
+This pull request was generated as a **draft**. The automation never marks this PR ready or merges it.
+
+## Source and destination
+
+- Source: {source_url}
+- Source repository: `{source_repository}`
+- Source head: `{source_head}`
+- Merged commit/range head: [`{source_sha}`]({source_url}/commits/{source_sha})
+- Train: `{train_id}`
+- Destination: `{destination_branch}` at `{destination_head}`
+
+## Application and provenance
+
+- Representation: `{changeset_kind}`
+- Proof: `{proof_method}`
+- Ordered application commits:
+{commits}
+- Planned command: `{command}`
+- Git provenance: every generated commit uses `-x`.
+
+## Jira and dependencies
+
+- Jira issues: {jira}
+- Fix Versions: {versions}
+- Dependencies/order:
+{dependencies}
+
+## Test plan and result
+
+- Local preflight: the complete proven changeset applied cleanly and was non-empty.
+- Review the complete destination diff.
+- Run and evaluate this repository's native required checks; no CI success is claimed here.
+
+## Submission checklist
+
+- [ ] Source representation and provenance verified
+- [ ] Jira and destination verified
+- [ ] Dependencies/order reviewed
+- [ ] Destination diff reviewed
+- [ ] Native CI reviewed
+
+## Original source pull request
+
+{original}
+"""
 
 
 def render_status_comment(result: Result) -> str:
@@ -61,8 +160,16 @@ def render_status_comment(result: Result) -> str:
     return "\n".join(lines)
 
 
+def _string(value: object) -> str:
+    return value if isinstance(value, str) else ""
+
+
+def _nested_string(value: object, key: str) -> str:
+    return _string(value.get(key)) if isinstance(value, dict) else ""
+
+
 class Planner:
-    """Gather external facts and produce one deterministic request plan."""
+    """Gather canonical external facts and produce one deterministic plan."""
 
     def __init__(
         self,
@@ -70,25 +177,55 @@ class Planner:
         github: GitHubClient,
         jira: JiraClient | None,
         *,
-        evaluator: Callable[[Path, str, str], Result] = evaluate_cherry_pick,
+        changeset_builder: Callable[
+            [Path, str, str, tuple[str, ...]], Changeset
+        ] = prove_changeset,
+        evaluator: Callable[[Path, Changeset, str], Result] = evaluate_changeset,
         coverage_evaluator: Callable[
-            [Path, GitHubClient, str, dict[str, Any]], dict[str, Any] | None
+            [Path, GitHubClient, str, dict[str, object]], dict[str, object] | None
         ] = find_covering_pull,
     ) -> None:
         self.config = config
         self.github = github
         self.jira = jira
+        self.changeset_builder = changeset_builder
         self.evaluator = evaluator
         self.coverage_evaluator = coverage_evaluator
+
+    @staticmethod
+    def _result(
+        *,
+        status: Status,
+        reason_code: str,
+        message: str,
+        source_url: str,
+        repository: str,
+        train_id: str,
+        destination_branch: str | None,
+        evidence: dict[str, object] | None = None,
+        pull_request_url: str | None = None,
+    ) -> Result:
+        return Result(
+            status=status,
+            reason_code=reason_code,
+            message=message,
+            evidence=evidence or {},
+            source_pr=source_url,
+            source_repository=repository,
+            train_id=train_id,
+            destination_branch=destination_branch,
+            pull_request_url=pull_request_url,
+        )
 
     @staticmethod
     def _with_context(
         result: Result,
         *,
         source_url: str,
+        repository: str,
         train_id: str,
         destination_branch: str | None,
-        evidence: dict[str, Any] | None = None,
+        evidence: dict[str, object] | None = None,
         pull_request_url: str | None = None,
     ) -> Result:
         combined = dict(result.evidence)
@@ -99,6 +236,7 @@ class Planner:
             message=result.message,
             evidence=combined,
             source_pr=source_url,
+            source_repository=repository,
             train_id=train_id,
             destination_branch=destination_branch,
             pull_request_url=pull_request_url or result.pull_request_url,
@@ -119,124 +257,180 @@ class Planner:
         destination_branch = (
             repository_config.destination_branch if repository_config else None
         )
+        early_evidence = {
+            "source_number": number,
+            "train_mode": train.mode,
+            "event_action": event_action,
+        }
+        if train.mode == "disabled":
+            return self._result(
+                status=Status.CANCELLED,
+                reason_code="train_disabled",
+                message="The train is disabled and performs no work.",
+                source_url=source_url,
+                repository=repository,
+                train_id=train_id,
+                destination_branch=destination_branch,
+                evidence=early_evidence,
+            )
+        if train.mode == "validate" and event_action not in (None, "manual"):
+            return self._result(
+                status=Status.CANCELLED,
+                reason_code="validate_mode_manual_only",
+                message="Validate mode accepts manual read-only planning only.",
+                source_url=source_url,
+                repository=repository,
+                train_id=train_id,
+                destination_branch=destination_branch,
+                evidence=early_evidence,
+            )
+        if train.state != "active":
+            return self._result(
+                status=Status.INELIGIBLE_SOURCE,
+                reason_code="inactive_train",
+                message="The train is inactive.",
+                source_url=source_url,
+                repository=repository,
+                train_id=train_id,
+                destination_branch=destination_branch,
+                evidence=early_evidence,
+            )
+
         pull = self.github.pull(owner, repo, number)
+        labels = pull.get("labels")
         current_labels = {
             item.get("name")
-            for item in pull.get("labels", [])
-            if isinstance(item, dict)
-        }
+            for item in labels if isinstance(item, dict)
+        } if isinstance(labels, list) else set()
         if event_action == "unlabeled" and train.label not in current_labels:
-            return Result(
+            return self._result(
                 status=Status.CANCELLED,
                 reason_code="train_label_removed",
                 message="The cherry-pick request label was removed.",
-                source_pr=source_url,
+                source_url=source_url,
+                repository=repository,
                 train_id=train_id,
                 destination_branch=destination_branch,
-                evidence={
-                    "source_number": number,
-                    "source_repository": repository,
-                    "event_action": event_action,
-                    "train_mode": train.mode,
-                },
+                evidence=early_evidence,
             )
         if train.label not in current_labels:
-            return Result(
-                status=Status.INVALID,
+            return self._result(
+                status=Status.INELIGIBLE_SOURCE,
                 reason_code="train_label_missing",
                 message=f"The source PR does not currently have label {train.label}.",
-                source_pr=source_url,
+                source_url=source_url,
+                repository=repository,
                 train_id=train_id,
                 destination_branch=destination_branch,
-                evidence={
-                    "source_number": number,
-                    "source_repository": repository,
-                    "event_action": event_action,
-                    "train_mode": train.mode,
-                },
+                evidence=early_evidence,
             )
 
+        title = _string(pull.get("title"))
+        body = _string(pull.get("body"))
+        combined_text = f"{title}\n{body}"
+        jira_keys = extract_jira_keys(combined_text)
+        unresolved = list(extract_dependency_trailers(combined_text))
         errors: list[str] = []
         label_actor: str | None = None
         permission = "none"
-        branch = {"exists": False, "protected": False, "sha": None}
-        jira_required = train.requirements.jira_fix_version is not None
-        jira_keys = (
-            extract_jira_keys(f"{pull.get('title') or ''}\n{pull.get('body') or ''}")
-            if jira_required
-            else []
-        )
+        branch = None
+        destination_policy = None
         fix_versions: set[str] = set()
         try:
-            label_actor = self.github.label_actor(
-                owner, repo, number, train.label
-            )
+            label_actor = self.github.label_actor(owner, repo, number, train.label)
             if label_actor is not None:
                 permission = self.github.permission(owner, repo, label_actor)
-        except Exception as exc:  # external evidence is fail-closed
+        except Exception as exc:  # Canonical evidence is fail-closed.
             errors.append(f"github_label_evidence:{type(exc).__name__}")
-        if label_actor is None and not errors:
-            permission = "none"
         if repository_config is not None:
             try:
                 branch = self.github.branch(
                     owner, repo, repository_config.destination_branch
                 )
+                if branch.exists:
+                    destination_policy = self.github.destination_policy(
+                        owner, repo, repository_config.destination_branch
+                    )
             except Exception as exc:
                 errors.append(f"github_destination_evidence:{type(exc).__name__}")
+
+        jira_required = train.requirements.jira_fix_version is not None
         if jira_required and self.jira is None:
             errors.append("jira_evidence:client_unavailable")
         elif jira_required:
             for key in jira_keys:
                 try:
                     assert self.jira is not None
-                    fix_versions.update(self.jira.fix_versions(key))
+                    issue = self.jira.issue_evidence(key)
+                    fix_versions.update(issue.fix_versions)
+                    unresolved.extend(issue.dependencies)
+                    unresolved.extend(issue.ordering_notes)
                 except Exception as exc:
                     errors.append(f"jira_evidence:{key}:{type(exc).__name__}")
+        unresolved_dependencies = tuple(dict.fromkeys(unresolved))
 
         facts = QualificationFacts(
             source_pr=source_url,
             repository=repository,
-            base_branch=pull.get("base", {}).get("ref") or "",
+            base_branch=_nested_string(pull.get("base"), "ref"),
             merged=pull.get("merged") is True,
             closed=pull.get("state") == "closed",
             label_actor_permission=permission,
             jira_fix_versions=frozenset(fix_versions),
-            destination_exists=branch["exists"] is True,
-            destination_protected=branch["protected"] is True,
+            destination_exists=branch is not None and branch.exists,
+            destination_pr_required=(
+                destination_policy is not None
+                and destination_policy.pull_request_required
+            ),
+            unresolved_dependencies=unresolved_dependencies,
             evidence_errors=tuple(errors),
         )
         qualified = qualify_request(train, facts)
-        base_evidence = {
-            "source_title": pull.get("title") or "",
-            "source_body": pull.get("body") or "",
+        destination_head = branch.sha if branch is not None else None
+        rule_ids = (
+            list(destination_policy.rule_ids)
+            if destination_policy is not None
+            else []
+        )
+        base_evidence: dict[str, object] = {
+            "source_title": title,
+            "source_body": body,
             "source_number": number,
             "source_repository": repository,
+            "source_head": _nested_string(pull.get("head"), "sha"),
             "source_merge_commit": pull.get("merge_commit_sha"),
             "label_actor": label_actor,
             "jira_keys": jira_keys,
-            "destination_head": branch.get("sha"),
+            "jira_fix_versions": sorted(fix_versions),
+            "unresolved_dependencies": list(unresolved_dependencies),
+            "destination_head": destination_head,
+            "destination_rule_ids": rule_ids,
             "train_mode": train.mode,
             "event_action": event_action,
         }
         qualified = self._with_context(
             qualified,
             source_url=source_url,
+            repository=repository,
             train_id=train_id,
             destination_branch=destination_branch,
             evidence=base_evidence,
         )
-        if qualified.status is not Status.CHERRY_PICK_REQUIRED:
+        if qualified.status is not Status.DRAFT_PLANNED:
             return qualified
-        if not isinstance(pull.get("merge_commit_sha"), str):
-            return Result(
-                status=Status.BLOCKED,
-                reason_code="merge_commit_missing",
-                message="The merged source PR has no aggregate merge commit SHA.",
-                evidence=base_evidence,
-                source_pr=source_url,
+
+        merged_sha = pull.get("merge_commit_sha")
+        source_head = _nested_string(pull.get("head"), "sha")
+        if not isinstance(merged_sha, str) or not source_head:
+            return self._result(
+                status=Status.BLOCKED_AMBIGUOUS_CHANGESET,
+                reason_code="source_merge_evidence_missing",
+                message="The merged source PR lacks canonical merge/head evidence.",
+                source_url=source_url,
+                repository=repository,
                 train_id=train_id,
                 destination_branch=destination_branch,
+                evidence=base_evidence,
             )
 
         marker = identity_marker(repository, number, train_id)
@@ -246,73 +440,124 @@ class Planner:
                 owner, repo, base=repository_config.destination_branch, state="all"
             )
         except Exception as exc:
-            return Result(
-                status=Status.BLOCKED,
+            return self._result(
+                status=Status.BLOCKED_EVIDENCE,
                 reason_code="existing_pr_evidence_unavailable",
-                message="GitHub could not enumerate existing destination pull requests.",
-                evidence={**base_evidence, "error": type(exc).__name__},
-                source_pr=source_url,
+                message="GitHub could not enumerate destination pull requests.",
+                source_url=source_url,
+                repository=repository,
                 train_id=train_id,
                 destination_branch=destination_branch,
+                evidence={**base_evidence, "error": type(exc).__name__},
             )
         for candidate in destination_pulls:
+            candidate_head = candidate.get("head")
+            candidate_ref = (
+                candidate_head.get("ref") if isinstance(candidate_head, dict) else None
+            )
             owns_identity = candidate.get("state") == "open" or bool(
                 candidate.get("merged_at")
             )
             if owns_identity and (
-                marker in (candidate.get("body") or "")
-                or candidate.get("head", {}).get("ref") == branch_name
+                marker in _string(candidate.get("body"))
+                or candidate_ref == branch_name
             ):
-                return Result(
+                return self._result(
                     status=Status.COVERED_BY_EXISTING_PR,
                     reason_code="existing_identity_match",
-                    message="An existing destination pull request owns this source/train identity.",
+                    message="An existing destination PR owns this request identity.",
+                    source_url=source_url,
+                    repository=repository,
+                    train_id=train_id,
+                    destination_branch=destination_branch,
                     evidence=base_evidence,
-                    source_pr=source_url,
-                    train_id=train_id,
-                    destination_branch=destination_branch,
-                    pull_request_url=candidate.get("html_url"),
-                )
-            try:
-                coverage = self.coverage_evaluator(
-                    Path(repo_dir),
-                    self.github,
-                    pull["merge_commit_sha"],
-                    candidate,
-                )
-            except Exception as exc:
-                return Result(
-                    status=Status.BLOCKED,
-                    reason_code="covering_pr_evidence_unavailable",
-                    message="Coverage evaluation for an existing destination PR failed.",
-                    evidence={
-                        **base_evidence,
-                        "candidate_pull_request": candidate.get("html_url"),
-                        "error": type(exc).__name__,
-                    },
-                    source_pr=source_url,
-                    train_id=train_id,
-                    destination_branch=destination_branch,
-                )
-            if coverage is not None:
-                return Result(
-                    status=Status.COVERED_BY_EXISTING_PR,
-                    reason_code=str(coverage["reason"]),
-                    message="An existing destination pull request positively covers this change.",
-                    evidence={**base_evidence, "coverage": coverage},
-                    source_pr=source_url,
-                    train_id=train_id,
-                    destination_branch=destination_branch,
-                    pull_request_url=str(coverage["pull_request_url"]),
+                    pull_request_url=_string(candidate.get("html_url")) or None,
                 )
 
-        git_result = self.evaluator(
-            Path(repo_dir), pull["merge_commit_sha"], branch["sha"]
-        )
+        try:
+            source_commits = self.github.pull_commits(owner, repo, number)
+            changeset = self.changeset_builder(
+                Path(repo_dir), merged_sha, source_head, source_commits
+            )
+        except ChangesetError as exc:
+            return self._result(
+                status=Status.BLOCKED_AMBIGUOUS_CHANGESET,
+                reason_code="changeset_proof_failed",
+                message=str(exc),
+                source_url=source_url,
+                repository=repository,
+                train_id=train_id,
+                destination_branch=destination_branch,
+                evidence=base_evidence,
+            )
+        except Exception as exc:
+            return self._result(
+                status=Status.BLOCKED_EVIDENCE,
+                reason_code="changeset_evidence_unavailable",
+                message="Required changeset evidence is unavailable.",
+                source_url=source_url,
+                repository=repository,
+                train_id=train_id,
+                destination_branch=destination_branch,
+                evidence={**base_evidence, "error": type(exc).__name__},
+            )
+
+        if len(changeset.commits) == 1:
+            for candidate in destination_pulls:
+                try:
+                    coverage = self.coverage_evaluator(
+                        Path(repo_dir), self.github, changeset.commits[0], candidate
+                    )
+                except Exception as exc:
+                    return self._result(
+                        status=Status.BLOCKED_EVIDENCE,
+                        reason_code="covering_pr_evidence_unavailable",
+                        message="Coverage evaluation for a destination PR failed.",
+                        source_url=source_url,
+                        repository=repository,
+                        train_id=train_id,
+                        destination_branch=destination_branch,
+                        evidence={**base_evidence, "error": type(exc).__name__},
+                    )
+                if coverage is not None:
+                    return self._result(
+                        status=Status.COVERED_BY_EXISTING_PR,
+                        reason_code=str(coverage["reason"]),
+                        message="An existing destination PR positively covers this change.",
+                        source_url=source_url,
+                        repository=repository,
+                        train_id=train_id,
+                        destination_branch=destination_branch,
+                        evidence={**base_evidence, "coverage": coverage},
+                        pull_request_url=str(coverage["pull_request_url"]),
+                    )
+
+        if not isinstance(destination_head, str):
+            return self._result(
+                status=Status.BLOCKED_EVIDENCE,
+                reason_code="destination_head_missing",
+                message="The destination branch did not provide a canonical SHA.",
+                source_url=source_url,
+                repository=repository,
+                train_id=train_id,
+                destination_branch=destination_branch,
+                evidence=base_evidence,
+            )
+        git_result = self.evaluator(Path(repo_dir), changeset, destination_head)
+        changeset_evidence = {
+            "changeset_kind": changeset.kind.value,
+            "ordered_commits": list(changeset.commits),
+            "aggregate_base": changeset.aggregate_base,
+            "aggregate_head": changeset.aggregate_head,
+            "mainline": changeset.mainline,
+            "proof_method": changeset.proof.method,
+            "changeset_proof": changeset.proof.as_dict(),
+        }
         return self._with_context(
             git_result,
             source_url=source_url,
+            repository=repository,
             train_id=train_id,
             destination_branch=destination_branch,
-            evidence=base_evidence,
+            evidence={**base_evidence, **changeset_evidence},
         )

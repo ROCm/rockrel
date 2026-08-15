@@ -1,5 +1,5 @@
 {
-  "schema_version": 2,
+  "schema_version": 3,
   "trains": [
     {
       "id": "10.1-20260811",
@@ -7,19 +7,20 @@
       "state": "active",
       "mode": "validate",
       "requirements": {
-        "jira_fix_version": "10.1.0a20260811"
+        "jira_fix_version": "10.1.0a20260811",
+        "block_on_dependencies": true
       },
       "repositories": {
         "ROCm/TheRock": {
-          "source_branch": "main",
+          "source_branches": ["main"],
           "destination_branch": "release/bkc/therock-10.1-20260811"
         },
         "ROCm/rocm-systems": {
-          "source_branch": "develop",
+          "source_branches": ["develop"],
           "destination_branch": "release/bkc/therock-10.1-20260811"
         },
         "ROCm/rocm-libraries": {
-          "source_branch": "develop",
+          "source_branches": ["develop"],
           "destination_branch": "release/bkc/therock-10.1-20260811"
         }
       }

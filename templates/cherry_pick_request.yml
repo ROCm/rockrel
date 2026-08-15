@@ -1,5 +1,7 @@
-# Generated callers must pin both rockrel references below to the same reviewed
-# immutable commit SHA. Use scripts/render_cherry_pick_workflow.py.
+# Copyright Advanced Micro Devices, Inc.
+# SPDX-License-Identifier: MIT
+# Generated callers pin both references to one reviewed immutable rockrel SHA.
+
 name: Cherry-pick request
 
 on:
@@ -10,44 +12,14 @@ permissions:
   contents: read
 
 jobs:
-  discover:
-    runs-on: ubuntu-24.04
-    outputs:
-      trains: ${{ steps.labels.outputs.trains }}
-    steps:
-      - name: Select cherry-pick labels from event metadata
-        id: labels
-        env:
-          ACTION: ${{ github.event.action }}
-          EVENT_LABEL: ${{ github.event.label.name }}
-          PR_LABELS: ${{ toJSON(github.event.pull_request.labels.*.name) }}
-        run: |
-          python3 - <<'PY' >> "$GITHUB_OUTPUT"
-          import json
-          import os
-
-          labels = json.loads(os.environ["PR_LABELS"])
-          event_label = os.environ.get("EVENT_LABEL", "")
-          if event_label.startswith("cherry-pick:"):
-              labels.append(event_label)
-          trains = sorted({label.split(":", 1)[1] for label in labels if label.startswith("cherry-pick:")})
-          print(f"trains={json.dumps(trains)}")
-          PY
-
   process:
-    needs: discover
-    if: needs.discover.outputs.trains != '[]'
-    strategy:
-      fail-fast: false
-      matrix:
-        train: ${{ fromJSON(needs.discover.outputs.trains) }}
     uses: ROCm/rockrel/.github/workflows/cherry_pick.yml@ROCKREL_AUTOMATION_SHA
     with:
       source_pr: ${{ github.event.pull_request.html_url }}
-      train_id: ${{ matrix.train }}
       automation_ref: ROCKREL_AUTOMATION_SHA
-      mode: create-draft
       event_action: ${{ github.event.action }}
+      event_label: ${{ github.event.label.name }}
+      labels_json: ${{ toJSON(github.event.pull_request.labels.*.name) }}
     secrets:
       ROCM_CHERRYPICK_APP_CLIENT_ID: ${{ secrets.ROCM_CHERRYPICK_APP_CLIENT_ID }}
       ROCM_CHERRYPICK_APP_PRIVATE_KEY: ${{ secrets.ROCM_CHERRYPICK_APP_PRIVATE_KEY }}

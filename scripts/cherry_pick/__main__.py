@@ -1,3 +1,6 @@
+# Copyright Advanced Micro Devices, Inc.
+# SPDX-License-Identifier: MIT
+
 """Command-line entry point for label-driven cherry-pick automation."""
 
 from __future__ import annotations
@@ -11,9 +14,14 @@ from pathlib import Path
 from typing import TextIO
 
 from .clients import GitHubClient, JiraClient, parse_pull_request_url
-from .config import load_config
+from .config import ConfigError, load_config
 from .models import Result
-from .orchestrator import Planner, render_status_comment, status_marker
+from .orchestrator import (
+    Planner,
+    discover_train_ids,
+    render_status_comment,
+    status_marker,
+)
 from .writer import DraftWriter
 
 
@@ -22,10 +30,19 @@ DEFAULT_CONFIG = Path(__file__).parents[2] / "config" / "cherry-pick-trains.json
 
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
-        description="Plan and create draft ROCm destination-branch cherry-picks."
+        description="Plan draft ROCm destination-branch cherry-picks."
     )
     parser.add_argument("--config", type=Path, default=DEFAULT_CONFIG)
     subparsers = parser.add_subparsers(dest="command", required=True)
+
+    discover = subparsers.add_parser("discover")
+    discover.add_argument("--labels-json", required=True)
+    discover.add_argument(
+        "--event-action",
+        choices=("labeled", "unlabeled", "closed"),
+        required=True,
+    )
+    discover.add_argument("--event-label", default="")
 
     for command in ("plan", "create-draft"):
         subparser = subparsers.add_parser(command)
@@ -52,7 +69,6 @@ def build_parser() -> argparse.ArgumentParser:
         action="append",
         required=True,
         metavar="OWNER/REPO=PATH",
-        help="Repeat once for every repository configured for the train.",
     )
     reconcile.add_argument("--publish-status", action="store_true")
     reconcile.add_argument("--create-drafts", action="store_true")
@@ -69,6 +85,14 @@ def _credential(
     return None
 
 
+def _needs_write_capability(args: argparse.Namespace) -> bool:
+    return bool(
+        args.command in {"create-draft", "sync-labels", "publish-result"}
+        or (args.command == "reconcile" and args.create_drafts)
+        or getattr(args, "publish_status", False)
+    )
+
+
 def main(
     argv: Sequence[str] | None = None,
     *,
@@ -79,20 +103,53 @@ def main(
     jira_factory=JiraClient,
     planner_factory=Planner,
     writer_factory=DraftWriter,
+    write_capability: object | None = None,
 ) -> int:
     args = build_parser().parse_args(argv)
+    try:
+        config = load_config(args.config)
+    except ConfigError as exc:
+        print(f"error: invalid configuration: {exc}", file=stderr)
+        return 2
+
+    if args.command == "discover":
+        try:
+            labels = json.loads(args.labels_json)
+        except json.JSONDecodeError as exc:
+            print(f"error: labels JSON is invalid: {exc}", file=stderr)
+            return 2
+        if not isinstance(labels, list) or any(
+            not isinstance(item, str) for item in labels
+        ):
+            print("error: labels JSON must be an array of strings", file=stderr)
+            return 2
+        trains = discover_train_ids(
+            config,
+            current_labels=tuple(labels),
+            event_action=args.event_action,
+            event_label=args.event_label,
+        )
+        print(json.dumps({"trains": list(trains)}, sort_keys=True), file=stdout)
+        return 0
+
+    if _needs_write_capability(args) and write_capability is None:
+        print(
+            "error: remote write capability is unavailable in local-review mode",
+            file=stderr,
+        )
+        return 2
+
     github_token = _credential(environ, "GITHUB_TOKEN", stderr)
     if github_token is None:
         return 2
     github = github_factory(github_token)
-    config = load_config(args.config)
 
     if args.command == "publish-result":
         try:
             payload = json.loads(args.result_file.read_text())
             result = Result.from_dict(payload)
-            train = config.train(result.train_id)
-            owner, repo, number = parse_pull_request_url(result.source_pr)
+            train = config.train(result.train_id or "")
+            owner, repo, number = parse_pull_request_url(result.source_pr or "")
         except (OSError, json.JSONDecodeError, TypeError, ValueError) as exc:
             print(f"error: invalid result file: {exc}", file=stderr)
             return 2
@@ -103,13 +160,10 @@ def main(
             marker=status_marker(train.id),
             body=render_status_comment(result),
         )
-        if result.status.value == "invalid":
-            github.remove_label(owner, repo, number, train.label)
         print(json.dumps(result.as_dict(), sort_keys=True), file=stdout)
         return 0
 
     train = config.train(args.train)
-
     if args.command == "sync-labels":
         for repository in train.repositories:
             owner, repo = repository.split("/", 1)
@@ -117,9 +171,7 @@ def main(
                 owner,
                 repo,
                 name=train.label,
-                description=(
-                    f"Request a draft cherry-pick for train {train.id}"
-                ),
+                description=f"Request a draft cherry-pick for train {train.id}",
             )
         print(
             json.dumps(
@@ -161,8 +213,12 @@ def main(
                 file=stderr,
             )
             return 2
-        results = []
-        writer = writer_factory(github) if args.create_drafts else None
+        results: list[dict[str, object]] = []
+        writer = (
+            writer_factory(github, capability=write_capability)
+            if args.create_drafts
+            else None
+        )
         for repository in train.repositories:
             owner, repo = repository.split("/", 1)
             source_urls = github.search_merged_labeled_pull_requests(
@@ -208,11 +264,9 @@ def main(
         args.repo_dir,
         event_action=args.event_action,
     )
-
     if args.command == "create-draft":
-        writer = writer_factory(github)
+        writer = writer_factory(github, capability=write_capability)
         result = writer.create(args.repo_dir, train, result)
-
     if args.publish_status:
         owner, repo, number = parse_pull_request_url(args.source_pr)
         github.upsert_comment(
@@ -222,9 +276,6 @@ def main(
             marker=status_marker(args.train),
             body=render_status_comment(result),
         )
-        if result.status.value == "invalid":
-            github.remove_label(owner, repo, number, train.label)
-
     print(json.dumps(result.as_dict(), sort_keys=True), file=stdout)
     return 0
 

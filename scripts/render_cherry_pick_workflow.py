@@ -1,4 +1,7 @@
 #!/usr/bin/env python3
+# Copyright Advanced Micro Devices, Inc.
+# SPDX-License-Identifier: MIT
+
 """Render the source-repository caller with one immutable rockrel revision."""
 
 from __future__ import annotations

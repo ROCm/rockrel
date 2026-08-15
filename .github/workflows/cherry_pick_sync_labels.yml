@@ -1,14 +1,10 @@
-name: Synchronize cherry-pick labels
+name: Cherry-pick label synchronization
 
 on:
   workflow_dispatch:
     inputs:
       train_id:
-        description: Destination train ID
-        required: true
-        type: string
-      automation_ref:
-        description: Full immutable rockrel commit SHA
+        description: Train whose configured labels would be synchronized
         required: true
         type: string
 
@@ -17,30 +13,22 @@ permissions:
 
 jobs:
   sync:
+    if: ${{ github.repository == 'LOCAL_REVIEW_REMOTE_WRITES_DISABLED' }}
     runs-on: ubuntu-24.04
     steps:
-      - name: Create scoped GitHub App token
-        id: app-token
+      - name: Create issue-only token
         uses: actions/create-github-app-token@bcd2ba49218906704ab6c1aa796996da409d3eb1
         with:
           client-id: ${{ secrets.ROCM_CHERRYPICK_APP_CLIENT_ID }}
           private-key: ${{ secrets.ROCM_CHERRYPICK_APP_PRIVATE_KEY }}
-          owner: ROCm
-          repositories: |-
-            TheRock
-            rocm-systems
-            rocm-libraries
           permission-issues: write
-      - name: Check out pinned automation
-        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803
+      - name: Check out automation
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
         with:
-          ref: ${{ inputs.automation_ref }}
           persist-credentials: false
-      - name: Synchronize labels
-        env:
-          GITHUB_TOKEN: ${{ steps.app-token.outputs.token }}
-        run: |
-          python3 -m scripts.cherry_pick \
-            --config config/cherry-pick-trains.json \
-            sync-labels \
-            --train "${{ inputs.train_id }}"
+      - name: Set up Python
+        uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405
+        with:
+          python-version: "3.12"
+      - name: Future capability-gated synchronization
+        run: python3 -m scripts.cherry_pick sync-labels --help

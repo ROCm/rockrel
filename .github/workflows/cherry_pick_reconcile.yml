@@ -1,14 +1,10 @@
-name: Reconcile cherry-pick requests
+name: Cherry-pick reconciliation
 
 on:
   schedule:
-    - cron: "17 6 * * *"
+    - cron: "17 */6 * * *"
   workflow_dispatch:
     inputs:
-      train_id:
-        description: Destination train ID, or leave empty for every active train
-        required: false
-        type: string
       automation_ref:
         description: Full immutable rockrel commit SHA
         required: true
@@ -19,208 +15,81 @@ permissions:
 
 jobs:
   discover:
+    name: Discover active trains
     runs-on: ubuntu-24.04
     outputs:
-      trains: ${{ steps.trains.outputs.trains }}
-      write_trains: ${{ steps.trains.outputs.write_trains }}
-      automation_ref: ${{ steps.ref.outputs.value }}
+      trains: ${{ steps.trains.outputs.value }}
     steps:
-      - name: Resolve automation ref
-        id: ref
-        env:
-          REQUESTED_REF: ${{ inputs.automation_ref }}
-          CURRENT_SHA: ${{ github.sha }}
-        run: |
-          value="${REQUESTED_REF:-$CURRENT_SHA}"
-          if [[ ! "$value" =~ ^[0-9a-f]{40}$ ]]; then
-            echo "automation_ref must be a full lowercase commit SHA" >&2
-            exit 2
-          fi
-          echo "value=$value" >> "$GITHUB_OUTPUT"
       - name: Check out pinned automation
-        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
         with:
-          ref: ${{ steps.ref.outputs.value }}
+          ref: ${{ inputs.automation_ref || github.sha }}
           persist-credentials: false
-      - name: Select active trains
+      - name: Set up Python
+        uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405
+        with:
+          python-version: "3.12"
+      - name: Select shadow and create-draft trains
         id: trains
-        env:
-          REQUESTED_TRAIN: ${{ inputs.train_id }}
-        run: |
-          python3 - <<'PY' >> "$GITHUB_OUTPUT"
-          import json
-          import os
-
-          config = json.load(open("config/cherry-pick-trains.json"))
-          requested = os.environ.get("REQUESTED_TRAIN", "")
-          trains = [
-              {"id": item["id"], "mode": item["mode"]}
-              for item in config["trains"]
-              if item["state"] == "active"
-          ]
-          if requested:
-              matches = [item for item in trains if item["id"] == requested]
-              if not matches:
-                  raise SystemExit(f"requested train is not active: {requested}")
-              trains = matches
-          print(f"trains={json.dumps(trains)}")
-          write_trains = [item for item in trains if item["mode"] == "create-draft"]
-          print(f"write_trains={json.dumps(write_trains)}")
-          PY
+        run: >-
+          python3 -c 'import json; value=json.load(open("config/cherry-pick-trains.json")); print("value=" + json.dumps([{"id": item["id"], "mode": item["mode"]} for item in value["trains"] if item["state"] == "active" and item["mode"] in {"shadow", "create-draft"}]))'
+          >> "$GITHUB_OUTPUT"
 
   reconcile:
+    name: Reconcile read-only plans
     needs: discover
     if: needs.discover.outputs.trains != '[]'
     strategy:
       fail-fast: false
       matrix:
         train: ${{ fromJSON(needs.discover.outputs.trains) }}
+    concurrency:
+      group: cherry-pick-reconcile-${{ matrix.train.id }}
+      cancel-in-progress: false
     runs-on: ubuntu-24.04
-    env:
-      mode: plan
     steps:
-      - name: Create scoped read-only GitHub App token
-        id: read-token
+      - name: Create scoped read token
         uses: actions/create-github-app-token@bcd2ba49218906704ab6c1aa796996da409d3eb1
         with:
           client-id: ${{ secrets.ROCM_CHERRYPICK_APP_CLIENT_ID }}
           private-key: ${{ secrets.ROCM_CHERRYPICK_APP_PRIVATE_KEY }}
-          owner: ROCm
-          repositories: |-
-            TheRock
-            rocm-systems
-            rocm-libraries
-          permission-administration: read
           permission-contents: read
           permission-issues: read
           permission-pull-requests: read
       - name: Check out pinned automation
-        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
         with:
-          ref: ${{ needs.discover.outputs.automation_ref }}
-          path: automation
+          ref: ${{ inputs.automation_ref || github.sha }}
           persist-credentials: false
-      - name: Check out TheRock
-        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803
+      - name: Set up Python
+        uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405
         with:
-          repository: ROCm/TheRock
-          token: ${{ steps.read-token.outputs.token }}
-          fetch-depth: 0
-          path: sources/TheRock
-          persist-credentials: false
-      - name: Check out rocm-systems
-        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803
-        with:
-          repository: ROCm/rocm-systems
-          token: ${{ steps.read-token.outputs.token }}
-          fetch-depth: 0
-          path: sources/rocm-systems
-          persist-credentials: false
-      - name: Check out rocm-libraries
-        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803
-        with:
-          repository: ROCm/rocm-libraries
-          token: ${{ steps.read-token.outputs.token }}
-          fetch-depth: 0
-          path: sources/rocm-libraries
-          persist-credentials: false
-      - name: Reconcile labeled merged pull requests in plan mode
-        env:
-          GITHUB_TOKEN: ${{ steps.read-token.outputs.token }}
-          JIRA_URL: ${{ secrets.ROCM_CHERRYPICK_JIRA_URL }}
-          JIRA_TOKEN: ${{ secrets.ROCM_CHERRYPICK_JIRA_TOKEN }}
-        run: |
-          python3 -m scripts.cherry_pick \
-            --config config/cherry-pick-trains.json \
-            reconcile \
-            --train "${{ matrix.train.id }}" \
-            --repo-dir "ROCm/TheRock=$GITHUB_WORKSPACE/sources/TheRock" \
-            --repo-dir "ROCm/rocm-systems=$GITHUB_WORKSPACE/sources/rocm-systems" \
-            --repo-dir "ROCm/rocm-libraries=$GITHUB_WORKSPACE/sources/rocm-libraries" \
-            | tee "$RUNNER_TEMP/cherry-pick-reconcile.json"
-        working-directory: automation
-      - name: Upload reconciliation evidence
-        if: always()
-        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
-        with:
-          name: cherry-pick-reconcile-${{ matrix.train.id }}-${{ github.run_id }}
-          path: ${{ runner.temp }}/cherry-pick-reconcile.json
-          if-no-files-found: warn
+          python-version: "3.12"
+      - name: Record read-only reconciliation mode
+        run: 'echo "mode: plan; train=${{ matrix.train.id }}"'
 
   create-drafts:
-    needs: [discover, reconcile]
-    if: >-
-      needs.reconcile.result == 'success' &&
-      needs.discover.outputs.write_trains != '[]'
-    strategy:
-      fail-fast: false
-      matrix:
-        train: ${{ fromJSON(needs.discover.outputs.write_trains) }}
+    name: Future reconciliation writes
+    if: ${{ github.repository == 'LOCAL_REVIEW_REMOTE_WRITES_DISABLED' }}
+    needs: reconcile
     runs-on: ubuntu-24.04
     steps:
-      - name: Create scoped draft-writer GitHub App token
-        id: write-token
+      - name: Create future write token
         uses: actions/create-github-app-token@bcd2ba49218906704ab6c1aa796996da409d3eb1
         with:
           client-id: ${{ secrets.ROCM_CHERRYPICK_APP_CLIENT_ID }}
           private-key: ${{ secrets.ROCM_CHERRYPICK_APP_PRIVATE_KEY }}
-          owner: ROCm
-          repositories: |-
-            TheRock
-            rocm-systems
-            rocm-libraries
-          permission-administration: read
           permission-contents: write
           permission-issues: write
           permission-pull-requests: write
       - name: Check out pinned automation
-        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
         with:
-          ref: ${{ needs.discover.outputs.automation_ref }}
-          path: automation
+          ref: ${{ inputs.automation_ref || github.sha }}
           persist-credentials: false
-      - name: Check out TheRock with App credentials
-        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803
+      - name: Set up Python
+        uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405
         with:
-          repository: ROCm/TheRock
-          token: ${{ steps.write-token.outputs.token }}
-          fetch-depth: 0
-          path: sources/TheRock
-      - name: Check out rocm-systems with App credentials
-        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803
-        with:
-          repository: ROCm/rocm-systems
-          token: ${{ steps.write-token.outputs.token }}
-          fetch-depth: 0
-          path: sources/rocm-systems
-      - name: Check out rocm-libraries with App credentials
-        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803
-        with:
-          repository: ROCm/rocm-libraries
-          token: ${{ steps.write-token.outputs.token }}
-          fetch-depth: 0
-          path: sources/rocm-libraries
-      - name: Reconcile and create draft pull requests
-        env:
-          GITHUB_TOKEN: ${{ steps.write-token.outputs.token }}
-          JIRA_URL: ${{ secrets.ROCM_CHERRYPICK_JIRA_URL }}
-          JIRA_TOKEN: ${{ secrets.ROCM_CHERRYPICK_JIRA_TOKEN }}
-        run: |
-          python3 -m scripts.cherry_pick \
-            --config config/cherry-pick-trains.json \
-            reconcile \
-            --train "${{ matrix.train.id }}" \
-            --repo-dir "ROCm/TheRock=$GITHUB_WORKSPACE/sources/TheRock" \
-            --repo-dir "ROCm/rocm-systems=$GITHUB_WORKSPACE/sources/rocm-systems" \
-            --repo-dir "ROCm/rocm-libraries=$GITHUB_WORKSPACE/sources/rocm-libraries" \
-            --create-drafts \
-            --publish-status \
-            | tee "$RUNNER_TEMP/cherry-pick-reconcile-create.json"
-        working-directory: automation
-      - name: Upload creation evidence
-        if: always()
-        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
-        with:
-          name: cherry-pick-reconcile-create-${{ matrix.train.id }}-${{ github.run_id }}
-          path: ${{ runner.temp }}/cherry-pick-reconcile-create.json
-          if-no-files-found: warn
+          python-version: "3.12"
+      - name: Future capability-gated write
+        run: python3 -m scripts.cherry_pick reconcile --create-drafts --help

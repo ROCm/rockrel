@@ -1,3 +1,6 @@
+# Copyright Advanced Micro Devices, Inc.
+# SPDX-License-Identifier: MIT
+
 """Prove when an existing destination pull request covers a source change."""
 
 from __future__ import annotations
@@ -6,8 +9,6 @@ import configparser
 import re
 import subprocess
 from pathlib import Path
-from typing import Any
-
 from .clients import GitHubClient
 from .git import evaluate_cherry_pick
 from .models import Status
@@ -40,12 +41,9 @@ def extract_cherry_pick_origin(message: str) -> str | None:
 
 
 def _ensure_commit(repo: Path, sha: str) -> bool:
-    if _run(repo, "cat-file", "-e", f"{sha}^{{commit}}").returncode == 0:
-        return True
-    fetch = _run(repo, "fetch", "--no-tags", "origin", sha)
-    return fetch.returncode == 0 and _run(
-        repo, "cat-file", "-e", f"{sha}^{{commit}}"
-    ).returncode == 0
+    # Planning is local-only. The workflow checkout layer must provide every
+    # canonical object explicitly; evidence gathering never performs a fetch.
+    return _run(repo, "cat-file", "-e", f"{sha}^{{commit}}").returncode == 0
 
 
 def _gitlink_changes(repo: Path, source: str) -> list[dict[str, str]]:
@@ -123,8 +121,9 @@ def _submodule_repositories(repo: Path, revision: str) -> dict[str, tuple[str, s
     return repositories
 
 
-def _commit_message(commit: dict[str, Any]) -> str:
-    value = commit.get("commit", {}).get("message")
+def _commit_message(commit: dict[str, object]) -> str:
+    nested = commit.get("commit")
+    value = nested.get("message") if isinstance(nested, dict) else None
     return value if isinstance(value, str) else ""
 
 
@@ -132,13 +131,14 @@ def find_covering_pull(
     repo: str | Path,
     github: GitHubClient,
     source_sha: str,
-    candidate: dict[str, Any],
-) -> dict[str, Any] | None:
+    candidate: dict[str, object],
+) -> dict[str, object] | None:
     """Return positive coverage evidence for an open destination PR, or None."""
 
     if str(candidate.get("state", "")).lower() != "open":
         return None
-    candidate_sha = candidate.get("head", {}).get("sha")
+    head = candidate.get("head")
+    candidate_sha = head.get("sha") if isinstance(head, dict) else None
     candidate_url = candidate.get("html_url")
     if not isinstance(candidate_sha, str) or not isinstance(candidate_url, str):
         return None
@@ -180,7 +180,11 @@ def find_covering_pull(
             )
             candidate_origins = {
                 origin
-                for item in comparison.get("commits", [])
+                for item in (
+                    comparison.get("commits", [])
+                    if isinstance(comparison.get("commits"), list)
+                    else []
+                )
                 if isinstance(item, dict)
                 for origin in [extract_cherry_pick_origin(_commit_message(item))]
                 if origin is not None
