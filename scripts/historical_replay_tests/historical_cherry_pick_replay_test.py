@@ -9,7 +9,6 @@ import pytest
 
 from scripts.cherry_pick.replay import CorpusManifest, run_replay_case
 
-
 ROOT = Path(__file__).parents[2]
 MANIFEST = ROOT / "scripts/tests/fixtures/historical_cherry_picks.json"
 DATA_ENV = "ROCM_CHERRYPICK_REPLAY_DATA"

@@ -2,8 +2,9 @@
 # SPDX-License-Identifier: MIT
 
 import importlib.util
+import json
+import subprocess
 from pathlib import Path
-
 
 ROOT = Path(__file__).parents[2]
 SCRIPT = ROOT / "scripts/replay_cherry_pick_history.py"
@@ -61,3 +62,61 @@ def test_cli_source_contains_no_remote_write_or_pr_operations():
         "auto-merge",
     ):
         assert forbidden not in text
+
+
+def test_offline_run_writes_both_reports_and_propagates_evidence_gap(tmp_path):
+    module = load_module()
+    data_root = tmp_path / "data"
+    repo = data_root / "TheRock.git"
+    repo.mkdir(parents=True)
+    subprocess.run(["git", "init", "--bare", str(repo)], check=True)
+    manifest = tmp_path / "manifest.json"
+    manifest.write_text(
+        json.dumps(
+            {
+                "schema_version": 1,
+                "snapshots": {
+                    "ROCm/TheRock": {
+                        "source_branch": "main",
+                        "source_tip": "f" * 40,
+                        "targets": {"release/therock-7.14": "1" * 40},
+                    }
+                },
+                "cases": [
+                    {
+                        "id": "missing-evidence",
+                        "repository": "ROCm/TheRock",
+                        "source_branch": "main",
+                        "target_branch": "release/therock-7.14",
+                        "source_prs": [],
+                        "source_merge_commit": None,
+                        "source_head": None,
+                        "source_commits": [],
+                        "target_before": "a" * 40,
+                        "target_after": "b" * 40,
+                        "target_after_tree": "c" * 40,
+                        "provenance_method": "none",
+                        "classification": "unresolved",
+                        "analysis_notes": "Needs provenance review.",
+                    }
+                ],
+            }
+        )
+    )
+    report_dir = tmp_path / "reports"
+
+    result = module.main(
+        [
+            "run",
+            "--data-root",
+            str(data_root),
+            "--manifest",
+            str(manifest),
+            "--report-dir",
+            str(report_dir),
+        ]
+    )
+
+    assert result == 2
+    assert (report_dir / "historical-replay.json").exists()
+    assert (report_dir / "historical-replay.md").exists()

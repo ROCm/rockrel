@@ -7,7 +7,6 @@ from pathlib import Path
 
 import pytest
 
-
 try:
     replay = importlib.import_module("scripts.cherry_pick.replay")
 except ModuleNotFoundError:
@@ -238,6 +237,35 @@ def exact_case(repo):
     return case
 
 
+def corpus_repository(tmp_path):
+    path = tmp_path / "replay-data" / "TheRock.git"
+    path.mkdir(parents=True)
+    git(path, "init", "-b", "main")
+    git(path, "config", "user.name", "Replay Test")
+    git(path, "config", "user.email", "replay@example.com")
+    base = commit_file(path, "value.txt", "base\n", "base")
+    git(path, "checkout", "-b", "topic")
+    original = commit_file(path, "source.txt", "source\n", "source change")
+    git(path, "checkout", "main")
+    git(path, "cherry-pick", original)
+    git(path, "commit", "--amend", "-m", "source change (#100)")
+    source_merge = git(path, "rev-parse", "HEAD")
+    git(path, "checkout", "-b", "release/therock-7.14", base)
+    release_setup = commit_file(path, "release.txt", "release\n", "release setup")
+    git(path, "cherry-pick", source_merge)
+    git(path, "commit", "--amend", "-m", "source change (#100) (#200)")
+    target_tip = git(path, "rev-parse", "HEAD")
+    git(path, "update-ref", "refs/remotes/origin/main", source_merge)
+    git(
+        path,
+        "update-ref",
+        "refs/remotes/origin/release/therock-7.14",
+        target_tip,
+    )
+    git(path, "update-ref", "refs/pull/100/head", original)
+    return path.parent, release_setup, target_tip
+
+
 def test_exact_historical_replay_is_a_strict_tree_gate(repo):
     run_case = required("run_replay_case")
     outcome = run_case(repo, exact_case(repo))
@@ -321,3 +349,51 @@ def test_markdown_report_explains_strict_failures_and_diagnostics(repo):
     assert "Evidence gaps" in text
     assert outcome.case_id in text
     assert report.exit_code == 0
+
+
+def test_builds_exhaustive_corpus_and_auto_qualifies_only_exact_case(tmp_path):
+    build = required("build_corpus_manifest")
+    audit_inventory = required("audit_manifest_inventory")
+    mirror_spec = required("MirrorSpec")
+    data_root, release_setup, target_tip = corpus_repository(tmp_path)
+    spec = mirror_spec(
+        repository="ROCm/TheRock",
+        source_branch="main",
+        target_branches=("release/therock-7.14",),
+    )
+
+    manifest = build((spec,), data_root)
+
+    assert {case.target_after for case in manifest.cases} == {
+        release_setup,
+        target_tip,
+    }
+    strict = [
+        case for case in manifest.cases if case.classification.value == "strict_exact"
+    ]
+    assert len(strict) == 1
+    assert strict[0].source_prs == (100,)
+    assert strict[0].source_head
+    assert strict[0].source_commits
+    assert audit_inventory(manifest, data_root).exit_code == 0
+
+
+def test_inventory_audit_detects_a_manifest_that_drops_a_release_commit(tmp_path):
+    build = required("build_corpus_manifest")
+    audit_inventory = required("audit_manifest_inventory")
+    mirror_spec = required("MirrorSpec")
+    manifest_type = required("CorpusManifest")
+    data_root, _release_setup, _target_tip = corpus_repository(tmp_path)
+    spec = mirror_spec(
+        repository="ROCm/TheRock",
+        source_branch="main",
+        target_branches=("release/therock-7.14",),
+    )
+    manifest = build((spec,), data_root)
+    incomplete = manifest_type.from_dict(
+        {**manifest.as_dict(), "cases": manifest.as_dict()["cases"][1:]}
+    )
+
+    result = audit_inventory(incomplete, data_root)
+    assert result.exit_code == 2
+    assert result.evidence_gap_count == 1
