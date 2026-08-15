@@ -74,7 +74,11 @@ def test_every_automation_module_has_a_corresponding_test_module():
         ),
         "scripts/cherry_pick/policy.py": "scripts/tests/cherry_pick_policy_test.py",
         "scripts/cherry_pick/writer.py": "scripts/tests/cherry_pick_writer_test.py",
+        "scripts/cherry_pick/replay.py": "scripts/tests/cherry_pick_replay_test.py",
         "scripts/cherry_pick/__main__.py": "scripts/tests/cherry_pick_cli_test.py",
+        "scripts/replay_cherry_pick_history.py": (
+            "scripts/tests/replay_cherry_pick_history_test.py"
+        ),
     }
     for implementation, test in expected.items():
         assert (ROOT / implementation).exists(), implementation

@@ -74,8 +74,29 @@ def test_proves_and_applies_complete_squash_changeset(repo):
     result = evaluate(repo, changeset, destination)
     assert result.status is Status.DRAFT_PLANNED
     assert result.evidence["changeset_kind"] == "squash"
+    assert result.evidence["destination_tree"] == git(
+        repo, "rev-parse", f"{destination}^{{tree}}"
+    )
+    assert result.evidence["planned_tree"] == git(
+        repo, "rev-parse", f"{merged}^{{tree}}"
+    )
     assert git(repo, "status", "--porcelain") == ""
     assert git(repo, "rev-parse", "HEAD") == merged
+
+
+def test_git_subprocesses_disable_lazy_fetch_and_terminal_prompts(repo, monkeypatch):
+    original = subprocess.run
+    environments = []
+
+    def capture(*args, **kwargs):
+        environments.append(kwargs.get("env", {}))
+        return original(*args, **kwargs)
+
+    monkeypatch.setattr(git_module.subprocess, "run", capture)
+    assert git_module._resolve(repo, "HEAD")
+    assert environments
+    assert environments[-1]["GIT_NO_LAZY_FETCH"] == "1"
+    assert environments[-1]["GIT_TERMINAL_PROMPT"] == "0"
 
 
 def test_proves_two_parent_merge_relative_to_parent_one(repo):
