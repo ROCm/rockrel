@@ -4,14 +4,19 @@
 
 ## Current verdict
 
-The local implementation is a useful prototype, not a production-ready
-controller. Its central rockrel ownership, label/train model, injectable REST
-transport, disposable Git worktrees, deterministic identity, and draft-only API
-are worth retaining. The current documentation and 165 passing tests, however,
-do not prove the reliability claims previously made.
+The remediation implementation is complete for local human review. It is not
+deployed and is deliberately incapable of performing a public write: every
+workflow write job has an impossible repository gate, committed train modes are
+non-writing, default API transports deny network access, and the normal CLI
+cannot construct a writer capability.
 
-No remote deployment or public review action is authorized. This report is the
-gap register that must be closed locally before human review.
+The controller and its callers now have 203 rockrel tests and 11 source-caller
+tests passing. The remaining activation blocker is measurement of the configured
+90% line/branch coverage threshold: `pytest-cov`/`coverage.py` is not installed
+in any available local Python environment, and the no-network boundary forbids
+downloading it. The unit-test workflow enforces the threshold when a separately
+approved public CI run becomes available. This is an explicit unverified gate,
+not a claimed pass.
 
 ## Baseline evidence
 
@@ -25,48 +30,49 @@ git diff --check
 passed
 
 .venv/bin/python -m black --check ...
-not run: Black is not installed in the existing local virtual environment
+not run: Black was not installed in the existing local virtual environment
 ```
 
-No dependency will be downloaded during the local-only phase. Formatting will
-use an already available repository/pre-commit environment if present; otherwise
-the missing local tool remains an explicit review limitation.
+No dependency was downloaded. Repository-pinned tools already present in the
+pre-commit cache were used for Black 25.11.0, mdformat 0.7.21, and actionlint
+1.7.10.
 
-## Confirmed gaps
+## Remediation results
 
-| Area | Current behavior | Required behavior | State |
-| --- | --- | --- | --- |
-| Source merge model | Treats `merge_commit_sha` as one aggregate commit | Prove squash, merge-commit, or full rebase range | Open |
-| Git identity | Relies on ambient Git config | Explicit bot name and noreply email | Open |
-| Fresh-runner recovery | Fetches a branch but resolves an absent local branch name | Fetch/resolve exact SHA or temporary ref | Open |
-| Partial write | PR API failure escapes after branch push | Structured retryable state and safe repair | Open |
-| Destination policy | Checks only `protected: true` | Require effective `pull_request` rule evidence | Open |
-| Branch names | Requires `release/` | Accept every canonical Git branch ref | Open |
-| API enumeration | Several endpoints stop at 100 | Full pagination and deterministic search windows | Open |
-| API failures | Mostly next-run recovery | Typed errors and bounded retry/backoff | Open |
-| API types | Raw `dict[str, Any]` throughout | Decode typed boundary models | Open |
-| Modes | `validate` and `shadow` are effectively identical; disabled may still plan | Four distinct lifecycle behaviors | Open |
-| Dependencies | Jira Fix Version only | Block declared dependency/order evidence | Open |
-| Containment | Empty single-commit trial can overstate aggregate certainty | Require complete proven changeset | Open |
-| Caller logic | Embedded Python repeated in three repositories | Thin caller; central discovery and fan-out | Open |
-| Caller tests | Primarily string assertions | Parsed workflows plus event behavior fixtures | Open |
-| Style | New callers fail Black; new files lack headers | Repository-native format, typing, and SPDX | Open |
-| Draft body | Minimal provenance plus source body | Match established ROCm cherry-pick structure | Open |
-| Security | App requests administration read | Metadata read plus contents/issues/PR permissions only | Open |
-| Local safety | Real transports are constructible by default CLI | Local build refuses all network/remote writes | Open |
-| Coverage | No enforced threshold | At least 90% line and branch coverage | Open |
+| Area                  | Implemented behavior and local evidence                                                                                                                                                         | State          |
+| --------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------- |
+| Source merge model    | `prove_changeset` proves squash, two-parent merge, and complete ordered rebase ranges; merge and partial-range fixtures pass                                                                    | Closed         |
+| Git identity          | Writer configures the explicit ROCm automation committer name and noreply email; writer identity test passes                                                                                    | Closed         |
+| Fresh-runner recovery | Existing branches resolve by exact SHA and tree rather than an assumed local branch; fresh-clone recovery test passes                                                                           | Closed         |
+| Partial write         | A pushed branch plus failed PR API call returns `retryable_partial_write`; replay repairs only an exact tree/identity                                                                           | Closed         |
+| Destination policy    | Planning requires typed effective `pull_request` rule evidence, not only `protected: true`                                                                                                      | Closed         |
+| Branch names          | Schema v3 accepts any canonical `git check-ref-format --branch` ref; no release prefix is encoded                                                                                               | Closed         |
+| API enumeration       | Timelines, PR commits, destination pulls, comments, and search pages continue until exhaustion                                                                                                  | Closed         |
+| API failures          | GitHub retryable/rate-limit responses use bounded injected backoff; other GitHub and Jira failures block as evidence                                                                            | Closed         |
+| API types             | Branch, effective-policy, Jira, result, configuration, and changeset boundaries are typed; flexible GitHub PR/compare payloads are shape-checked at their consuming adapter/controller boundary | Closed         |
+| Modes                 | `disabled`, `validate`, `shadow`, and `create-draft` have distinct tested behavior                                                                                                              | Closed         |
+| Dependencies          | Structured PR trailers and Jira dependency/order evidence block before Git planning                                                                                                             | Closed         |
+| Containment           | Only the complete proven changeset can be contained; exact full, patch-equivalent partial, conflict, and gitlink cases pass                                                                     | Closed         |
+| Caller logic          | All three source repositories contain one generated, immutable-SHA reusable-workflow call; discovery/fan-out is central                                                                         | Closed         |
+| Caller tests          | Repository-local contract tests cover event metadata, pin equality, secrets, and read-only permissions; actionlint parses every changed workflow                                                | Closed         |
+| Style                 | Branch-modified Python passes pinned Black; new automation files have SPDX headers; Markdown and workflows use repository tools                                                                 | Closed         |
+| Draft body            | Generated body includes source/destination proof, Jira, dependencies, application, tests, checklist, warning, and identity                                                                      | Closed         |
+| Security              | App manifest omits administration/Actions/Workflows; privileged event paths never execute PR-head code                                                                                          | Closed         |
+| Local safety          | Network-denying defaults, non-writing train modes, impossible write-job gates, and explicit writer capability are tested                                                                        | Closed         |
+| Coverage              | CI enforces 90% line and branch coverage, but the local measurement tool is unavailable and cannot be downloaded                                                                                | **Unverified** |
 
-## Repository evidence reflected in the design
+## Repository evidence reflected in the implementation
 
-- `rockrel` already centralizes release branch/tag operations and uses typed
-  Python, dataclasses, subprocess argument arrays, dry-run defaults, and pytest.
+- `rockrel` centralizes release branch/tag operations and uses typed Python,
+  dataclasses, subprocess argument arrays, dry-run defaults, and pytest.
 - TheRock requires Black/PEP 8 style, modern specific typing, fail-fast behavior,
   SPDX headers, pre-commit, actionlint, and `*_test.py` for this work.
-- rocm-systems and rocm-libraries use their own native validation and component
-  CI; the automation must create a normal draft and must not replace those
-  checks.
-- Current release branches include `release/bkc/therock-*`, `release/therock-*`,
-  `release/rocm-rel-*`, and `release-staging/rocm-rel-*` patterns.
+- rocm-systems and rocm-libraries keep their native validation and component CI;
+  the automation creates only a normal draft and does not replace those checks.
+- Local refs confirm the BKC branch name is
+  `release/bkc/therock-10.1-20260811` in all three destination repositories;
+  other observed release lines include `release/rocm-rel-*` and
+  `release-staging/rocm-rel-*`.
 - Existing BKC effective rules require pull requests, approvals, and restricted
   merge behavior. A boolean protected flag is not sufficient policy evidence.
 - Existing manual cherry-pick drafts include provenance, candidate/destination,
@@ -75,22 +81,24 @@ the missing local tool remains an explicit review limitation.
 
 ## TDD remediation record
 
-The historical red/green commits remain useful provenance, but they do not
-cover the gaps above. The remediation follows a new, stricter sequence:
+The work followed the required sequence:
 
 1. Correct product/design/audit documents.
-2. Add the complete remediation tests without product changes.
-3. Record the intended failing assertions in `tdd-evidence.md`.
-4. Implement until every old and new test passes.
-5. Run local repository style, workflow, and coverage gates.
+1. Add the complete remediation tests without product changes.
+1. Record 112 intended failures and 86 unaffected passes.
+1. Implement the central controller until 198 tests passed.
+1. Add a second red slice for patch-equivalent partial containment, abandoned
+   drafts, existing-tree mismatch, lookup failure, and rate-limit `403`.
+1. Implement that slice, format with the pinned repository tool, and finish at
+   203 passing tests.
+1. Generate thin callers and pass all 11 repository-local caller tests.
 
-The final report will replace each `Open` state with a test name, implementation
-commit/diff reference, and local verification result. A passing test count alone
-is not completion evidence.
+Full commands and commit boundaries are recorded in `tdd-evidence.md`.
 
 ## Activation boundary
 
-All implementation changes, commits, fixtures, and evidence remain local. No
-GitHub/Jira call, remote Git operation, workflow dispatch, public CI run, branch,
-label, comment, App setting, secret, or pull request is authorized. Those tasks
-are listed—but not executed—in `REMOTE_ACTIONS_TODO.md`.
+All implementation changes, local commits, fixtures, and evidence remain only
+under `/home/jusharri/code/label-driven-cherrypick-automation`. No GitHub/Jira
+call, network Git operation, workflow dispatch, public CI run, branch, label,
+comment, App setting, secret, or pull request was performed. Those tasks are
+listed—but not executed—in `REMOTE_ACTIONS_TODO.md`.

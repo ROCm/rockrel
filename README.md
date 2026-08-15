@@ -2,13 +2,13 @@
 
 This repository contains code and actions workflow runs for stable [TheRock](https://github.com/ROCm/TheRock) releases:
 
-ROCm release type | Repository where workflows run | Process notes
--- | -- | --
-Stable releases  | [rockrel](https://github.com/ROCm/rockrel) (_This repository_) | 🟢 Manual promotion, exhaustive QA
-Stable prereleases | [rockrel](https://github.com/ROCm/rockrel) (_This repository_) | 🔵 Manual branching, automated tests
-Nightly releases (multi-arch) | [rockrel](https://github.com/ROCm/rockrel) (_This repository_) | 🔵 Nightly snapshots, all GPU architectures
-Nightly releases (per-family) | [TheRock](https://github.com/ROCm/TheRock) | 🔵 Nightly snapshots, per GPU family
-Per-commit builds | [TheRock](https://github.com/ROCm/TheRock), [rocm-libraries](https://github.com/ROCm/rocm-libraries), [rocm-systems](https://github.com/ROCm/rocm-systems) | 🟠 Development builds, automated tests
+| ROCm release type             | Repository where workflows run                                                                                                                             | Process notes                               |
+| ----------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------- |
+| Stable releases               | [rockrel](https://github.com/ROCm/rockrel) (_This repository_)                                                                                             | 🟢 Manual promotion, exhaustive QA          |
+| Stable prereleases            | [rockrel](https://github.com/ROCm/rockrel) (_This repository_)                                                                                             | 🔵 Manual branching, automated tests        |
+| Nightly releases (multi-arch) | [rockrel](https://github.com/ROCm/rockrel) (_This repository_)                                                                                             | 🔵 Nightly snapshots, all GPU architectures |
+| Nightly releases (per-family) | [TheRock](https://github.com/ROCm/TheRock)                                                                                                                 | 🔵 Nightly snapshots, per GPU family        |
+| Per-commit builds             | [TheRock](https://github.com/ROCm/TheRock), [rocm-libraries](https://github.com/ROCm/rocm-libraries), [rocm-systems](https://github.com/ROCm/rocm-systems) | 🟠 Development builds, automated tests      |
 
 _The name of this repo has been shortened to workaround this [known Windows path length issue](https://github.com/ROCm/rocm-libraries/issues/2096)._
 
@@ -17,11 +17,18 @@ _The name of this repo has been shortened to workaround this [known Windows path
 The label-triggered, draft-only destination-train workflow is documented
 in the [product requirements](docs/cherry-pick-automation/product-requirements.md),
 [technical design](docs/cherry-pick-automation/technical-design.md), and
-[operator runbook](docs/cherry-pick-automation/runbook.md). Public GitHub work
-is held in the local-only
+[operator runbook](docs/cherry-pick-automation/runbook.md). The current local
+review status and red/green record are in the
+[implementation audit](docs/cherry-pick-automation/implementation-report.md)
+and [TDD evidence](docs/cherry-pick-automation/tdd-evidence.md). Public GitHub
+work is held in the local-only
 [operator TODO](docs/cherry-pick-automation/operator-todo.md). Train-to-branch and
 optional Jira policy are version controlled in
 [`config/cherry-pick-trains.json`](config/cherry-pick-trains.json).
+
+The checked-in automation is not deployed. Its remote-write jobs are
+deliberately impossible to enter during local review, and no committed train is
+in `create-draft` mode.
 
 ## Release FAQ (Frequently Asked Questions)
 
@@ -41,8 +48,8 @@ is not too disruptive.
 The bar for "ready" is context-dependent but usually involves:
 
 1. A test plan that is sufficiently implemented
-2. Some incubation period in nightly releases
-3. Associated documentation and release notes
+1. Some incubation period in nightly releases
+1. Associated documentation and release notes
 
 ## Installation instructions
 
@@ -101,7 +108,7 @@ Repository base URL:
 https://rocm.prereleases.amd.com/packages-multi-arch/
 ```
 
----
+______________________________________________________________________
 
 ##### Installing Packages on Debian-Based Systems
 
@@ -113,7 +120,7 @@ wget https://rocm.prereleases.amd.com/packages/gpg/rocm.gpg -O - \
 | gpg --dearmor | sudo tee /etc/apt/keyrings/amdrocm.gpg > /dev/null
 ```
 
----
+______________________________________________________________________
 
 ###### Add the ROCm Repository
 
@@ -127,7 +134,7 @@ EOF
 sudo apt update
 ```
 
----
+______________________________________________________________________
 
 ###### Install ROCm
 
@@ -138,7 +145,7 @@ sudo apt install amdrocm-core
 # sudo apt install amdrocm7.14-gfx942
 ```
 
----
+______________________________________________________________________
 
 ##### Installing Packages on RPM-Based Systems
 
@@ -159,7 +166,7 @@ EOF
 sudo dnf clean all
 ```
 
----
+______________________________________________________________________
 
 ###### Install ROCm
 

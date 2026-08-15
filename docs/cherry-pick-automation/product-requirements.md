@@ -130,16 +130,16 @@ operator must decide what to do.
 A request may proceed only when:
 
 1. The exact label maps to an active train and configured repository.
-2. The source base is in that repository's configured source-branch set.
-3. The most recent canonical application of that label was performed by a user
+1. The source base is in that repository's configured source-branch set.
+1. The most recent canonical application of that label was performed by a user
    with `write`, `maintain`, or `admin` permission.
-4. The source PR is merged and its complete merged changeset can be proven.
-5. Configured Jira Fix Version evidence matches, when required.
-6. No configured PR trailer or Jira signal declares an unresolved dependency or
+1. The source PR is merged and its complete merged changeset can be proven.
+1. Configured Jira Fix Version evidence matches, when required.
+1. No configured PR trailer or Jira signal declares an unresolved dependency or
    ordering requirement.
-7. The exact destination exists and effective repository rules include an
+1. The exact destination exists and effective repository rules include an
    active pull-request requirement.
-8. The current destination SHA matches the SHA used by the plan immediately
+1. The current destination SHA matches the SHA used by the plan immediately
    before the simulated or future write transaction.
 
 Transport failures and malformed evidence are blocked, never converted to
@@ -165,31 +165,31 @@ execute a dependency graph.
 
 ### Modes
 
-| Mode | Trigger behavior | Credentials and writes |
-| --- | --- | --- |
-| `disabled` | Ignore requests and reconciliation | No API feedback or Git writes |
-| `validate` | Manual planning only | Read-only; no event feedback |
-| `shadow` | Event and scheduled planning | Read-only summaries/artifacts only |
-| `create-draft` | Plan, replan, then create a draft | Future deployment only; unavailable in local-review mode |
+| Mode           | Trigger behavior                   | Credentials and writes                                   |
+| -------------- | ---------------------------------- | -------------------------------------------------------- |
+| `disabled`     | Ignore requests and reconciliation | No API feedback or Git writes                            |
+| `validate`     | Manual planning only               | Read-only; no event feedback                             |
+| `shadow`       | Event and scheduled planning       | Read-only summaries/artifacts only                       |
+| `create-draft` | Plan, replan, then create a draft  | Future deployment only; unavailable in local-review mode |
 
 ### Outcomes
 
-| Status | Meaning | Destination write |
-| --- | --- | --- |
-| `awaiting_merge` | Valid request on an open PR | None |
-| `ineligible_source` | Deterministic source/policy failure | None |
-| `blocked_evidence` | Required evidence is unavailable | None |
-| `blocked_policy` | Destination or authorization policy is unsafe | None |
-| `blocked_dependency` | Ordering/dependency requires an operator | None |
-| `blocked_ambiguous_changeset` | Complete source change cannot be proven | None |
-| `blocked_conflict` | Proven change conflicts with destination | None |
-| `already_contained` | Exact complete change is already present | None |
-| `covered_by_existing_pr` | Active or merged PR positively owns/covers identity | None |
-| `draft_planned` | Clean, non-empty, write-eligible plan | None |
-| `draft_created` | One future draft exists | Draft only |
-| `draft_exists` | Idempotent replay found the expected draft | None |
-| `retryable_partial_write` | Branch exists but PR creation is incomplete | Never overwrite; reconcile |
-| `cancelled` | Label removed before draft creation or source closed unmerged | None |
+| Status                        | Meaning                                                       | Destination write          |
+| ----------------------------- | ------------------------------------------------------------- | -------------------------- |
+| `awaiting_merge`              | Valid request on an open PR                                   | None                       |
+| `ineligible_source`           | Deterministic source/policy failure                           | None                       |
+| `blocked_evidence`            | Required evidence is unavailable                              | None                       |
+| `blocked_policy`              | Destination or authorization policy is unsafe                 | None                       |
+| `blocked_dependency`          | Ordering/dependency requires an operator                      | None                       |
+| `blocked_ambiguous_changeset` | Complete source change cannot be proven                       | None                       |
+| `blocked_conflict`            | Proven change conflicts with destination                      | None                       |
+| `already_contained`           | Exact complete change is already present                      | None                       |
+| `covered_by_existing_pr`      | Active or merged PR positively owns/covers identity           | None                       |
+| `draft_planned`               | Clean, non-empty, write-eligible plan                         | None                       |
+| `draft_created`               | One future draft exists                                       | Draft only                 |
+| `draft_exists`                | Idempotent replay found the expected draft                    | None                       |
+| `retryable_partial_write`     | Branch exists but PR creation is incomplete                   | Never overwrite; reconcile |
+| `cancelled`                   | Label removed before draft creation or source closed unmerged | None                       |
 
 Every result includes the source PR and repository, train, destination ref and
 SHA, changeset representation, source commit or range, proof strategy,
@@ -216,7 +216,8 @@ A future generated PR must:
 - The local-review build cannot construct a network-capable writer at all.
 - Privileged event workflows never check out or execute PR-head code.
 - Canonical labels and permissions are revalidated during reconciliation.
-- API enumeration is fully paginated; retryable failures use bounded backoff.
+- API enumeration does not silently truncate at one page; retryable GitHub
+  failures use bounded backoff and all other evidence failures block.
 - Concurrent events serialize by source repository, PR number, and train, while
   the writer still checks races at transaction boundaries.
 - Existing operator-modified branches are blocked and never overwritten.
@@ -226,7 +227,8 @@ A future generated PR must:
 - All planned remediation tests are committed locally in a demonstrated red
   state before product implementation changes.
 - All old and new tests finish green, with at least 90% line and branch coverage
-  for `scripts/cherry_pick`.
+  for `scripts/cherry_pick` before activation. A missing local coverage tool is
+  recorded as an unverified gate and does not relax this criterion.
 - TheRock, rocm-systems, and rocm-libraries callers are thin, pinned, formatted,
   SPDX-compliant, and covered by repository-local tests.
 - Squash, merge-commit, and rebase fixtures prove correct complete changesets.

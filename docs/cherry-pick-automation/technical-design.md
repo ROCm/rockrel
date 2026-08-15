@@ -29,11 +29,11 @@ embedded Python is removed from callers.
 The central controller has six layers:
 
 1. Typed configuration and result contracts.
-2. GitHub/Jira read adapters.
-3. Pure qualification and dependency policy.
-4. Git changeset proof and disposable preflight.
-5. Read-only orchestration and reconciliation.
-6. Capability-gated Git/GitHub draft transaction.
+1. GitHub/Jira read adapters.
+1. Pure qualification and dependency policy.
+1. Git changeset proof and disposable preflight.
+1. Read-only orchestration and reconciliation.
+1. Capability-gated Git/GitHub draft transaction.
 
 No layer exposes ready-for-review, review, merge, auto-merge, force-push,
 remote-delete, or draft-close operations.
@@ -103,16 +103,18 @@ Required fields are `status`, `reason_code`, `message`, `source_pr`,
 also records destination SHA, changeset kind, ordered commits, mainline when
 applicable, proof method, and dependency/policy evidence.
 
-Raw API dictionaries are decoded at the adapter boundary into dataclasses.
-Malformed shapes raise a structured `EvidenceError`; product code does not
-propagate arbitrary `KeyError`, `TypeError`, or raw stack traces.
+Safety-critical branch, destination-policy, Jira, configuration, changeset, and
+result values are decoded into dataclasses. GitHub PR, commit, compare, and
+comment payloads retain their extensible API dictionaries, but required fields
+are type-checked before use. Malformed or missing canonical evidence produces a
+structured blocked result; product commands do not expose raw stack traces.
 
 ### Changeset
 
 ```python
 @dataclass(frozen=True)
 class Changeset:
-    kind: ChangesetKind       # single, squash, merge_commit, rebase_range
+    kind: ChangesetKind  # single, squash, merge_commit, rebase_range
     commits: tuple[str, ...]  # application order
     aggregate_base: str
     aggregate_head: str
@@ -132,7 +134,7 @@ capabilities are available only under tests.
 
 ## 5. Read adapters and permissions
 
-GitHub reads use typed, fully paginated adapters for:
+GitHub reads use typed or shape-checked paginated adapters for:
 
 - canonical PR, PR commits, and label timeline;
 - collaborator permission;
@@ -141,11 +143,11 @@ GitHub reads use typed, fully paginated adapters for:
 - comments and reconciliation search results;
 - commits and comparisons needed for changeset proof.
 
-Pagination continues until a short page or `Link` exhaustion. Search respects
-GitHub's result limit by deterministic time/number windows rather than silently
-stopping at 100. Retryable `429`, `502`, `503`, and `504` responses and
-rate-limit `403` responses use bounded exponential backoff with injected clock
-and sleeper; other errors fail immediately.
+Pagination continues until a short page. Search never silently stops at the
+first 100 results: every available page is requested, and a platform cap or API
+error becomes blocked evidence. Retryable GitHub `429`, `502`, `503`, and `504`
+responses and rate-limit `403` responses use bounded exponential backoff with
+an injected sleeper; other errors fail immediately.
 
 Effective destination rules must contain an active `pull_request` rule. The
 evidence records rule source/ID, required approvals, last-push approval, and
@@ -158,24 +160,25 @@ requested because the effective-rules and collaborator-permission endpoints use
 metadata read.
 
 Jira is called only when configured policy requires it. It returns typed Fix
-Version and dependency/order facts. Arbitrary free text is not interpreted as
+Version and dependency/order facts. Jira failures block immediately rather than
+being translated into policy facts. Arbitrary free text is not interpreted as
 an executable graph; configured non-empty ordering evidence blocks for review.
 
 ## 6. Qualification and event flow
 
 The central reusable workflow receives one event and performs:
 
-1. Reject a caller whose checkout SHA differs from the pinned reusable-workflow
-   SHA.
-2. Resolve current canonical `cherry-pick:` labels plus the affected label for
+1. Use the single immutable SHA rendered into both the caller's reusable
+   workflow reference and its `automation_ref` input.
+1. Resolve current canonical `cherry-pick:` labels plus the affected label for
    an `unlabeled` event.
-3. Resolve configured trains and fan out once per source PR/train identity.
-4. Re-fetch the canonical PR and most recent label event.
-5. Validate actor permission, source base, merge state, optional Jira policy,
+1. Resolve configured trains and fan out once per source PR/train identity.
+1. Re-fetch the canonical PR and most recent label event.
+1. Validate actor permission, source base, merge state, optional Jira policy,
    dependencies, destination existence, and effective PR rule.
-6. Build and prove the merged changeset.
-7. Inspect identity/coverage and run disposable preflight.
-8. Emit a typed plan. Only a future `create-draft` job may pass a `draft_planned`
+1. Build and prove the merged changeset.
+1. Inspect identity/coverage and run disposable preflight.
+1. Emit a typed plan. Only a future `create-draft` job may pass a `draft_planned`
    result to the writer.
 
 One PR may target multiple trains. Workflow concurrency is keyed by canonical
@@ -217,15 +220,15 @@ merge, or uncertain base returns `blocked_ambiguous_changeset`.
 
 ### Containment and preflight decision table
 
-| Evidence | Outcome |
-| --- | --- |
-| Exact application units are ancestors of destination | `already_contained` |
-| Applying the full proven changeset produces no tree delta | `already_contained` |
-| Active/merged PR has exact identity and expected tree | `covered_by_existing_pr` |
-| Full proven application is clean and non-empty | `draft_planned` |
-| Full proven application has unmerged paths | `blocked_conflict` |
-| Only some commits/paths appear equivalent | `blocked_ambiguous_changeset` |
-| Required Git evidence cannot be read | `blocked_evidence` |
+| Evidence                                                  | Outcome                       |
+| --------------------------------------------------------- | ----------------------------- |
+| Exact application units are ancestors of destination      | `already_contained`           |
+| Applying the full proven changeset produces no tree delta | `already_contained`           |
+| Active/merged PR has exact identity and expected tree     | `covered_by_existing_pr`      |
+| Full proven application is clean and non-empty            | `draft_planned`               |
+| Full proven application has unmerged paths                | `blocked_conflict`            |
+| Only some commits/paths appear equivalent                 | `blocked_ambiguous_changeset` |
+| Required Git evidence cannot be read                      | `blocked_evidence`            |
 
 Gitlink containment additionally requires directional submodule ancestry or
 common full `cherry picked from` provenance. Divergence blocks manual review.
@@ -239,23 +242,23 @@ effective repository rules before use.
 Before any future mutation the writer:
 
 1. Requires a valid capability and `draft_planned` result.
-2. Re-fetches the exact destination SHA and replans if it moved.
-3. Looks up an existing PR by exact head/base and identity marker.
-4. Looks up the exact remote branch SHA.
-5. Reproduces the application in a disposable worktree with explicit bot name
+1. Re-fetches the exact destination SHA and replans if it moved.
+1. Looks up an existing PR by exact head/base and identity marker.
+1. Looks up the exact remote branch SHA.
+1. Reproduces the application in a disposable worktree with explicit bot name
    and noreply email.
-6. Compares trees before deciding to reuse an existing branch.
+1. Compares trees before deciding to reuse an existing branch.
 
 State handling:
 
-| Branch | Draft PR | Tree | Result/action |
-| --- | --- | --- | --- |
-| absent | absent | expected | creation lease, then create draft |
-| expected | absent | expected | create missing draft; no push |
-| expected | expected | expected | `draft_exists` |
-| different | any | mismatch | `blocked_policy`; never overwrite |
-| branch created during lease | absent | expected | re-read and recover |
-| push succeeds, PR API fails | present | absent | `retryable_partial_write` |
+| Branch                      | Draft PR | Tree     | Result/action                     |
+| --------------------------- | -------- | -------- | --------------------------------- |
+| absent                      | absent   | expected | creation lease, then create draft |
+| expected                    | absent   | expected | create missing draft; no push     |
+| expected                    | expected | expected | `draft_exists`                    |
+| different                   | any      | mismatch | `blocked_policy`; never overwrite |
+| branch created during lease | absent   | expected | re-read and recover               |
+| push succeeds, PR API fails | present  | absent   | `retryable_partial_write`         |
 
 Fetching an existing branch uses its resolved SHA or an explicit temporary ref;
 it never assumes that `git fetch origin <branch>` creates a same-named local
@@ -296,18 +299,19 @@ repository check failures as changeset correctness.
 - New Python files have ROCm copyright and SPDX headers.
 - Tests use the previously requested `*_test.py` naming convention.
 - Caller verification is integrated into each repository's existing local CI
-  entry point and uses behavior/event fixtures rather than text-only assertions.
+  entry point. Focused contract assertions cover event metadata and pin
+  equality, while actionlint supplies full workflow parsing.
 
 ## 11. TDD and verification
 
 The implementation sequence is mandatory:
 
 1. PRD, design, gap register, and test contract.
-2. Complete new test suite.
-3. Recorded red run proving intended behavioral failures.
-4. Product implementation in small green slices.
-5. Refactor only while green.
-6. Full local repository gates and evidence bundle.
+1. Complete new test suite.
+1. Recorded red run proving intended behavioral failures.
+1. Product implementation in small green slices.
+1. Refactor only while green.
+1. Full local repository gates and evidence bundle.
 
 Tests cover schema, modes, API decoding/pagination/retries, rule evidence,
 authorization, dependencies, every merge representation, exact/partial
@@ -316,13 +320,18 @@ races, workflow events, security boundaries, and draft rendering. Integration
 tests use temporary local bare repositories and fake GitHub/Jira servers.
 
 Coverage for `scripts/cherry_pick` must be at least 90% for both lines and
-branches. Writer and recovery modules cannot be omitted. Black, pre-commit,
-actionlint, Markdown/JSON validation, SPDX checks, and `git diff --check` must
-pass locally.
+branches before activation. Writer and recovery modules cannot be omitted. The
+checked-in unit workflow enforces that gate. If the local-only environment lacks
+`pytest-cov`, the gate is recorded as unverified; the no-network boundary is not
+relaxed to manufacture a local result. Black, actionlint, Markdown/JSON
+validation, SPDX checks, and `git diff --check` must pass locally.
 
 ## 12. Local handoff
 
 The deliverable is a local-only draft branch/diff in all four repositories,
-red/green TDD evidence, coverage output, and an unexecuted remote-action TODO.
-No public branch, PR, App setting, secret, label, workflow, or CI action is part
-of this implementation phase.
+red/green TDD evidence, the coverage-gate status, and an unexecuted remote-action
+TODO. All remote-write jobs remain behind an impossible repository predicate
+and contain no active transaction step. A separately reviewed activation change
+must replace those stubs only after the local evidence and coverage gate are
+accepted. No public branch, PR, App setting, secret, label, workflow, or CI
+action is part of this implementation phase.

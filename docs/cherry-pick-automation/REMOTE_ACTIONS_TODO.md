@@ -17,6 +17,8 @@ specific approval for a later remote phase.
 
 - [ ] Review all four local draft branches, commits, red/green evidence,
   coverage, threat model, permissions, and generated workflow diffs.
+- [ ] Run the configured 90% line/branch coverage gate in an approved
+  environment with the pinned test dependencies; treat failure as blocking.
 - [ ] Approve or reject publishing each repository independently.
 - [ ] If approved, push new reviewed branches without reusing old temporary
   branches.
@@ -38,6 +40,9 @@ specific approval for a later remote phase.
 
 - [ ] Record the immutable reviewed rockrel SHA.
 - [ ] Render and review each caller pinned to that exact SHA.
+- [ ] Implement and review the currently inert remote transaction steps; keep
+  the impossible local-review predicates until that separate change is
+  approved with coverage evidence.
 - [ ] Merge the central workflow before merging callers that reference it.
 - [ ] Dispatch no workflow until configuration and credentials are reviewed.
 

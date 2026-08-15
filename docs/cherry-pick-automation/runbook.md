@@ -25,38 +25,38 @@ transports for every exercise. Queue all public actions in
 ## Local review procedure
 
 1. Inspect the PRD, technical design, audit, and complete local diff.
-2. Confirm the TDD evidence shows the complete remediation suite failing before
+1. Confirm the TDD evidence shows the complete remediation suite failing before
    implementation and passing afterward.
-3. Run unit and integration tests with local filesystem repositories and fake
+1. Run unit and integration tests with local filesystem repositories and fake
    API transports.
-4. Run repository-native formatting, pre-commit, actionlint, JSON/Markdown, SPDX,
+1. Run repository-native formatting, pre-commit, actionlint, JSON/Markdown, SPDX,
    coverage, and diff checks using already available local tooling.
-5. Inspect rendered source callers without publishing them.
-6. Confirm initial train configuration is `validate` and the local safety gate
+1. Inspect rendered source callers without publishing them.
+1. Confirm initial train configuration is `validate` and the local safety gate
    cannot construct a real writer.
-7. Record missing tools or unavailable gates as limitations; do not download or
+1. Record missing tools or unavailable gates as limitations; do not download or
    invoke a remote service to hide them.
 
 ## Future train setup (requires separate approval)
 
 1. Add a unique schema-v3 train in `validate` mode.
-2. Confirm every source branch and exact destination branch.
-3. Confirm effective destination rules require a pull request.
-4. Configure Jira and dependency policy only when required.
-5. Review and merge the configuration through normal repository review.
-6. Synchronize labels only after reviewing the exact mutations.
-7. Run `validate`, then `shadow`, then a separately approved low-risk
+1. Confirm every source branch and exact destination branch.
+1. Confirm effective destination rules require a pull request.
+1. Configure Jira and dependency policy only when required.
+1. Review and merge the configuration through normal repository review.
+1. Synchronize labels only after reviewing the exact mutations.
+1. Run `validate`, then `shadow`, then a separately approved low-risk
    `create-draft` pilot.
 
 ## Review a future generated draft
 
 1. Confirm source PR, canonical head, merged commit/range, and changeset proof.
-2. Confirm train, exact base branch, and planned destination SHA.
-3. Confirm Jira Fix Version and dependency/order evidence.
-4. Reproduce the application strategy and inspect `-x` provenance.
-5. Review the complete diff and repository-native CI.
-6. Confirm the PR remains a draft.
-7. Only a human may decide to mark the PR ready.
+1. Confirm train, exact base branch, and planned destination SHA.
+1. Confirm Jira Fix Version and dependency/order evidence.
+1. Reproduce the application strategy and inspect `-x` provenance.
+1. Review the complete diff and repository-native CI.
+1. Confirm the PR remains a draft.
+1. Only a human may decide to mark the PR ready.
 
 ## Replay and partial transaction
 
@@ -70,10 +70,10 @@ tree mismatch blocks; never overwrite it.
 For `blocked_conflict` or `blocked_ambiguous_changeset`:
 
 1. Preserve the JSON evidence.
-2. Reproduce the full proven changeset in a disposable worktree.
-3. Consult the owning component team.
-4. Use a separately reviewed manual draft for any resolution.
-5. Never change the result to contained merely because application conflicted.
+1. Reproduce the full proven changeset in a disposable worktree.
+1. Consult the owning component team.
+1. Use a separately reviewed manual draft for any resolution.
+1. Never change the result to contained merely because application conflicted.
 
 ## Disable or roll back after future deployment
 
@@ -84,7 +84,8 @@ perform destructive cleanup automatically.
 ## Human handoff checklist
 
 - Product requirements and design match the reviewed implementation.
-- Red/green evidence and coverage meet the documented gates.
+- Red/green evidence is complete; coverage either meets the documented gate or
+  remains an explicit activation blocker.
 - All source callers are thin, pinned, formatted, and locally tested.
 - App permissions exclude administration, Actions, and Workflows.
 - Initial modes are non-writing.
