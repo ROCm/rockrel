@@ -12,6 +12,9 @@ from collections.abc import Sequence
 from pathlib import Path
 from typing import TextIO
 
+if __package__ in (None, ""):
+    sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+
 from scripts.cherry_pick.replay import (
     DEFAULT_MIRROR_SPECS,
     ReplayReport,
