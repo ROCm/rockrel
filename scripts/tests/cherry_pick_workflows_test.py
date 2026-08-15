@@ -58,9 +58,7 @@ def test_central_workflow_owns_label_discovery_and_train_fanout():
 
 
 def test_workflows_pin_actions_and_explicitly_set_up_python():
-    setup_python = re.compile(
-        r"actions/setup-python@[0-9a-f]{40}", re.MULTILINE
-    )
+    setup_python = re.compile(r"actions/setup-python@[0-9a-f]{40}", re.MULTILINE)
     for path in (CENTRAL, RECONCILE, SYNC):
         text = workflow_text(path)
         uses_lines = [line for line in text.splitlines() if "uses:" in line]

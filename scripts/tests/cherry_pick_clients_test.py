@@ -138,9 +138,7 @@ def test_github_client_finds_last_exact_label_actor_across_pages():
     github = GitHubClient("token", transport=transport)
 
     assert (
-        github.label_actor(
-            "ROCm", "TheRock", 7282, "cherry-pick:10.1-20260811"
-        )
+        github.label_actor("ROCm", "TheRock", 7282, "cherry-pick:10.1-20260811")
         == "operator"
     )
     assert "page=2" in transport.requests[1][1]
@@ -221,9 +219,7 @@ def test_sticky_comment_after_first_hundred_is_updated_not_duplicated():
     transport = FakeTransport([first_comments, second_comments, None])
     github = GitHubClient("token", transport=transport)
 
-    github.upsert_comment(
-        "ROCm", "TheRock", 1, marker="<!-- marker -->", body="new"
-    )
+    github.upsert_comment("ROCm", "TheRock", 1, marker="<!-- marker -->", body="new")
 
     method, url, _headers, payload = transport.requests[-1]
     assert method == "PATCH"
@@ -282,13 +278,14 @@ def test_jira_client_returns_fix_versions_and_dependency_evidence():
     )
     jira = JiraClient("https://jira.example", "secret", transport=transport)
 
-    evidence = jira.issue_evidence(
-        "ROCM-29371", ordering_fields=("customfield_order",)
-    )
+    evidence = jira.issue_evidence("ROCM-29371", ordering_fields=("customfield_order",))
     assert evidence.fix_versions == frozenset({"10.1.0a20260811"})
     assert evidence.dependencies == ("ROCM-1",)
     assert evidence.ordering_notes == ("Apply after compiler change",)
-    assert "fields=fixVersions%2Cissuelinks%2Ccustomfield_order" in transport.requests[0][1]
+    assert (
+        "fields=fixVersions%2Cissuelinks%2Ccustomfield_order"
+        in transport.requests[0][1]
+    )
 
 
 def test_github_create_pull_forces_draft_true():

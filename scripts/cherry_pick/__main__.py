@@ -75,9 +75,7 @@ def build_parser() -> argparse.ArgumentParser:
     return parser
 
 
-def _credential(
-    environ: Mapping[str, str], name: str, stderr: TextIO
-) -> str | None:
+def _credential(environ: Mapping[str, str], name: str, stderr: TextIO) -> str | None:
     value = environ.get(name)
     if value:
         return value
@@ -229,9 +227,7 @@ def main(
                     source_url, train.id, repo_directories[repository]
                 )
                 if writer is not None:
-                    result = writer.create(
-                        repo_directories[repository], train, result
-                    )
+                    result = writer.create(repo_directories[repository], train, result)
                 if args.publish_status:
                     source_owner, source_repo, number = parse_pull_request_url(
                         source_url

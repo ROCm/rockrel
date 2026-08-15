@@ -154,7 +154,9 @@ def prove_changeset(
         if merged_parents[1] != source_head and _tree(
             repo_path, merged_parents[1]
         ) != _tree(repo_path, source_head):
-            raise ChangesetError("could not prove merge second parent matches source head")
+            raise ChangesetError(
+                "could not prove merge second parent matches source head"
+            )
         aggregate_patch = _diff_patch_id(repo_path, merged_parents[0], merged)
         return Changeset(
             kind=ChangesetKind.MERGE_COMMIT,
@@ -179,9 +181,7 @@ def prove_changeset(
     merged_aggregate = _diff_patch_id(repo_path, merged_parent, merged)
     if source_aggregate == merged_aggregate:
         kind = (
-            ChangesetKind.SINGLE
-            if len(original_commits) == 1
-            else ChangesetKind.SQUASH
+            ChangesetKind.SINGLE if len(original_commits) == 1 else ChangesetKind.SQUASH
         )
         return Changeset(
             kind=kind,
@@ -449,9 +449,7 @@ def evaluate_cherry_pick(
         )
     changeset = Changeset(
         kind=(
-            ChangesetKind.MERGE_COMMIT
-            if mainline is not None
-            else ChangesetKind.SINGLE
+            ChangesetKind.MERGE_COMMIT if mainline is not None else ChangesetKind.SINGLE
         ),
         commits=(source,),
         aggregate_base=parents[0],

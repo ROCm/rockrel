@@ -79,9 +79,7 @@ def test_rejects_invalid_train_fields(tmp_path, field, value):
 def test_rejects_non_current_schema(tmp_path, schema_version):
     with pytest.raises(ConfigError, match="schema_version must be 3"):
         load_config(
-            write_config(
-                tmp_path, [valid_train()], schema_version=schema_version
-            )
+            write_config(tmp_path, [valid_train()], schema_version=schema_version)
         )
 
 
@@ -173,9 +171,7 @@ def test_rejects_every_invalid_source_ref(tmp_path, branch):
 
 
 @pytest.mark.parametrize("source_branches", [[], ["main", "main"], "main"])
-def test_rejects_empty_duplicate_or_non_list_source_branches(
-    tmp_path, source_branches
-):
+def test_rejects_empty_duplicate_or_non_list_source_branches(tmp_path, source_branches):
     train = valid_train(
         repositories={
             "ROCm/TheRock": {

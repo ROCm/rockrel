@@ -166,18 +166,14 @@ def find_covering_pull(
                 )
                 continue
             owner, component_repo = component
-            comparison = github.compare(
-                owner, component_repo, desired, candidate_pin
-            )
+            comparison = github.compare(owner, component_repo, desired, candidate_pin)
             if comparison.get("status") in {"ahead", "identical"}:
                 evidence.append(
                     {"path": path, "desired": desired, "candidate": candidate_pin}
                 )
                 continue
             desired_commit = github.commit(owner, component_repo, desired)
-            desired_origin = extract_cherry_pick_origin(
-                _commit_message(desired_commit)
-            )
+            desired_origin = extract_cherry_pick_origin(_commit_message(desired_commit))
             candidate_origins = {
                 origin
                 for item in (

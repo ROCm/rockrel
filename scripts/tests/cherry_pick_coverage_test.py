@@ -78,10 +78,13 @@ def make_gitlink_repo(tmp_path):
 
 
 def test_extracts_only_full_cherry_pick_origin_trailer():
-    assert extract_cherry_pick_origin(
-        "fix\n\n(cherry picked from commit "
-        "1109d68feb1b746c675d8f88fb89085334f8f514)"
-    ) == "1109d68feb1b746c675d8f88fb89085334f8f514"
+    assert (
+        extract_cherry_pick_origin(
+            "fix\n\n(cherry picked from commit "
+            "1109d68feb1b746c675d8f88fb89085334f8f514)"
+        )
+        == "1109d68feb1b746c675d8f88fb89085334f8f514"
+    )
     assert extract_cherry_pick_origin("mentions 1109d68 but no trailer") is None
 
 

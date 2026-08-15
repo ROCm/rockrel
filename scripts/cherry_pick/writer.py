@@ -177,8 +177,7 @@ class DraftWriter:
                 evidence={"api_status": exc.status},
             )
         active_existing_pull = existing_pull is not None and (
-            existing_pull.get("state") == "open"
-            or bool(existing_pull.get("merged_at"))
+            existing_pull.get("state") == "open" or bool(existing_pull.get("merged_at"))
         )
 
         expected_destination = str(plan.evidence["destination_head"])
@@ -251,8 +250,7 @@ class DraftWriter:
                     )
                 if (
                     _run(worktree, "config", "user.name", BOT_NAME).returncode != 0
-                    or _run(worktree, "config", "user.email", BOT_EMAIL).returncode
-                    != 0
+                    or _run(worktree, "config", "user.email", BOT_EMAIL).returncode != 0
                 ):
                     return _result_from(
                         plan,

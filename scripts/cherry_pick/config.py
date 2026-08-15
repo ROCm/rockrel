@@ -105,9 +105,7 @@ def _parse_source_branches(raw: object, context: str) -> tuple[str, ...]:
     return branches
 
 
-def _parse_repository(
-    name: str, raw: object, context: str
-) -> RepositoryConfig:
+def _parse_repository(name: str, raw: object, context: str) -> RepositoryConfig:
     if name not in SUPPORTED_REPOSITORIES:
         raise ConfigError(f"unsupported repository: {name}")
     if not isinstance(raw, dict):
@@ -174,7 +172,9 @@ def _parse_train(raw: object, index: int) -> TrainConfig:
         raise ConfigError(f"{context}.state must be one of {sorted(VALID_STATES)}")
     if mode not in VALID_MODES:
         raise ConfigError(f"{context}.mode must be one of {sorted(VALID_MODES)}")
-    requirements = _parse_requirements(raw.get("requirements"), f"{context}.requirements")
+    requirements = _parse_requirements(
+        raw.get("requirements"), f"{context}.requirements"
+    )
     raw_repositories = raw.get("repositories")
     if not isinstance(raw_repositories, dict) or not raw_repositories:
         raise ConfigError(f"{context}.repositories must be a non-empty object")

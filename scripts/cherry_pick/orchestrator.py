@@ -298,10 +298,11 @@ class Planner:
 
         pull = self.github.pull(owner, repo, number)
         labels = pull.get("labels")
-        current_labels = {
-            item.get("name")
-            for item in labels if isinstance(item, dict)
-        } if isinstance(labels, list) else set()
+        current_labels = (
+            {item.get("name") for item in labels if isinstance(item, dict)}
+            if isinstance(labels, list)
+            else set()
+        )
         if event_action == "unlabeled" and train.label not in current_labels:
             return self._result(
                 status=Status.CANCELLED,
@@ -388,9 +389,7 @@ class Planner:
         qualified = qualify_request(train, facts)
         destination_head = branch.sha if branch is not None else None
         rule_ids = (
-            list(destination_policy.rule_ids)
-            if destination_policy is not None
-            else []
+            list(destination_policy.rule_ids) if destination_policy is not None else []
         )
         base_evidence: dict[str, object] = {
             "source_title": title,
@@ -459,8 +458,7 @@ class Planner:
                 candidate.get("merged_at")
             )
             if owns_identity and (
-                marker in _string(candidate.get("body"))
-                or candidate_ref == branch_name
+                marker in _string(candidate.get("body")) or candidate_ref == branch_name
             ):
                 return self._result(
                     status=Status.COVERED_BY_EXISTING_PR,

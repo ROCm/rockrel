@@ -98,9 +98,7 @@ def test_unauthorized_labeler_is_blocked_by_policy():
 
 
 def test_missing_fix_version_is_ineligible():
-    result = qualify_request(
-        train(), facts(jira_fix_versions=frozenset({"10.2"}))
-    )
+    result = qualify_request(train(), facts(jira_fix_versions=frozenset({"10.2"})))
     assert result.status is Status.INELIGIBLE_SOURCE
     assert result.reason_code == "jira_fix_version_mismatch"
 
@@ -151,8 +149,6 @@ def test_dependency_gate_can_be_disabled_per_train():
 def test_write_maintain_and_admin_permissions_are_authorized():
     for permission in ("write", "maintain", "admin"):
         assert (
-            qualify_request(
-                train(), facts(label_actor_permission=permission)
-            ).status
+            qualify_request(train(), facts(label_actor_permission=permission)).status
             is Status.DRAFT_PLANNED
         )

@@ -223,9 +223,7 @@ class GitHubClient:
                 )
                 if not retryable or attempt == self.retry_policy.max_attempts:
                     raise
-                self.sleep(
-                    self.retry_policy.base_delay_seconds * (2 ** (attempt - 1))
-                )
+                self.sleep(self.retry_policy.base_delay_seconds * (2 ** (attempt - 1)))
         raise AssertionError("unreachable retry loop")
 
     def pull(self, owner: str, repo: str, number: int) -> dict[str, object]:
@@ -276,7 +274,9 @@ class GitHubClient:
                 event = _object(raw_event, "GitHub timeline event")
                 label_value = event.get("label")
                 actor_value = event.get("actor")
-                if not isinstance(label_value, dict) or not isinstance(actor_value, dict):
+                if not isinstance(label_value, dict) or not isinstance(
+                    actor_value, dict
+                ):
                     continue
                 login = actor_value.get("login")
                 if (
@@ -343,7 +343,9 @@ class GitHubClient:
                 count = parameters.get("required_approving_review_count")
                 if isinstance(count, int):
                     approvals = max(approvals, count)
-                last_push = last_push or parameters.get("require_last_push_approval") is True
+                last_push = (
+                    last_push or parameters.get("require_last_push_approval") is True
+                )
                 allowed = parameters.get("allowed_merge_methods")
                 if isinstance(allowed, list):
                     methods.extend(item for item in allowed if isinstance(item, str))
@@ -552,7 +554,9 @@ class GitHubClient:
         encoded = urllib.parse.quote(name, safe="")
         payload = {"new_name": name, "description": description, "color": color}
         try:
-            self._request("PATCH", f"/repos/{owner}/{repo}/labels/{encoded}", body=payload)
+            self._request(
+                "PATCH", f"/repos/{owner}/{repo}/labels/{encoded}", body=payload
+            )
         except ApiError as exc:
             if exc.status != 404:
                 raise

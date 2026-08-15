@@ -133,10 +133,7 @@ def qualify_request(train: TrainConfig, facts: QualificationFacts) -> Result:
             train,
             facts,
         )
-    if (
-        train.requirements.block_on_dependencies
-        and facts.unresolved_dependencies
-    ):
+    if train.requirements.block_on_dependencies and facts.unresolved_dependencies:
         return _result(
             Status.BLOCKED_DEPENDENCY,
             "unresolved_dependencies",
