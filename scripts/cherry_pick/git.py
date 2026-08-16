@@ -342,7 +342,10 @@ def evaluate_changeset(
             target=target,
         )
 
-    with tempfile.TemporaryDirectory(prefix="cherry-pick-plan-") as temp_root:
+    with tempfile.TemporaryDirectory(
+        prefix="cherry-pick-plan-",
+        dir=repo_path.parent,
+    ) as temp_root:
         worktree = Path(temp_root) / "worktree"
         add = _run(repo_path, "worktree", "add", "--detach", str(worktree), target)
         if add.returncode != 0:
