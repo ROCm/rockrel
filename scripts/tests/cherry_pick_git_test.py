@@ -2,6 +2,7 @@
 # SPDX-License-Identifier: MIT
 
 import subprocess
+from pathlib import Path
 
 import pytest
 
@@ -169,6 +170,44 @@ def test_reusable_worktree_rolls_back_without_recreating_index(repo, monkeypatch
     assert git(worktree, "rev-parse", "HEAD") == base
     assert git(worktree, "status", "--porcelain") == ""
     assert git(worktree, "rev-parse", "--verify", "CHERRY_PICK_HEAD", check=False) == ""
+
+
+def test_reusable_worktree_restores_corrupt_index_from_atomic_snapshot(repo):
+    base = git(repo, "rev-parse", "HEAD")
+    git(repo, "checkout", "-b", "topic")
+    original = commit_file(repo, "source.txt", "source\n", "source")
+    git(repo, "checkout", "main")
+    git(repo, "cherry-pick", original)
+    merged = git(repo, "rev-parse", "HEAD")
+    changeset = prove(repo, merged, original, (original,))
+    worktree = repo.parent / "corrupt-index-cache" / "worker"
+
+    first = git_module.evaluate_changeset(
+        repo,
+        changeset,
+        base,
+        worktree_path=worktree,
+    )
+    index = Path(
+        git(worktree, "rev-parse", "--path-format=absolute", "--git-path", "index")
+    )
+    snapshot = worktree.parent / ".index-snapshots" / "worker.index"
+    original_size = index.stat().st_size
+    index.write_bytes(b"\0" * original_size)
+
+    second = git_module.evaluate_changeset(
+        repo,
+        changeset,
+        base,
+        worktree_path=worktree,
+    )
+
+    assert first.status is Status.DRAFT_PLANNED
+    assert second.status is Status.DRAFT_PLANNED
+    assert snapshot.read_bytes()[:4] == b"DIRC"
+    assert index.read_bytes()[:4] == b"DIRC"
+    assert git(worktree, "rev-parse", "HEAD") == base
+    assert git(worktree, "status", "--porcelain") == ""
 
 
 def test_proves_two_parent_merge_relative_to_parent_one(repo):
