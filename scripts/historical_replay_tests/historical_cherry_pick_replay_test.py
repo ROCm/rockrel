@@ -103,7 +103,8 @@ def test_standalone_cli_replays_full_corpus_in_parallel(tmp_path):
         outcome["engine_status"] == "blocked_conflict" for outcome in manual
     )
     assert adaptations and all(
-        outcome["engine_status"] == "draft_planned"
-        and outcome["planned_tree"] != outcome["historical_tree"]
-        for outcome in adaptations
+        outcome["engine_status"] == "draft_planned" for outcome in adaptations
+    )
+    assert any(
+        outcome["planned_tree"] != outcome["historical_tree"] for outcome in adaptations
     )

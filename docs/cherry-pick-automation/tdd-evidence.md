@@ -159,3 +159,41 @@ system Python, pre-commit environments, or package cache. The no-network rule
 forbids installing it. `.github/workflows/unit_tests.yml` enforces both line and
 branch coverage at 90% for a future separately approved CI run; until then the
 coverage success criterion remains explicitly unverified.
+
+## Historical replay and reusable-index slice
+
+Date: 2026-08-15 through 2026-08-16
+
+Historical replay was implemented in independently committed red/green slices.
+The red commits cover manifest validation, exhaustive inventory, exact
+pre-merge/after-tree endpoints, provenance ambiguity, offline operation,
+parallel ordering, disk-backed worktrees, persistent index reuse, contextual
+dependency provenance, unmerged PR heads, and corrupt-index recovery. Relevant
+red commits include `5ba0672`, `339cd2c`, `eecf040`, `aeba4f6`, `389db7e`,
+`a3442e3`, `a106725`, `26cfc7d`, `176ce69`, `69b62b8`, `8834d12`, and
+`cbb4ac7`. Each selected test failed for its intended missing behavior before
+the paired implementation commit.
+
+The final local results are:
+
+```text
+$ .venv/bin/python -m pytest -q scripts/tests
+254 passed
+
+$ .venv/bin/python scripts/replay_cherry_pick_history.py rollback ...
+3 repositories rolled back and verified in 4.1 seconds
+
+$ .venv/bin/python scripts/replay_cherry_pick_history.py freeze ...
+77 cases; 31 strict; 46 diagnostic; 0 evidence gaps
+
+$ .venv/bin/python scripts/replay_cherry_pick_history.py run ... --jobs 4
+77 cases; 31 passed; 46 diagnostic; exit 0
+```
+
+The first disk-backed cache population took 4m42s. The verified warm freeze
+took 1m52s, approximately 60% faster. Full standalone parallel replay runs took
+1m00s to 1m36s with warm indexes. The corpus contains 3 real conflict
+diagnostics and 4 clean planned tree mismatches. A deliberately zero-filled test
+index is recovered from an atomic snapshot; the real interrupted cache was
+repaired locally by the rollback command without fetching, cloning, or
+recreating its worktree.

@@ -243,6 +243,15 @@ merged into `release/therock-7.12`, `release/therock-7.14`, and
 - Corpus refresh may perform an explicitly approved read-only Git fetch into a
   dedicated local mirror. Replay itself is offline and cannot fetch, push, or
   create a pull request.
+- Repeated replay runs reuse one disk-backed Git worktree and index per
+  repository. Every case starts and ends with a verified clean rollback; an
+  interrupted run can be recovered through one standalone rollback command.
+- Clean index snapshots are written atomically. A corrupt derived index is
+  restored from its snapshot, or rebuilt from the pinned local HEAD when no
+  snapshot exists, without re-cloning or fetching the repository.
+- Repository lanes may run concurrently, but cases sharing one repository are
+  serialized so they never mutate the same index concurrently. Report order
+  remains identical to manifest order.
 
 ## Success criteria
 
@@ -259,6 +268,8 @@ merged into `release/therock-7.12`, `release/therock-7.14`, and
 - Every commit in each pinned historical target snapshot is classified, every
   provenance-qualified backport is retained, and all strict eligible replays
   reproduce the historical destination tree.
+- A warm corpus rerun does not recreate replay worktrees or indexes, and the
+  rollback command proves cached HEAD, status, index, and tree cleanliness.
 - Replay and tests contact no remote service. Only the separately invoked,
   explicitly approved corpus refresh may read from official Git remotes; no
   command mutates a remote service.

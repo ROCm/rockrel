@@ -125,7 +125,9 @@ def test_disposable_worktree_uses_repository_filesystem(repo, monkeypatch):
     result = evaluate(repo, changeset, base)
 
     assert result.status is Status.DRAFT_PLANNED
-    assert temporary_directories == [{"prefix": "cherry-pick-plan-", "dir": repo.parent}]
+    assert temporary_directories == [
+        {"prefix": "cherry-pick-plan-", "dir": repo.parent}
+    ]
 
 
 def test_reusable_worktree_rolls_back_without_recreating_index(repo, monkeypatch):

@@ -252,7 +252,11 @@ def rollback_replay_worktree(
     ):
         stderr = "\n".join(
             value
-            for value in (reset.stderr.strip(), clean.stderr.strip(), status.stderr.strip())
+            for value in (
+                reset.stderr.strip(),
+                clean.stderr.strip(),
+                status.stderr.strip(),
+            )
             if value
         )
         raise WorktreeStateError(

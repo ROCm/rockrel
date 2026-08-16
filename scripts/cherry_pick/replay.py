@@ -50,8 +50,7 @@ EXPLICIT_COMMIT_PATTERN = re.compile(
     r"\s+commits?\s*:?\s*([0-9a-f]{40})"
 )
 QUALIFIED_COMMIT_PATTERN = re.compile(
-    r"(?is)\bcherry[ -]?pick(?:ed|ing|s)?\b"
-    r"(?:(?!\n\s*\n).){0,120}?([0-9a-f]{40})"
+    r"(?is)\bcherry[ -]?pick(?:ed|ing|s)?\b" r"(?:(?!\n\s*\n).){0,120}?([0-9a-f]{40})"
 )
 SUPPORTED_REPOSITORIES = {
     "ROCm/TheRock": ("main", "https://github.com/ROCm/TheRock.git"),
@@ -363,13 +362,13 @@ def mentions_cherry_pick(subject: str, body: str) -> bool:
     """Detect an unproven historical cherry-pick claim conservatively."""
 
     dependency_bump = re.search(
-        r"(?i)\b(?:version\s+)?bump\b.{0,80}\bfor\b.{0,40}"
-        r"\bcherry[ -]?pick",
+        r"(?i)\b(?:version\s+)?bump\b.{0,80}\bfor\b.{0,40}" r"\bcherry[ -]?pick",
         subject,
     )
-    if dependency_bump is None and re.search(
-        r"(?i)\bcherry[ -]?pick", subject
-    ) is not None:
+    if (
+        dependency_bump is None
+        and re.search(r"(?i)\bcherry[ -]?pick", subject) is not None
+    ):
         return True
     body = DEPENDENCY_PR_URL_PATTERN.sub("", body)
     without_context = re.sub(
@@ -385,8 +384,7 @@ def is_multi_source_claim(subject: str) -> bool:
 
     return (
         re.search(r"(?i)\bcherry[ -]?picks\b", subject) is not None
-        or re.search(r"(?i)\bcherry[ -]?pick(?:ed)?\s+commits\b", subject)
-        is not None
+        or re.search(r"(?i)\bcherry[ -]?pick(?:ed)?\s+commits\b", subject) is not None
     )
 
 
@@ -784,9 +782,7 @@ def run_replay_cases(
     groups = tuple(indexed_groups.items())
     if jobs == 1 or len(groups) <= 1:
         indexed_outcomes = tuple(
-            outcome
-            for group in groups
-            for outcome in execute_group(group)
+            outcome for group in groups for outcome in execute_group(group)
         )
     else:
         with ThreadPoolExecutor(

@@ -1,0 +1,1624 @@
+{
+  "cases": [
+    {
+      "analysis_notes": "One-source replay exactly reproduces the historical tree.",
+      "classification": "strict_exact",
+      "id": "ROCm-TheRock-release-therock-7.12-fc8fa03fd8b8",
+      "provenance_method": "explicit_source_pr",
+      "repository": "ROCm/TheRock",
+      "source_branch": "main",
+      "source_commits": [
+        "cd37643dbb5bee944a431c56c26d924ed2670223"
+      ],
+      "source_head": "cd37643dbb5bee944a431c56c26d924ed2670223",
+      "source_merge_commit": "79454528d9782d13fc2cbb060a41770772b7b957",
+      "source_prs": [
+        3835
+      ],
+      "target_after": "fc8fa03fd8b8d51bbb8a58d8c9f29dbdac266945",
+      "target_after_tree": "191e5535f6606ef115b231b9484b130251b02878",
+      "target_before": "69a31443a021e16b360886aee92ed4460fe7f58c",
+      "target_branch": "release/therock-7.12"
+    },
+    {
+      "analysis_notes": "One-source replay exactly reproduces the historical tree.",
+      "classification": "strict_exact",
+      "id": "ROCm-TheRock-release-therock-7.12-02b6c1a59af8",
+      "provenance_method": "explicit_source_pr",
+      "repository": "ROCm/TheRock",
+      "source_branch": "main",
+      "source_commits": [
+        "076a30bdaabc08d4ba113f2d6e951c2359cf0cee"
+      ],
+      "source_head": "076a30bdaabc08d4ba113f2d6e951c2359cf0cee",
+      "source_merge_commit": "c0de79128a511e7a76fadb70003cb2e463a2b0fe",
+      "source_prs": [
+        3896
+      ],
+      "target_after": "02b6c1a59af89231b3538be9c483e9229a8178ba",
+      "target_after_tree": "3e09d9026560a5daa019f58784d97415084ada98",
+      "target_before": "fc8fa03fd8b8d51bbb8a58d8c9f29dbdac266945",
+      "target_branch": "release/therock-7.12"
+    },
+    {
+      "analysis_notes": "Canonical source conflicts with the historical parent; manual result retained diagnostically.",
+      "classification": "manual_resolution",
+      "id": "ROCm-TheRock-release-therock-7.12-b32d28a3cba3",
+      "provenance_method": "explicit_source_pr",
+      "repository": "ROCm/TheRock",
+      "source_branch": "main",
+      "source_commits": [
+        "e3fd2175217c5a734625efe9ef8acab85fb7645f",
+        "370e24ab73b31452279f39bd792821347f0c7ed9"
+      ],
+      "source_head": "370e24ab73b31452279f39bd792821347f0c7ed9",
+      "source_merge_commit": "da39842b635e68cb437d21b60a192ffc6b87d5a5",
+      "source_prs": [
+        3899
+      ],
+      "target_after": "b32d28a3cba373e76d0448ad96fcbd667ceba309",
+      "target_after_tree": "ce95f1b436a2d872e86daa7066e91c5ae2c3fa20",
+      "target_before": "02b6c1a59af89231b3538be9c483e9229a8178ba",
+      "target_branch": "release/therock-7.12"
+    },
+    {
+      "analysis_notes": "One-source replay exactly reproduces the historical tree.",
+      "classification": "strict_exact",
+      "id": "ROCm-TheRock-release-therock-7.12-5a000d3f9839",
+      "provenance_method": "explicit_source_pr",
+      "repository": "ROCm/TheRock",
+      "source_branch": "main",
+      "source_commits": [
+        "f2ddc733907891a54cbc6ab399983473e3c8d141"
+      ],
+      "source_head": "f2ddc733907891a54cbc6ab399983473e3c8d141",
+      "source_merge_commit": "5072e1f6260a8e91cb7c7672dee3f3db85ca30a9",
+      "source_prs": [
+        3932
+      ],
+      "target_after": "5a000d3f98396acd42a9c246ca1f76b74a453d1e",
+      "target_after_tree": "1d61a16679cc1fb3ea046ab84a0843fea8de0743",
+      "target_before": "b32d28a3cba373e76d0448ad96fcbd667ceba309",
+      "target_branch": "release/therock-7.12"
+    },
+    {
+      "analysis_notes": "One-source replay exactly reproduces the historical tree.",
+      "classification": "strict_exact",
+      "id": "ROCm-TheRock-release-therock-7.12-9349588516bd",
+      "provenance_method": "explicit_source_pr",
+      "repository": "ROCm/TheRock",
+      "source_branch": "main",
+      "source_commits": [
+        "3b50c5bbe7e1468fe29b95ed38180f8bfd3c75b3",
+        "990a6676426e46b5a02753af2bb95a468fa4c2bf"
+      ],
+      "source_head": "990a6676426e46b5a02753af2bb95a468fa4c2bf",
+      "source_merge_commit": "7fd9c12dc22ff4e9792dd5816af01efbd7630517",
+      "source_prs": [
+        3891
+      ],
+      "target_after": "9349588516bda085041aa6d413283161c0bbb191",
+      "target_after_tree": "41207bfc5337e7968521b2e40fe16d1fb3da83ee",
+      "target_before": "5a000d3f98396acd42a9c246ca1f76b74a453d1e",
+      "target_branch": "release/therock-7.12"
+    },
+    {
+      "analysis_notes": "One-source replay exactly reproduces the historical tree.",
+      "classification": "strict_exact",
+      "id": "ROCm-TheRock-release-therock-7.12-5de9a934c3e4",
+      "provenance_method": "explicit_source_pr",
+      "repository": "ROCm/TheRock",
+      "source_branch": "main",
+      "source_commits": [
+        "f54f7c62ac8645609c6668c799349973e98622e3",
+        "23e8f855239228a835ff9a1a7a1f8aa7c0329472",
+        "c65be81585c907815e2a9450ce715fd86095fa93"
+      ],
+      "source_head": "c65be81585c907815e2a9450ce715fd86095fa93",
+      "source_merge_commit": "8bca29444c693ab9611ffe882ccdb0ff01ce1914",
+      "source_prs": [
+        4033
+      ],
+      "target_after": "5de9a934c3e4bee9c2b0e9d63e6b451e99855a6d",
+      "target_after_tree": "ebc5e4120a0f52dadb513c5a2b9082729c3d8f3f",
+      "target_before": "9349588516bda085041aa6d413283161c0bbb191",
+      "target_branch": "release/therock-7.12"
+    },
+    {
+      "analysis_notes": "One-source replay exactly reproduces the historical tree.",
+      "classification": "strict_exact",
+      "id": "ROCm-TheRock-release-therock-7.12-01bb6c2009eb",
+      "provenance_method": "explicit_commit",
+      "repository": "ROCm/TheRock",
+      "source_branch": "main",
+      "source_commits": [
+        "f44e573f5748bcc2d36f45589d9ecd57bffd382e"
+      ],
+      "source_head": "f44e573f5748bcc2d36f45589d9ecd57bffd382e",
+      "source_merge_commit": "a5ed8195057dbd8f06888236b1c78ccf41ed326e",
+      "source_prs": [
+        3897
+      ],
+      "target_after": "01bb6c2009eba1ae86890690d322ea12981bc243",
+      "target_after_tree": "b76615f4e04f6cd0ee7592f933dd0953ea9e0477",
+      "target_before": "5de9a934c3e4bee9c2b0e9d63e6b451e99855a6d",
+      "target_branch": "release/therock-7.12"
+    },
+    {
+      "analysis_notes": "Transition changes a gitlink and is retained as a diagnostic rollup.",
+      "classification": "gitlink_rollup",
+      "id": "ROCm-TheRock-release-therock-7.12-d57db0cf1c51",
+      "provenance_method": "none",
+      "repository": "ROCm/TheRock",
+      "source_branch": "main",
+      "source_commits": [],
+      "source_head": null,
+      "source_merge_commit": null,
+      "source_prs": [],
+      "target_after": "d57db0cf1c5104a0a31225d1f9da6635c56d59f7",
+      "target_after_tree": "07901b98b1a6521ea4af5838bfc48dd0c7134608",
+      "target_before": "01bb6c2009eba1ae86890690d322ea12981bc243",
+      "target_branch": "release/therock-7.12"
+    },
+    {
+      "analysis_notes": "Transition changes a gitlink and is retained as a diagnostic rollup.",
+      "classification": "gitlink_rollup",
+      "id": "ROCm-TheRock-release-therock-7.12-3031e31e5c76",
+      "provenance_method": "none",
+      "repository": "ROCm/TheRock",
+      "source_branch": "main",
+      "source_commits": [],
+      "source_head": null,
+      "source_merge_commit": null,
+      "source_prs": [],
+      "target_after": "3031e31e5c76796d3be83811f9d5c65b6f1f1de4",
+      "target_after_tree": "02ebaa15ba925301f0b185fd00e5ce2390ab0db6",
+      "target_before": "d57db0cf1c5104a0a31225d1f9da6635c56d59f7",
+      "target_branch": "release/therock-7.12"
+    },
+    {
+      "analysis_notes": "One-source replay exactly reproduces the historical tree.",
+      "classification": "strict_exact",
+      "id": "ROCm-TheRock-release-therock-7.14-7ed6f40275ac",
+      "provenance_method": "explicit_source_pr",
+      "repository": "ROCm/TheRock",
+      "source_branch": "main",
+      "source_commits": [
+        "a4ca6a2c6ee92d8e148654c7f65156ff375119a3",
+        "dd528cb3ce72dacdb76b13ccabf0dce53db8d5d9",
+        "baef7fec1db3dbddf63ed69861ed7a0cec5da2cd",
+        "6fc71c7f8aafcc34a2b5690e7ab3cfe009168704",
+        "74ab4d725111024415c3ffa1492db9024183d135",
+        "19eda7c0a3485f5348e4de29877f607c6ee5295a",
+        "c17095044343e10ddb7e2968a53284fe4a234ef5",
+        "e6f750ddaa0aa6c354d8e57bbc792e497ebd048e",
+        "b9a464045d511567b1dd04e2ea83cecf13d6e68f",
+        "700e043778711f5260534cb01450d7d0a859245b",
+        "ec7f7444e97ad0f8a94b2e641e13b8000a14b3e9",
+        "6c8f879b1e02fe4ed6494f06ee717b03160f36d6",
+        "785787de7bee39a8f38981ced19ae0fe012a8e89",
+        "1c8dc9893b90c60d6ac1821c17f4ff36ebf1ff21",
+        "1f13220b46294eb13b8491a80fa9a0eda76b9295",
+        "41c015bf98457729000fe388e0916c74c62c533e",
+        "099878faf192c8ae7352783b249bb1eb8a55e462",
+        "88fc90dfd736869a7c1faf709c08d92abd5380ad",
+        "22c916c0109604eba9d885e5f1e7e39e96e7cf37",
+        "8b6f2f5d7489b7d782bc2d710c47ad0fd7750e00",
+        "9d58a736bc9f0bd5ec953bde3b5ce3607bf7c2e6",
+        "084898b50d1b92e6b5d3282f00a733c81991b5b1",
+        "382f39e6414145b3e3abf21a03e6fc822fadc18a",
+        "dcf62ab61c3a1629d3b172e91fdd21c0f66ac161",
+        "50c652d1606de3d8705c8eb80a7af444f00ed78f",
+        "9b1e7edb52a112e4b2ae95608f9bdfb043339d57",
+        "ff1f03f53882bdc33330dc0a5a5efc174d8338e4",
+        "f7448a484abcf640094d08fb49f5d39f52fa60d5",
+        "363b89cdacd58594153a6ee39b4a3c0901de40ad",
+        "0bdd1000951e88f7a7f782007d7a51e499337203",
+        "3d46f1b87222553e49f25fbaf20dc0733ad34152",
+        "c15d36de21da1b930e8a4e164964bd1d49b2a587",
+        "35a873a063c7274708e4b6199e72790af5c49241",
+        "c6bacdd4d4ca2d824e02121dcac293abba9ffdf2",
+        "d1d2b54d0dc1fa23c6e3fa585091a1ee051c27b6",
+        "ccc240e748dd240650660bc60361aa32ce41be0f",
+        "604ad16ae5836fe9640814205a15e8c7e42db817",
+        "ec428f07b76d8b6fc8695ee030a0d027af6d1db8",
+        "db448009f0671280e9b0371ceefe8d07b22d4cc1",
+        "afe0d12520847631958a85885492f7fb5f4946e2",
+        "9c9e1723d5ef573f7e5cd2a74c5506f0424fd720",
+        "e130075c3233b043f4ede6a6fe8b79167cfec72e",
+        "9c8b5bf0cd71c7f8dd8cc0610609db5c12512562",
+        "d916c24892345369614e7e47018b0a0b57a6cf6c",
+        "17a815ebba8642f0e840170591ca90de121d4d55",
+        "8eedd1eaf0c265f1735c8bd69a686e721534bde1",
+        "77610657bee36b44dcd68c79eb942f9c3422d6fd",
+        "bf06e828346132fd2a81558a67544ac54f1f4af2",
+        "ca2eaedef8d342e7d6c23c4a64b93aa2b6fef5a7",
+        "9ce38fd2ba2c558364b4e65b7c5614e653e86596",
+        "6b9b4649fd4aeace0d7fad548f7192f8edf79b9c",
+        "139df3cbfe3ed9091f5b9a51d4e1013cc7679420",
+        "31e9253d68a63a6fc0ffead1e3249ab6a233daaa",
+        "da73551041e6edd90ab6dda1b6402c0252e8d199"
+      ],
+      "source_head": "da73551041e6edd90ab6dda1b6402c0252e8d199",
+      "source_merge_commit": "3b102113a13cc8c33fd9d3e87ac9a0e65d9f38ab",
+      "source_prs": [
+        6054
+      ],
+      "target_after": "7ed6f40275ac02bfe7f13ec252e195ca36e33c8c",
+      "target_after_tree": "c34abb82424a5fbd821ec869bbcea3a9932c1195",
+      "target_before": "177bc45e201c996e1a780e3348fd49ca2c439b8e",
+      "target_branch": "release/therock-7.14"
+    },
+    {
+      "analysis_notes": "One-source replay exactly reproduces the historical tree.",
+      "classification": "strict_exact",
+      "id": "ROCm-TheRock-release-therock-7.14-8a7eb098f01b",
+      "provenance_method": "explicit_source_pr",
+      "repository": "ROCm/TheRock",
+      "source_branch": "main",
+      "source_commits": [
+        "13cea2395bf398529d28a714e85c15c5ea59faa7"
+      ],
+      "source_head": "13cea2395bf398529d28a714e85c15c5ea59faa7",
+      "source_merge_commit": "db07336183e96a1d3479889e26ff8eb81a5fd3ce",
+      "source_prs": [
+        6160
+      ],
+      "target_after": "8a7eb098f01bcafb0a7523be12b5d01239e2425d",
+      "target_after_tree": "ce21c3f7d7f6597e594b7dce75ea3c2177936200",
+      "target_before": "7ed6f40275ac02bfe7f13ec252e195ca36e33c8c",
+      "target_branch": "release/therock-7.14"
+    },
+    {
+      "analysis_notes": "Transition changes a gitlink and is retained as a diagnostic rollup.",
+      "classification": "gitlink_rollup",
+      "id": "ROCm-TheRock-release-therock-7.14-42bdd92291f2",
+      "provenance_method": "none",
+      "repository": "ROCm/TheRock",
+      "source_branch": "main",
+      "source_commits": [],
+      "source_head": null,
+      "source_merge_commit": null,
+      "source_prs": [],
+      "target_after": "42bdd92291f2926be3369cd142cbc7299502aec9",
+      "target_after_tree": "b6cbefa0ab1f6319ffd4e82e0ec34bb1594d5331",
+      "target_before": "8a7eb098f01bcafb0a7523be12b5d01239e2425d",
+      "target_branch": "release/therock-7.14"
+    },
+    {
+      "analysis_notes": "No positive source provenance; treated as release-native, not a cherry-pick.",
+      "classification": "release_native",
+      "id": "ROCm-TheRock-release-therock-7.14-5d3b1b754b94",
+      "provenance_method": "none",
+      "repository": "ROCm/TheRock",
+      "source_branch": "main",
+      "source_commits": [],
+      "source_head": null,
+      "source_merge_commit": null,
+      "source_prs": [],
+      "target_after": "5d3b1b754b948f65e58711d06abab90c5404b8ad",
+      "target_after_tree": "688586fd030a056e2be22f6a57c476270a05fb6f",
+      "target_before": "42bdd92291f2926be3369cd142cbc7299502aec9",
+      "target_branch": "release/therock-7.14"
+    },
+    {
+      "analysis_notes": "Transition explicitly combines multiple source changes.",
+      "classification": "multi_source_bundle",
+      "id": "ROCm-TheRock-release-therock-7.14-62d39c0d8d22",
+      "provenance_method": "explicit_source_pr",
+      "repository": "ROCm/TheRock",
+      "source_branch": "main",
+      "source_commits": [],
+      "source_head": null,
+      "source_merge_commit": null,
+      "source_prs": [
+        6275,
+        6269
+      ],
+      "target_after": "62d39c0d8d22ab562df5cd23b50fb92c4c225aa7",
+      "target_after_tree": "a2d5810adfc694b547e820c48b414e4ef92c719a",
+      "target_before": "5d3b1b754b948f65e58711d06abab90c5404b8ad",
+      "target_branch": "release/therock-7.14"
+    },
+    {
+      "analysis_notes": "Transition changes a gitlink and is retained as a diagnostic rollup.",
+      "classification": "gitlink_rollup",
+      "id": "ROCm-TheRock-release-therock-7.14-f406eb81ea65",
+      "provenance_method": "explicit_source_pr",
+      "repository": "ROCm/TheRock",
+      "source_branch": "main",
+      "source_commits": [],
+      "source_head": null,
+      "source_merge_commit": null,
+      "source_prs": [
+        9105,
+        9110,
+        8170
+      ],
+      "target_after": "f406eb81ea65c27e3c1cdfd965c23f535a730620",
+      "target_after_tree": "f4bbe28122e3756a68507a1a5bdc52c79dafac8f",
+      "target_before": "62d39c0d8d22ab562df5cd23b50fb92c4c225aa7",
+      "target_branch": "release/therock-7.14"
+    },
+    {
+      "analysis_notes": "Transition changes a gitlink and is retained as a diagnostic rollup.",
+      "classification": "gitlink_rollup",
+      "id": "ROCm-TheRock-release-therock-7.14-d1674be5a71c",
+      "provenance_method": "explicit_source_pr",
+      "repository": "ROCm/TheRock",
+      "source_branch": "main",
+      "source_commits": [],
+      "source_head": null,
+      "source_merge_commit": null,
+      "source_prs": [
+        9149,
+        8194,
+        8212
+      ],
+      "target_after": "d1674be5a71ce9919474a4b2cbd335f387322822",
+      "target_after_tree": "beae39af4ca83183bd626bdb5eab2994ed8ab6f8",
+      "target_before": "f406eb81ea65c27e3c1cdfd965c23f535a730620",
+      "target_branch": "release/therock-7.14"
+    },
+    {
+      "analysis_notes": "Transition changes a gitlink and is retained as a diagnostic rollup.",
+      "classification": "gitlink_rollup",
+      "id": "ROCm-TheRock-release-therock-7.14-418cd5f63abb",
+      "provenance_method": "none",
+      "repository": "ROCm/TheRock",
+      "source_branch": "main",
+      "source_commits": [],
+      "source_head": null,
+      "source_merge_commit": null,
+      "source_prs": [],
+      "target_after": "418cd5f63abb7a604bad5874cd7b2e29334e640f",
+      "target_after_tree": "83eb1fbc03fa8835430a7468c4d2587245a4d9d3",
+      "target_before": "d1674be5a71ce9919474a4b2cbd335f387322822",
+      "target_branch": "release/therock-7.14"
+    },
+    {
+      "analysis_notes": "No positive source provenance; treated as release-native, not a cherry-pick.",
+      "classification": "release_native",
+      "id": "ROCm-TheRock-release-therock-7.14-e5e8093c2957",
+      "provenance_method": "none",
+      "repository": "ROCm/TheRock",
+      "source_branch": "main",
+      "source_commits": [],
+      "source_head": null,
+      "source_merge_commit": null,
+      "source_prs": [],
+      "target_after": "e5e8093c29572d9fe47097a1a3dfd7914d897540",
+      "target_after_tree": "1ab235f998dabb7345cbb6fae6bf2cdcbdb15f59",
+      "target_before": "418cd5f63abb7a604bad5874cd7b2e29334e640f",
+      "target_branch": "release/therock-7.14"
+    },
+    {
+      "analysis_notes": "Transition changes a gitlink and is retained as a diagnostic rollup.",
+      "classification": "gitlink_rollup",
+      "id": "ROCm-TheRock-release-therock-7.14-24794e43ecf0",
+      "provenance_method": "none",
+      "repository": "ROCm/TheRock",
+      "source_branch": "main",
+      "source_commits": [],
+      "source_head": null,
+      "source_merge_commit": null,
+      "source_prs": [],
+      "target_after": "24794e43ecf099330105cf438191c8799ed5a48e",
+      "target_after_tree": "d28fa6354d68316e429a9b180e8bb9886fde8417",
+      "target_before": "e5e8093c29572d9fe47097a1a3dfd7914d897540",
+      "target_branch": "release/therock-7.14"
+    },
+    {
+      "analysis_notes": "Transition changes a gitlink and is retained as a diagnostic rollup.",
+      "classification": "gitlink_rollup",
+      "id": "ROCm-TheRock-release-therock-7.14-4a4048fdf9a0",
+      "provenance_method": "none",
+      "repository": "ROCm/TheRock",
+      "source_branch": "main",
+      "source_commits": [],
+      "source_head": null,
+      "source_merge_commit": null,
+      "source_prs": [],
+      "target_after": "4a4048fdf9a08da9cb2e22f7bae09697b1960430",
+      "target_after_tree": "cb3972ac6289c5d435d801b6680443e8faaf2ee4",
+      "target_before": "24794e43ecf099330105cf438191c8799ed5a48e",
+      "target_branch": "release/therock-7.14"
+    },
+    {
+      "analysis_notes": "Transition explicitly combines multiple source changes.",
+      "classification": "multi_source_bundle",
+      "id": "ROCm-TheRock-release-therock-10.0-adbe0d23c9ba",
+      "provenance_method": "explicit_source_pr",
+      "repository": "ROCm/TheRock",
+      "source_branch": "main",
+      "source_commits": [],
+      "source_head": null,
+      "source_merge_commit": null,
+      "source_prs": [
+        6956,
+        6968,
+        6708
+      ],
+      "target_after": "adbe0d23c9babd8aa706a7675d62dff5912875c4",
+      "target_after_tree": "7449d4f656df97d0392807979e1ece5e56f0ff3a",
+      "target_before": "2a9e195589e2dab7b1187a7b218383bb01205d3c",
+      "target_branch": "release/therock-10.0"
+    },
+    {
+      "analysis_notes": "Transition changes a gitlink and is retained as a diagnostic rollup.",
+      "classification": "gitlink_rollup",
+      "id": "ROCm-TheRock-release-therock-10.0-30e5284a899b",
+      "provenance_method": "explicit_source_pr",
+      "repository": "ROCm/TheRock",
+      "source_branch": "main",
+      "source_commits": [],
+      "source_head": null,
+      "source_merge_commit": null,
+      "source_prs": [
+        6973
+      ],
+      "target_after": "30e5284a899b82bfa46af055514fc8ecbe70b4b1",
+      "target_after_tree": "50da0389b4cde60a6f8890dd7f99a1f896f5ef58",
+      "target_before": "adbe0d23c9babd8aa706a7675d62dff5912875c4",
+      "target_branch": "release/therock-10.0"
+    },
+    {
+      "analysis_notes": "One-source replay exactly reproduces the historical tree.",
+      "classification": "strict_exact",
+      "id": "ROCm-TheRock-release-therock-10.0-c354d42fa9af",
+      "provenance_method": "explicit_source_pr",
+      "repository": "ROCm/TheRock",
+      "source_branch": "main",
+      "source_commits": [
+        "522455cb51d38e39c48cf3188f03a2ab7c3dbda0",
+        "d0ebd139cd7f864d33f9d633edfa11cde55120a7",
+        "f9ab4c213bdea1e7832dc1317d6ca699829bdf24",
+        "29e5f019107fa807a314e6dd93e876ac68ad310f",
+        "c05c154a7d16d5ed1db49d0d1dc9bb2522adc082"
+      ],
+      "source_head": "c05c154a7d16d5ed1db49d0d1dc9bb2522adc082",
+      "source_merge_commit": "e6cfc49603637c40a22a9ba1dec3d35bb1ea296a",
+      "source_prs": [
+        6944
+      ],
+      "target_after": "c354d42fa9af003fbacc33cce9cf4a73b99c4256",
+      "target_after_tree": "019573abe8aa814d11badf8ca16ba0907e2d8354",
+      "target_before": "30e5284a899b82bfa46af055514fc8ecbe70b4b1",
+      "target_branch": "release/therock-10.0"
+    },
+    {
+      "analysis_notes": "Transition changes a gitlink and is retained as a diagnostic rollup.",
+      "classification": "gitlink_rollup",
+      "id": "ROCm-TheRock-release-therock-10.0-ad0a074fb06a",
+      "provenance_method": "none",
+      "repository": "ROCm/TheRock",
+      "source_branch": "main",
+      "source_commits": [],
+      "source_head": null,
+      "source_merge_commit": null,
+      "source_prs": [],
+      "target_after": "ad0a074fb06a21693f48784e31d91b5bc901c38d",
+      "target_after_tree": "3fe20ef386dec34f93156d146e165768f888e7c0",
+      "target_before": "c354d42fa9af003fbacc33cce9cf4a73b99c4256",
+      "target_branch": "release/therock-10.0"
+    },
+    {
+      "analysis_notes": "Transition changes a gitlink and is retained as a diagnostic rollup.",
+      "classification": "gitlink_rollup",
+      "id": "ROCm-TheRock-release-therock-10.0-51dfd409ee1e",
+      "provenance_method": "none",
+      "repository": "ROCm/TheRock",
+      "source_branch": "main",
+      "source_commits": [],
+      "source_head": null,
+      "source_merge_commit": null,
+      "source_prs": [],
+      "target_after": "51dfd409ee1e12dc2eb4b5f297965c0b28797c73",
+      "target_after_tree": "61e7888d864928380b6f3a5b8ecabcc4e6b09d7d",
+      "target_before": "ad0a074fb06a21693f48784e31d91b5bc901c38d",
+      "target_branch": "release/therock-10.0"
+    },
+    {
+      "analysis_notes": "Transition changes a gitlink and is retained as a diagnostic rollup.",
+      "classification": "gitlink_rollup",
+      "id": "ROCm-TheRock-release-therock-10.0-e32edf6d6751",
+      "provenance_method": "none",
+      "repository": "ROCm/TheRock",
+      "source_branch": "main",
+      "source_commits": [],
+      "source_head": null,
+      "source_merge_commit": null,
+      "source_prs": [],
+      "target_after": "e32edf6d675199893c427f11de5e3c11844e70f7",
+      "target_after_tree": "799abde707a801387c93eae26503d1a04a0e74e3",
+      "target_before": "51dfd409ee1e12dc2eb4b5f297965c0b28797c73",
+      "target_branch": "release/therock-10.0"
+    },
+    {
+      "analysis_notes": "No positive source provenance; treated as release-native, not a cherry-pick.",
+      "classification": "release_native",
+      "id": "ROCm-TheRock-release-therock-10.0-848470f797b9",
+      "provenance_method": "none",
+      "repository": "ROCm/TheRock",
+      "source_branch": "main",
+      "source_commits": [],
+      "source_head": null,
+      "source_merge_commit": null,
+      "source_prs": [],
+      "target_after": "848470f797b9e1391546f6a40ab683615bcb30f6",
+      "target_after_tree": "b0593a6799bca64206736e71356558eabb9532e4",
+      "target_before": "e32edf6d675199893c427f11de5e3c11844e70f7",
+      "target_branch": "release/therock-10.0"
+    },
+    {
+      "analysis_notes": "No positive source provenance; treated as release-native, not a cherry-pick.",
+      "classification": "release_native",
+      "id": "ROCm-TheRock-release-therock-10.0-600ba5509b42",
+      "provenance_method": "none",
+      "repository": "ROCm/TheRock",
+      "source_branch": "main",
+      "source_commits": [],
+      "source_head": null,
+      "source_merge_commit": null,
+      "source_prs": [],
+      "target_after": "600ba5509b42e7cafb3a5f223cfb41680a80023e",
+      "target_after_tree": "2ff491dba6fd3ee798b7e6272b56060e22479fff",
+      "target_before": "848470f797b9e1391546f6a40ab683615bcb30f6",
+      "target_branch": "release/therock-10.0"
+    },
+    {
+      "analysis_notes": "One-source replay exactly reproduces the historical tree.",
+      "classification": "strict_exact",
+      "id": "ROCm-TheRock-release-therock-10.0-b6fbc3fb9374",
+      "provenance_method": "explicit_source_pr",
+      "repository": "ROCm/TheRock",
+      "source_branch": "main",
+      "source_commits": [
+        "28ec89009714183c64e27b9e3339f2b30a422ade"
+      ],
+      "source_head": "28ec89009714183c64e27b9e3339f2b30a422ade",
+      "source_merge_commit": "e6c007f057d7dc25721158b2e7dcb54785a256fd",
+      "source_prs": [
+        6905
+      ],
+      "target_after": "b6fbc3fb9374160393ba19c5831b965eff6c2e2d",
+      "target_after_tree": "af350ad4e3723232e42a3ca74fcc85ac72f8b20c",
+      "target_before": "600ba5509b42e7cafb3a5f223cfb41680a80023e",
+      "target_branch": "release/therock-10.0"
+    },
+    {
+      "analysis_notes": "Transition explicitly combines multiple source changes.",
+      "classification": "multi_source_bundle",
+      "id": "ROCm-TheRock-release-therock-10.0-0dd4cc5fcf5e",
+      "provenance_method": "explicit_source_pr",
+      "repository": "ROCm/TheRock",
+      "source_branch": "main",
+      "source_commits": [],
+      "source_head": null,
+      "source_merge_commit": null,
+      "source_prs": [
+        6098,
+        7113,
+        7090
+      ],
+      "target_after": "0dd4cc5fcf5ea5f6f89df29a04fc25cad27d7c34",
+      "target_after_tree": "e0f74f3b822d18ff539553177afdb4a2193dd919",
+      "target_before": "b6fbc3fb9374160393ba19c5831b965eff6c2e2d",
+      "target_branch": "release/therock-10.0"
+    },
+    {
+      "analysis_notes": "One-source replay exactly reproduces the historical tree.",
+      "classification": "strict_exact",
+      "id": "ROCm-TheRock-release-therock-10.0-418c0aea0d96",
+      "provenance_method": "explicit_source_pr",
+      "repository": "ROCm/TheRock",
+      "source_branch": "main",
+      "source_commits": [
+        "7dc7e649dcff360de1ffd631c23ebd2ae541b925",
+        "1d9546a44214c785fe051ecfb50c1efec23b1c04",
+        "1e9b9037c4b91052f1c5ccdf2b4f675cc131b016"
+      ],
+      "source_head": "1e9b9037c4b91052f1c5ccdf2b4f675cc131b016",
+      "source_merge_commit": "409fe0165058d28d06bd99b44d3f15888542a692",
+      "source_prs": [
+        7160
+      ],
+      "target_after": "418c0aea0d96ef358ee6c47916e18117593492a8",
+      "target_after_tree": "f4b31505ff69a61c75cb071da8a6e2464fe256bb",
+      "target_before": "0dd4cc5fcf5ea5f6f89df29a04fc25cad27d7c34",
+      "target_branch": "release/therock-10.0"
+    },
+    {
+      "analysis_notes": "Transition changes a gitlink and is retained as a diagnostic rollup.",
+      "classification": "gitlink_rollup",
+      "id": "ROCm-TheRock-release-therock-10.0-8c7d479627ae",
+      "provenance_method": "none",
+      "repository": "ROCm/TheRock",
+      "source_branch": "main",
+      "source_commits": [],
+      "source_head": null,
+      "source_merge_commit": null,
+      "source_prs": [],
+      "target_after": "8c7d479627aee4ab70095436620029c7122762da",
+      "target_after_tree": "4010e6c1f2e6696d61ac16796fcd94fb64f07283",
+      "target_before": "418c0aea0d96ef358ee6c47916e18117593492a8",
+      "target_branch": "release/therock-10.0"
+    },
+    {
+      "analysis_notes": "One-source replay exactly reproduces the historical tree.",
+      "classification": "strict_exact",
+      "id": "ROCm-TheRock-release-therock-10.0-ac8bf7e62d65",
+      "provenance_method": "explicit_source_pr",
+      "repository": "ROCm/TheRock",
+      "source_branch": "main",
+      "source_commits": [
+        "0f3e97d101b6f54acd791838c56878ce5a4cd6d3",
+        "589bbf541a8d7b8c0e0a8fc5127bc91369a12755",
+        "a506dda7fa789e459aa53e5a6136ed0d486c9750",
+        "dc835a675f555bd6eff42c034701454f41c32b3c"
+      ],
+      "source_head": "dc835a675f555bd6eff42c034701454f41c32b3c",
+      "source_merge_commit": "3db471466aa74482783be5ac67c96840b9c966f9",
+      "source_prs": [
+        6995
+      ],
+      "target_after": "ac8bf7e62d65e350246576d60dfea79b40b97458",
+      "target_after_tree": "4f8f4e8f2af46ab6baac78ed744c7babc6222515",
+      "target_before": "8c7d479627aee4ab70095436620029c7122762da",
+      "target_branch": "release/therock-10.0"
+    },
+    {
+      "analysis_notes": "Transition changes a gitlink and is retained as a diagnostic rollup.",
+      "classification": "gitlink_rollup",
+      "id": "ROCm-TheRock-release-therock-10.0-41101d64ceb1",
+      "provenance_method": "none",
+      "repository": "ROCm/TheRock",
+      "source_branch": "main",
+      "source_commits": [],
+      "source_head": null,
+      "source_merge_commit": null,
+      "source_prs": [],
+      "target_after": "41101d64ceb17596b7b7b41876b4f3f9094bbc3b",
+      "target_after_tree": "106c2dfa9f78ea05f132142ca53600a3c0184621",
+      "target_before": "ac8bf7e62d65e350246576d60dfea79b40b97458",
+      "target_branch": "release/therock-10.0"
+    },
+    {
+      "analysis_notes": "Transition changes a gitlink and is retained as a diagnostic rollup.",
+      "classification": "gitlink_rollup",
+      "id": "ROCm-TheRock-release-therock-10.0-61bb225b6906",
+      "provenance_method": "none",
+      "repository": "ROCm/TheRock",
+      "source_branch": "main",
+      "source_commits": [],
+      "source_head": null,
+      "source_merge_commit": null,
+      "source_prs": [],
+      "target_after": "61bb225b69067583de0679d51f1eb26fbcdeb35b",
+      "target_after_tree": "6c80e57338f27888efb1f2c13808cd8e7e8ad964",
+      "target_before": "41101d64ceb17596b7b7b41876b4f3f9094bbc3b",
+      "target_branch": "release/therock-10.0"
+    },
+    {
+      "analysis_notes": "Canonical source applies but does not reproduce the historical tree.",
+      "classification": "historical_adaptation",
+      "id": "ROCm-rocm-systems-release-therock-7.12-b2e709492b36",
+      "provenance_method": "explicit_source_pr",
+      "repository": "ROCm/rocm-systems",
+      "source_branch": "develop",
+      "source_commits": [
+        "6f53f3964a622a2225732b154b3d17d19d70befe",
+        "4496b316d19fbd97b3bc1ea6d28c33a1fa0c1d24",
+        "3c920d4c9e919d6e38d8ed66513473332605bcbc",
+        "598d2c2079988ab952fd02082b74afd125cadb4c",
+        "17933ab75710f57dd9748ba7f376579f5121dc67",
+        "8d04b6c7346ec70280c5086f4ac1d99a3757c597",
+        "776647cd33c62d893af58ec28a49d00505e02618",
+        "a4c31cd19828bfc6e74ebb3a1874e6c2e069ee2c",
+        "a73f8a76ddb3bbe291e83849de8b855d370a06d1",
+        "ccc8e22b733e19bce8529e4b9fc20eb9ae53ff84",
+        "6132ab9ad7db0d798585ab665c4bff29e7105aa0",
+        "9eb6dfe83a733cd05fded5c40cae91ba94b161ef",
+        "f2c1f336240c757629f172a35def8d7e63e288e1",
+        "76d34511a983d5133be6699dfa8299884ce7d1f0",
+        "5c0981165e36a1f9c8baef4504472dc8e3d8b049",
+        "e03fbf16656931cad51e28aea573b499455a0e03",
+        "5a74ab93fa807d01c87fd5d25d9c2b069f31e34e",
+        "055518a1bd5673dd6c2c512294085c1d2f7c992e",
+        "524002d403521d53b7dbb96f55d7fa6bffcf7336"
+      ],
+      "source_head": "524002d403521d53b7dbb96f55d7fa6bffcf7336",
+      "source_merge_commit": "594eb60d42ffbe16c443867ba9816152e66352fa",
+      "source_prs": [
+        3182
+      ],
+      "target_after": "b2e709492b36823cf5dcf4895d31d7ac5397dc23",
+      "target_after_tree": "efb72cf496df117027c4d82f337c62b8869c3edc",
+      "target_before": "93bc01937c91e66f680c0ceba792eb44ebaeba90",
+      "target_branch": "release/therock-7.12"
+    },
+    {
+      "analysis_notes": "One-source replay exactly reproduces the historical tree.",
+      "classification": "strict_exact",
+      "id": "ROCm-rocm-systems-release-therock-7.12-c8726b9a77df",
+      "provenance_method": "explicit_source_pr",
+      "repository": "ROCm/rocm-systems",
+      "source_branch": "develop",
+      "source_commits": [
+        "0c1be34a0aaaa04cd5306115d3b66dbbf14951cd",
+        "3f2b305959316191fcbe55c5cdb07ffc29f55d55"
+      ],
+      "source_head": "3f2b305959316191fcbe55c5cdb07ffc29f55d55",
+      "source_merge_commit": "d8a0adbc9f88633405be4d751dd6d11c779b8af1",
+      "source_prs": [
+        3777
+      ],
+      "target_after": "c8726b9a77df498e230345bf2a613a954c5072c8",
+      "target_after_tree": "cfc5f3ea6ec8c76add55f444876bd48a06c308fc",
+      "target_before": "b2e709492b36823cf5dcf4895d31d7ac5397dc23",
+      "target_branch": "release/therock-7.12"
+    },
+    {
+      "analysis_notes": "One-source replay exactly reproduces the historical tree.",
+      "classification": "strict_exact",
+      "id": "ROCm-rocm-systems-release-therock-7.12-63ff71cf4caa",
+      "provenance_method": "explicit_source_pr",
+      "repository": "ROCm/rocm-systems",
+      "source_branch": "develop",
+      "source_commits": [
+        "843a95d2d35c34b8507ec1fb41ef3f03fa3f5ad4"
+      ],
+      "source_head": "843a95d2d35c34b8507ec1fb41ef3f03fa3f5ad4",
+      "source_merge_commit": "044bcd8597df52a5b8adbf27b94d5417575b4dc5",
+      "source_prs": [
+        3925
+      ],
+      "target_after": "63ff71cf4caa88a13dd596df2b7515dcba3a265f",
+      "target_after_tree": "f6aa1d0a5522982484a130de6531bbcd6d7ba5e2",
+      "target_before": "c8726b9a77df498e230345bf2a613a954c5072c8",
+      "target_branch": "release/therock-7.12"
+    },
+    {
+      "analysis_notes": "One-source replay exactly reproduces the historical tree.",
+      "classification": "strict_exact",
+      "id": "ROCm-rocm-systems-release-therock-7.12-436058d0d6a1",
+      "provenance_method": "explicit_source_pr",
+      "repository": "ROCm/rocm-systems",
+      "source_branch": "develop",
+      "source_commits": [
+        "3fa0adb038f2eba5013de697a69c3ba5357baf2c"
+      ],
+      "source_head": "3fa0adb038f2eba5013de697a69c3ba5357baf2c",
+      "source_merge_commit": "90bb9b192127bdf9526bad1c087642a2c2fe1cbb",
+      "source_prs": [
+        3705
+      ],
+      "target_after": "436058d0d6a1985c5f7cf40ec1a68b2dda16c979",
+      "target_after_tree": "fbaa0ea01fe05258f73bd5d8aea792015703e75e",
+      "target_before": "63ff71cf4caa88a13dd596df2b7515dcba3a265f",
+      "target_branch": "release/therock-7.12"
+    },
+    {
+      "analysis_notes": "No positive source provenance; treated as release-native, not a cherry-pick.",
+      "classification": "release_native",
+      "id": "ROCm-rocm-systems-release-therock-7.12-a1e043c26374",
+      "provenance_method": "none",
+      "repository": "ROCm/rocm-systems",
+      "source_branch": "develop",
+      "source_commits": [],
+      "source_head": null,
+      "source_merge_commit": null,
+      "source_prs": [],
+      "target_after": "a1e043c2637449d959dfaa15009638cd8f6b8143",
+      "target_after_tree": "4157fc4f7a2b1753556950f92afaf251f47187ea",
+      "target_before": "436058d0d6a1985c5f7cf40ec1a68b2dda16c979",
+      "target_branch": "release/therock-7.12"
+    },
+    {
+      "analysis_notes": "No positive source provenance; treated as release-native, not a cherry-pick.",
+      "classification": "release_native",
+      "id": "ROCm-rocm-systems-release-therock-7.12-57601ddffeae",
+      "provenance_method": "none",
+      "repository": "ROCm/rocm-systems",
+      "source_branch": "develop",
+      "source_commits": [],
+      "source_head": null,
+      "source_merge_commit": null,
+      "source_prs": [],
+      "target_after": "57601ddffeaec79c284a3a34471f77b65c986312",
+      "target_after_tree": "b5d4c020b62e9e3ad97562b4e4c2430ecae8df81",
+      "target_before": "a1e043c2637449d959dfaa15009638cd8f6b8143",
+      "target_branch": "release/therock-7.12"
+    },
+    {
+      "analysis_notes": "Canonical source applies but does not reproduce the historical tree.",
+      "classification": "historical_adaptation",
+      "id": "ROCm-rocm-systems-release-therock-7.12-830204dbcbba",
+      "provenance_method": "explicit_source_pr",
+      "repository": "ROCm/rocm-systems",
+      "source_branch": "develop",
+      "source_commits": [
+        "0e788b560cc3555e66d9b59019b2b417c60f155e",
+        "05a34545a49ebbaba3a9062b6a2eeb2a66a297bc"
+      ],
+      "source_head": "05a34545a49ebbaba3a9062b6a2eeb2a66a297bc",
+      "source_merge_commit": "d3aaef21c06f5cbe483a06196a6d8bae8971496f",
+      "source_prs": [
+        3664
+      ],
+      "target_after": "830204dbcbba78908cc2a89c1d51a34bb85f4633",
+      "target_after_tree": "b5b2639110646cf4698d385d0805429c78489ced",
+      "target_before": "57601ddffeaec79c284a3a34471f77b65c986312",
+      "target_branch": "release/therock-7.12"
+    },
+    {
+      "analysis_notes": "Explicit PR head is not merged into the pinned source snapshot; retained diagnostically.",
+      "classification": "historical_adaptation",
+      "id": "ROCm-rocm-systems-release-therock-7.12-e091924c969a",
+      "provenance_method": "explicit_source_pr",
+      "repository": "ROCm/rocm-systems",
+      "source_branch": "develop",
+      "source_commits": [
+        "f787a52813eab6b20edd845673262ce2a6c9c0b2"
+      ],
+      "source_head": "f787a52813eab6b20edd845673262ce2a6c9c0b2",
+      "source_merge_commit": "f787a52813eab6b20edd845673262ce2a6c9c0b2",
+      "source_prs": [
+        3508
+      ],
+      "target_after": "e091924c969a766eddce4d65431fd366a559ae98",
+      "target_after_tree": "8ef5423d589b7a41899abfd3d88972809ceea5d7",
+      "target_before": "830204dbcbba78908cc2a89c1d51a34bb85f4633",
+      "target_branch": "release/therock-7.12"
+    },
+    {
+      "analysis_notes": "Release transition is an explicit revert, not a strict backport.",
+      "classification": "revert",
+      "id": "ROCm-rocm-systems-release-therock-7.12-ea2d4dce9130",
+      "provenance_method": "none",
+      "repository": "ROCm/rocm-systems",
+      "source_branch": "develop",
+      "source_commits": [],
+      "source_head": null,
+      "source_merge_commit": null,
+      "source_prs": [],
+      "target_after": "ea2d4dce9130e7ff83bba2bad77b0454c6792937",
+      "target_after_tree": "5dbf7dd4e4a7c972e1b0058c2dbcaba90e42e5f6",
+      "target_before": "e091924c969a766eddce4d65431fd366a559ae98",
+      "target_branch": "release/therock-7.12"
+    },
+    {
+      "analysis_notes": "No positive source provenance; treated as release-native, not a cherry-pick.",
+      "classification": "release_native",
+      "id": "ROCm-rocm-systems-release-therock-7.12-c3a5812ac6af",
+      "provenance_method": "none",
+      "repository": "ROCm/rocm-systems",
+      "source_branch": "develop",
+      "source_commits": [],
+      "source_head": null,
+      "source_merge_commit": null,
+      "source_prs": [],
+      "target_after": "c3a5812ac6af8d8792321855fdfc91806669f5ef",
+      "target_after_tree": "76b90f0fb2b9c5226ee301e65ca7746548c40a40",
+      "target_before": "ea2d4dce9130e7ff83bba2bad77b0454c6792937",
+      "target_branch": "release/therock-7.12"
+    },
+    {
+      "analysis_notes": "Canonical source applies but does not reproduce the historical tree.",
+      "classification": "historical_adaptation",
+      "id": "ROCm-rocm-systems-release-therock-7.12-86d662cd2c81",
+      "provenance_method": "explicit_source_pr",
+      "repository": "ROCm/rocm-systems",
+      "source_branch": "develop",
+      "source_commits": [
+        "d744220a47ee1c751c64486e4570f3a5824e15a9",
+        "bf85fb7bb25e968dc0bf675330efa64216e7d76f",
+        "2ab92c3dc0d8e2a9be645cf88ef233ba2180a693",
+        "92c117653e24eb4aa661af1929260ec5bab92ec1",
+        "ba1f187aacf9ba4dec3b31abc396161510a28510",
+        "c37432b07b803f54d2995f40f15bd1995b24e28e",
+        "fe7528a0552ad3740c88e37b49291101fb11315c",
+        "f72bc16c031eeae6a6b993f6e9579d91e48df6f7",
+        "2a65f3bdb56b548facc41c173704ba7207599564",
+        "736e5652d3929307ef04fdaf69bf731f1d34a78c",
+        "d255bc0c39f77536168fd39acd369e381507272e",
+        "cf5f62c7f7f980a2398ee7067e226613c24fd2a5",
+        "a4f4d2f68fd7cbd767dd98792325a7e274c7048d",
+        "48a8e171701a4a07f05ac109f1216d31c0dec4d3",
+        "968f421017a58e66be918b5284d25fb91fe83449",
+        "534b16aa0d491131316ac138d3813cc71b1b0ddc",
+        "477cbd81d53843412baa699af35989cfe01a16ae",
+        "ebdb293dd8df5de216500805c678a1cc687bb3f4",
+        "ea6ca9be5d0588ff9bee3b6f9e2e9507895d3092",
+        "eab5cec3540747c491e27af26064d2a174915316",
+        "963ee750b4f7342ea2b21f9106269edeabc48194",
+        "b33a215f55fe72e57c11e49351e9f3e2d9bc9371",
+        "0d01b975ce8edab9fa1966f446e9df11f3f5cfc9",
+        "ad0cd11e48c1445dd7242202497960af77c1af93",
+        "26115a4749670e1a41c00d06e75b704897e54416",
+        "2881f1c8485e709ea3e27e2df23e4c57f1778f69",
+        "2328e51cb27afcbdeece66f4e13f206200431e01",
+        "0a5e9f18a35f0d9ae6ab88dbad9546d90ef0903d",
+        "993dc6214f65fc4570229812e20ea9ce09702a01",
+        "693fe4f7d2fef9d8084577941e8cef020ff8734a",
+        "02b22f0a2de4ae433047f757b5be63b6709a79a9",
+        "c5a28af7cfb3804088e0b159297ee58309480676",
+        "4f691b4b3af691afa21ae8ae22bb1f49a3d2ed15",
+        "d8f8b641957433e98fa9fd18fe29d6efe2d07f45",
+        "84cb38084f4679ee6ce86e7e648dcd18c8ab1d6c",
+        "4d74e506dd82f13c07fd2e7567a1b9b1fe48d4ee",
+        "33d269c43baeacb4fe45e080587e7a6f9f227060",
+        "9628849c4f8924740a053041540b8ba40587d360",
+        "c6a38f3905003ad12eaddac961ed2506421cb18a"
+      ],
+      "source_head": "c6a38f3905003ad12eaddac961ed2506421cb18a",
+      "source_merge_commit": "2f434cc14faa0d048fd0bc50db660df1ce8d8d5e",
+      "source_prs": [
+        3496
+      ],
+      "target_after": "86d662cd2c81df59e3310108907c681b1cdf5c53",
+      "target_after_tree": "ec73dba429333e7662db85b6444ebde9f2312b28",
+      "target_before": "c3a5812ac6af8d8792321855fdfc91806669f5ef",
+      "target_branch": "release/therock-7.12"
+    },
+    {
+      "analysis_notes": "No positive source provenance; treated as release-native, not a cherry-pick.",
+      "classification": "release_native",
+      "id": "ROCm-rocm-systems-release-therock-7.12-959c7c5a8234",
+      "provenance_method": "none",
+      "repository": "ROCm/rocm-systems",
+      "source_branch": "develop",
+      "source_commits": [],
+      "source_head": null,
+      "source_merge_commit": null,
+      "source_prs": [],
+      "target_after": "959c7c5a8234d186cc5ac111bdedd702b157b179",
+      "target_after_tree": "1c343666ed783ddec42eb15ffd5830137b019fdf",
+      "target_before": "86d662cd2c81df59e3310108907c681b1cdf5c53",
+      "target_branch": "release/therock-7.12"
+    },
+    {
+      "analysis_notes": "Release transition is an explicit revert, not a strict backport.",
+      "classification": "revert",
+      "id": "ROCm-rocm-systems-release-therock-7.12-769135f77f91",
+      "provenance_method": "none",
+      "repository": "ROCm/rocm-systems",
+      "source_branch": "develop",
+      "source_commits": [],
+      "source_head": null,
+      "source_merge_commit": null,
+      "source_prs": [],
+      "target_after": "769135f77f91c2848871c496ffa04e6230ea3674",
+      "target_after_tree": "460ed0ebe7ad7eb4f09e3fba14920d68dd460545",
+      "target_before": "959c7c5a8234d186cc5ac111bdedd702b157b179",
+      "target_branch": "release/therock-7.12"
+    },
+    {
+      "analysis_notes": "No positive source provenance; treated as release-native, not a cherry-pick.",
+      "classification": "release_native",
+      "id": "ROCm-rocm-systems-release-therock-7.14-a5cc42898ca0",
+      "provenance_method": "none",
+      "repository": "ROCm/rocm-systems",
+      "source_branch": "develop",
+      "source_commits": [],
+      "source_head": null,
+      "source_merge_commit": null,
+      "source_prs": [],
+      "target_after": "a5cc42898ca0171bf63df728ddbd1ddf60c6f718",
+      "target_after_tree": "9a37d5726ae02ed81c552a05c83da1cf76576fc0",
+      "target_before": "cd52904912a17fa006bcebddc3ac7e4e32274ab1",
+      "target_branch": "release/therock-7.14"
+    },
+    {
+      "analysis_notes": "One-source replay exactly reproduces the historical tree.",
+      "classification": "strict_exact",
+      "id": "ROCm-rocm-systems-release-therock-7.14-7dc033ad0aee",
+      "provenance_method": "explicit_source_pr",
+      "repository": "ROCm/rocm-systems",
+      "source_branch": "develop",
+      "source_commits": [
+        "b2c3a414003da29618a4603356cf61cf34723447",
+        "8ff96e6e889d67d38b44ec5f978c2d7892aaed21",
+        "af427c21b3509c2d66413c89c83c826787a3af6d",
+        "83078e6d6fb4233a815731c764dc4cd7ed284809",
+        "fe68c2ecd33e211ab6cd0bd7c867c355b7479f06"
+      ],
+      "source_head": "fe68c2ecd33e211ab6cd0bd7c867c355b7479f06",
+      "source_merge_commit": "52aecd177a2678d5ba3c93954ea292582a5c6ee6",
+      "source_prs": [
+        7792
+      ],
+      "target_after": "7dc033ad0aee7081a0ad490ce67cd016dc9c13f7",
+      "target_after_tree": "cf5006f86c3ca4f4e8a02c1804b5c0bf3cbb8bd5",
+      "target_before": "a5cc42898ca0171bf63df728ddbd1ddf60c6f718",
+      "target_branch": "release/therock-7.14"
+    },
+    {
+      "analysis_notes": "One-source replay exactly reproduces the historical tree.",
+      "classification": "strict_exact",
+      "id": "ROCm-rocm-systems-release-therock-7.14-cf929fd25b19",
+      "provenance_method": "explicit_source_pr",
+      "repository": "ROCm/rocm-systems",
+      "source_branch": "develop",
+      "source_commits": [
+        "0f31391d55bd18fc75708c0261f2c51edc4c2d75",
+        "3d1a6bf11c0ce9b636bb8e4abe54fb1e42e2f96b",
+        "7db7fa24bfe833919fff920eb56a698bd73da24a",
+        "380f2c9b8c593400f0e780dfdb20852a84f66aa7",
+        "3fdafd75297813b00b21e23a077e83a390e23681",
+        "067587b56b8aa672ad45b41c7e3e70043396693a"
+      ],
+      "source_head": "067587b56b8aa672ad45b41c7e3e70043396693a",
+      "source_merge_commit": "872b4f60fd158720d10514fc372c90750844545c",
+      "source_prs": [
+        7681
+      ],
+      "target_after": "cf929fd25b195a706aeb38f844bd10a13399537e",
+      "target_after_tree": "5ab2a3162a97b5fb6d2466e77b3b4824b4ae6b4b",
+      "target_before": "7dc033ad0aee7081a0ad490ce67cd016dc9c13f7",
+      "target_branch": "release/therock-7.14"
+    },
+    {
+      "analysis_notes": "One-source replay exactly reproduces the historical tree.",
+      "classification": "strict_exact",
+      "id": "ROCm-rocm-systems-release-therock-7.14-10de68988e38",
+      "provenance_method": "explicit_source_pr",
+      "repository": "ROCm/rocm-systems",
+      "source_branch": "develop",
+      "source_commits": [
+        "bc6dbd63c821d3e785eee107e409ba90058f745d",
+        "76b799de08780be6e6cf97d5f136715d029d08b0",
+        "8816b47423b4aa4cb4e36f2232895348da9612d4",
+        "cd78ca6641e58347000afdd7814dee739647e35f",
+        "785b3047bc7e963d79d2f111a02d9714087ff52e",
+        "2c241a4eab84a1aa75592ade38fc94fa6c751458",
+        "8edae2f881d424e3dca023f0e46ed751c6d66f81",
+        "f15312eb97494015dffb4b14533803ea8e53c63d",
+        "06703ab72d70968cb8ae5b21445803e6f4eb4380",
+        "677a6d3b41f2cbf614aeefea930ae19c6a92f6dc"
+      ],
+      "source_head": "677a6d3b41f2cbf614aeefea930ae19c6a92f6dc",
+      "source_merge_commit": "e707019742a27ef4584bf672a78b854dc287d8e2",
+      "source_prs": [
+        7817
+      ],
+      "target_after": "10de68988e384c36d5a076a14d7c14f8e49c6a79",
+      "target_after_tree": "06cf2e0edf9a2f3c85df96f4158ada24e10117a3",
+      "target_before": "cf929fd25b195a706aeb38f844bd10a13399537e",
+      "target_branch": "release/therock-7.14"
+    },
+    {
+      "analysis_notes": "One-source replay exactly reproduces the historical tree.",
+      "classification": "strict_exact",
+      "id": "ROCm-rocm-systems-release-therock-7.14-c11bf10a673d",
+      "provenance_method": "explicit_source_pr",
+      "repository": "ROCm/rocm-systems",
+      "source_branch": "develop",
+      "source_commits": [
+        "c84f36538a2c8e775fa222001f11338acf580671",
+        "547b320b35d5e8096b6b15d9b1843d8ee6d1d210"
+      ],
+      "source_head": "547b320b35d5e8096b6b15d9b1843d8ee6d1d210",
+      "source_merge_commit": "831fad2ce8616df27149515d5cb5605d13a67bd0",
+      "source_prs": [
+        8077
+      ],
+      "target_after": "c11bf10a673dced0c8c7c01549c2f4a694cd304a",
+      "target_after_tree": "bac8377df11cde5c2dd86ffdd70a43b6212518cc",
+      "target_before": "10de68988e384c36d5a076a14d7c14f8e49c6a79",
+      "target_branch": "release/therock-7.14"
+    },
+    {
+      "analysis_notes": "One-source replay exactly reproduces the historical tree.",
+      "classification": "strict_exact",
+      "id": "ROCm-rocm-systems-release-therock-7.14-53a7a4f3fe60",
+      "provenance_method": "explicit_commit",
+      "repository": "ROCm/rocm-systems",
+      "source_branch": "develop",
+      "source_commits": [
+        "53cb931ef0c05afe9ddbc577b373e401a363467f",
+        "c77b401d99537b46e6aa4574afde404abe114ec8",
+        "8f2c7e9b5e5cbb93c114514ac514d0662c8c66d6",
+        "a253d61d2e0e8987fb0f96228865f267f2add4e8",
+        "37bc5f524b0f7e4bd7b7a6ce96cd44e4ff91c9fb",
+        "ec0b6ca237e2debcdbd2efe27d08b64b9c662c62",
+        "7edea8bccad8d6e09d69b0c86aded04a52ceba75",
+        "86222cff764a09a52a766bd723fa7c359c20288c",
+        "07c1ac02384fad5a2e21d7e07913aa76ade299e1"
+      ],
+      "source_head": "07c1ac02384fad5a2e21d7e07913aa76ade299e1",
+      "source_merge_commit": "6168477bc5d2f5f1a0ca533f6deef136c44327d1",
+      "source_prs": [
+        8093
+      ],
+      "target_after": "53a7a4f3fe6019a551506285f9f2bb86dfddf9b4",
+      "target_after_tree": "3984a9bd37cd5285fa74d104a05e6e8ba54cf48b",
+      "target_before": "c11bf10a673dced0c8c7c01549c2f4a694cd304a",
+      "target_branch": "release/therock-7.14"
+    },
+    {
+      "analysis_notes": "One-source replay exactly reproduces the historical tree.",
+      "classification": "strict_exact",
+      "id": "ROCm-rocm-systems-release-therock-7.14-2b22ab0195cc",
+      "provenance_method": "explicit_source_pr",
+      "repository": "ROCm/rocm-systems",
+      "source_branch": "develop",
+      "source_commits": [
+        "d7ae3577b9a3f910f59b08febfe87e841f539706"
+      ],
+      "source_head": "d7ae3577b9a3f910f59b08febfe87e841f539706",
+      "source_merge_commit": "1dfbe81224bac34d284c03b2f7b89fbdc0850929",
+      "source_prs": [
+        8193
+      ],
+      "target_after": "2b22ab0195cc1461cd9abf3b969e9dd7c10af350",
+      "target_after_tree": "92ce25b6f204f1f714a941a7e7b4caa154ac7bf0",
+      "target_before": "53a7a4f3fe6019a551506285f9f2bb86dfddf9b4",
+      "target_branch": "release/therock-7.14"
+    },
+    {
+      "analysis_notes": "One-source replay exactly reproduces the historical tree.",
+      "classification": "strict_exact",
+      "id": "ROCm-rocm-systems-release-therock-7.14-5148f726e165",
+      "provenance_method": "explicit_source_pr",
+      "repository": "ROCm/rocm-systems",
+      "source_branch": "develop",
+      "source_commits": [
+        "8f14b2a8aa692d4f67e7f24da1b7d454cf118245"
+      ],
+      "source_head": "8f14b2a8aa692d4f67e7f24da1b7d454cf118245",
+      "source_merge_commit": "a585ccb8079fb6a46e9d5ced4913cf440543a051",
+      "source_prs": [
+        8735
+      ],
+      "target_after": "5148f726e165e966cd8e78113edda9302bbd2921",
+      "target_after_tree": "c952fe83da7096e77d689529b7d5ab42b48b3ad3",
+      "target_before": "2b22ab0195cc1461cd9abf3b969e9dd7c10af350",
+      "target_branch": "release/therock-7.14"
+    },
+    {
+      "analysis_notes": "One-source replay exactly reproduces the historical tree.",
+      "classification": "strict_exact",
+      "id": "ROCm-rocm-systems-release-therock-7.14-5402680335d1",
+      "provenance_method": "explicit_source_pr",
+      "repository": "ROCm/rocm-systems",
+      "source_branch": "develop",
+      "source_commits": [
+        "b17c3fd427a23d3c586403ab6e682ebf09b1eeb2",
+        "43fd9a362f19a7bd566ab3ada4b4bd09c03299aa",
+        "800929d9d4459d04673724241cafd824afad2004"
+      ],
+      "source_head": "800929d9d4459d04673724241cafd824afad2004",
+      "source_merge_commit": "22af9e98a3dad737d0a7b153c712622139e5a2e6",
+      "source_prs": [
+        8113
+      ],
+      "target_after": "5402680335d12fa7946fd7ffa5a08fa7f58cde33",
+      "target_after_tree": "45f9adfb652987b19f1e144e5e510922b6756c52",
+      "target_before": "5148f726e165e966cd8e78113edda9302bbd2921",
+      "target_branch": "release/therock-7.14"
+    },
+    {
+      "analysis_notes": "No positive source provenance; treated as release-native, not a cherry-pick.",
+      "classification": "release_native",
+      "id": "ROCm-rocm-systems-release-therock-7.14-ca887ee80abf",
+      "provenance_method": "none",
+      "repository": "ROCm/rocm-systems",
+      "source_branch": "develop",
+      "source_commits": [],
+      "source_head": null,
+      "source_merge_commit": null,
+      "source_prs": [],
+      "target_after": "ca887ee80abfb82671fe1d6d8da708a713438e05",
+      "target_after_tree": "cee5722bd542790f69499dbba818b17f4e70c643",
+      "target_before": "5402680335d12fa7946fd7ffa5a08fa7f58cde33",
+      "target_branch": "release/therock-7.14"
+    },
+    {
+      "analysis_notes": "No positive source provenance; treated as release-native, not a cherry-pick.",
+      "classification": "release_native",
+      "id": "ROCm-rocm-systems-release-therock-10.0-b1959daa9c74",
+      "provenance_method": "none",
+      "repository": "ROCm/rocm-systems",
+      "source_branch": "develop",
+      "source_commits": [],
+      "source_head": null,
+      "source_merge_commit": null,
+      "source_prs": [],
+      "target_after": "b1959daa9c74ef8dbc8013c11f5da327d392eff1",
+      "target_after_tree": "af4b53e673e85c99cb436d5d5008a1d40f3e2ed6",
+      "target_before": "920e5a8a70669d28b930c33fcef2b18c4b47d152",
+      "target_branch": "release/therock-10.0"
+    },
+    {
+      "analysis_notes": "Transition explicitly combines multiple source changes.",
+      "classification": "multi_source_bundle",
+      "id": "ROCm-rocm-systems-release-therock-10.0-6db399a32cf4",
+      "provenance_method": "none",
+      "repository": "ROCm/rocm-systems",
+      "source_branch": "develop",
+      "source_commits": [],
+      "source_head": null,
+      "source_merge_commit": null,
+      "source_prs": [],
+      "target_after": "6db399a32cf45a5d695141c879ddd17128e58215",
+      "target_after_tree": "02bc4b6776621ffcde7016a0997e7d8940da52d6",
+      "target_before": "b1959daa9c74ef8dbc8013c11f5da327d392eff1",
+      "target_branch": "release/therock-10.0"
+    },
+    {
+      "analysis_notes": "One-source replay exactly reproduces the historical tree.",
+      "classification": "strict_exact",
+      "id": "ROCm-rocm-systems-release-therock-10.0-679610cc0086",
+      "provenance_method": "explicit_source_pr",
+      "repository": "ROCm/rocm-systems",
+      "source_branch": "develop",
+      "source_commits": [
+        "b6ead6431487d3d494adfad69ac9752e101fefe4"
+      ],
+      "source_head": "b6ead6431487d3d494adfad69ac9752e101fefe4",
+      "source_merge_commit": "7c1276523cd0143a1ad79a146ec387a3da6392cd",
+      "source_prs": [
+        9444
+      ],
+      "target_after": "679610cc00860c2069d7fd2c6c72648cac0ff84e",
+      "target_after_tree": "d37872c263d95002b732cac9746e979f30b1ec17",
+      "target_before": "6db399a32cf45a5d695141c879ddd17128e58215",
+      "target_branch": "release/therock-10.0"
+    },
+    {
+      "analysis_notes": "One-source replay exactly reproduces the historical tree.",
+      "classification": "strict_exact",
+      "id": "ROCm-rocm-systems-release-therock-10.0-a50677cd18f4",
+      "provenance_method": "explicit_source_pr",
+      "repository": "ROCm/rocm-systems",
+      "source_branch": "develop",
+      "source_commits": [
+        "e56db37df9b51c05254bd0e2644ee8d141f70e4b",
+        "d5c69a2134a97d8ab554d776dd2409bd147b811b",
+        "14ae46f2276b420a1d5fc03087d842bdb540eadf",
+        "d97b335e6e65ce5599384558f363043d26f37b96"
+      ],
+      "source_head": "d97b335e6e65ce5599384558f363043d26f37b96",
+      "source_merge_commit": "cf65ebcdd34c575cc38275bd9469148a86da0ca6",
+      "source_prs": [
+        9473
+      ],
+      "target_after": "a50677cd18f477be49a68ecbbceada0db8cd9ce3",
+      "target_after_tree": "954d855c057e75e349481c1c31c88d1202c42c7e",
+      "target_before": "679610cc00860c2069d7fd2c6c72648cac0ff84e",
+      "target_branch": "release/therock-10.0"
+    },
+    {
+      "analysis_notes": "Transition explicitly combines multiple source changes.",
+      "classification": "multi_source_bundle",
+      "id": "ROCm-rocm-systems-release-therock-10.0-29a694607a6c",
+      "provenance_method": "none",
+      "repository": "ROCm/rocm-systems",
+      "source_branch": "develop",
+      "source_commits": [],
+      "source_head": null,
+      "source_merge_commit": null,
+      "source_prs": [],
+      "target_after": "29a694607a6c735f829e36650fda6fcaec72c4f8",
+      "target_after_tree": "88e1c3e6b2cdea1afc2b1b812d5f42fbe2ffbfa6",
+      "target_before": "a50677cd18f477be49a68ecbbceada0db8cd9ce3",
+      "target_branch": "release/therock-10.0"
+    },
+    {
+      "analysis_notes": "One-source replay exactly reproduces the historical tree.",
+      "classification": "strict_exact",
+      "id": "ROCm-rocm-systems-release-therock-10.0-42a8f71a24f3",
+      "provenance_method": "explicit_source_pr",
+      "repository": "ROCm/rocm-systems",
+      "source_branch": "develop",
+      "source_commits": [
+        "7feb3fac217060987f2bce5b4b35f2374b8d55c7"
+      ],
+      "source_head": "7feb3fac217060987f2bce5b4b35f2374b8d55c7",
+      "source_merge_commit": "54eb48ddcfa27610d3d4c05d6649393b07fd6415",
+      "source_prs": [
+        9669
+      ],
+      "target_after": "42a8f71a24f384320a5019b8fbd478b70607130d",
+      "target_after_tree": "6583a0469a926074aa3557513a51524013e8fe65",
+      "target_before": "29a694607a6c735f829e36650fda6fcaec72c4f8",
+      "target_branch": "release/therock-10.0"
+    },
+    {
+      "analysis_notes": "One-source replay exactly reproduces the historical tree.",
+      "classification": "strict_exact",
+      "id": "ROCm-rocm-systems-release-therock-10.0-7b9bd31b76ff",
+      "provenance_method": "explicit_source_pr",
+      "repository": "ROCm/rocm-systems",
+      "source_branch": "develop",
+      "source_commits": [
+        "e9a87903351f9a05210cf398db3e0ec2557b7a75",
+        "828f36d356217342a978cbe5c0d837078e1a226e",
+        "41907007a442fc8c15addbe01213b0412db145b6",
+        "0f628cf5d2991cb3d088f8b667af8f4b7759b394",
+        "a82dcc83e884afc4b6b81f245863528e62bfc1ef",
+        "339ed9edfa867b38c4cac8cafc2a825b026d93a3",
+        "eb7a435996d65987dd5ce1d9516b68575e8a838a"
+      ],
+      "source_head": "eb7a435996d65987dd5ce1d9516b68575e8a838a",
+      "source_merge_commit": "33d980d7ca1f0bf90cfe4ff9106310abcf47b550",
+      "source_prs": [
+        9583
+      ],
+      "target_after": "7b9bd31b76ff94b6cfc4e6135cccba876e908189",
+      "target_after_tree": "cae7ce1d068c74bf4be10f6d4245eed5b296be75",
+      "target_before": "42a8f71a24f384320a5019b8fbd478b70607130d",
+      "target_branch": "release/therock-10.0"
+    },
+    {
+      "analysis_notes": "One-source replay exactly reproduces the historical tree.",
+      "classification": "strict_exact",
+      "id": "ROCm-rocm-systems-release-therock-10.0-6ccde5dbc271",
+      "provenance_method": "explicit_source_pr",
+      "repository": "ROCm/rocm-systems",
+      "source_branch": "develop",
+      "source_commits": [
+        "dc38c2e2ed47d005a4f45485ba26f54573c2f4f4"
+      ],
+      "source_head": "dc38c2e2ed47d005a4f45485ba26f54573c2f4f4",
+      "source_merge_commit": "5b9a331bd43848e42278689b8e19281ac21d8514",
+      "source_prs": [
+        9472
+      ],
+      "target_after": "6ccde5dbc2714a95f4fa92a7f2d3aa185ed2174b",
+      "target_after_tree": "1933195d1e646da9997d33876a1cf3f13b7cab21",
+      "target_before": "7b9bd31b76ff94b6cfc4e6135cccba876e908189",
+      "target_branch": "release/therock-10.0"
+    },
+    {
+      "analysis_notes": "Transition explicitly combines multiple source changes.",
+      "classification": "multi_source_bundle",
+      "id": "ROCm-rocm-systems-release-therock-10.0-f60b84655e21",
+      "provenance_method": "explicit_commit",
+      "repository": "ROCm/rocm-systems",
+      "source_branch": "develop",
+      "source_commits": [],
+      "source_head": null,
+      "source_merge_commit": null,
+      "source_prs": [],
+      "target_after": "f60b84655e2184667a6ebe098493d85818847d89",
+      "target_after_tree": "a6751d5ee55294aa9e1a1192fe82153d1ce082aa",
+      "target_before": "6ccde5dbc2714a95f4fa92a7f2d3aa185ed2174b",
+      "target_branch": "release/therock-10.0"
+    },
+    {
+      "analysis_notes": "One-source replay exactly reproduces the historical tree.",
+      "classification": "strict_exact",
+      "id": "ROCm-rocm-systems-release-therock-10.0-70fe1eb59d4d",
+      "provenance_method": "explicit_source_pr",
+      "repository": "ROCm/rocm-systems",
+      "source_branch": "develop",
+      "source_commits": [
+        "e9f2627c349f5221e6039ec72a42aaff19374e04",
+        "41fc5b8926f919134b286b654b64376de42603d2",
+        "104d1c0df975a4093faf839e857b23f64edf7ac7",
+        "ed62024743cfea22e93003ecd8475bea20e67990",
+        "983607cf13dad3f0c5e7b1cfa91b514c5bc71f73",
+        "3201b02d304a5fc41bc00716f33f4217ffcf2091",
+        "4586397d957f0daeb32d8e1dd2e47a26215cc465",
+        "2d38f5864230d30de0657c193c7d6caa49545c84",
+        "06fc8a6b256ba2fc794d133b046e55ee9d68d795"
+      ],
+      "source_head": "06fc8a6b256ba2fc794d133b046e55ee9d68d795",
+      "source_merge_commit": "c021eb4b1bbbd7f665b5aff62df6f01127b62bb0",
+      "source_prs": [
+        9363
+      ],
+      "target_after": "70fe1eb59d4d575bedd3fd2403953c438c64acb6",
+      "target_after_tree": "eecc1fac55f290296fe71863ecbe49bee29e0cc1",
+      "target_before": "f60b84655e2184667a6ebe098493d85818847d89",
+      "target_branch": "release/therock-10.0"
+    },
+    {
+      "analysis_notes": "Explicit commit lacks one canonical source PR; diagnostic only.",
+      "classification": "historical_adaptation",
+      "id": "ROCm-rocm-libraries-release-therock-7.12-4534f20f3b19",
+      "provenance_method": "explicit_commit",
+      "repository": "ROCm/rocm-libraries",
+      "source_branch": "develop",
+      "source_commits": [
+        "3d58a508d9cc5f5e5fa5a9c961b9f977fc375658"
+      ],
+      "source_head": "3d58a508d9cc5f5e5fa5a9c961b9f977fc375658",
+      "source_merge_commit": "3d58a508d9cc5f5e5fa5a9c961b9f977fc375658",
+      "source_prs": [],
+      "target_after": "4534f20f3b19c53583d5b463e5ba4225b0806f30",
+      "target_after_tree": "c29cc9406886bc3fffc26e6698409c7c0967d48e",
+      "target_before": "7567d83979edcd7f5f0aad22de23ef71ed78f920",
+      "target_branch": "release/therock-7.12"
+    },
+    {
+      "analysis_notes": "Release transition is an explicit revert, not a strict backport.",
+      "classification": "revert",
+      "id": "ROCm-rocm-libraries-release-therock-7.12-351f63e6df43",
+      "provenance_method": "none",
+      "repository": "ROCm/rocm-libraries",
+      "source_branch": "develop",
+      "source_commits": [],
+      "source_head": null,
+      "source_merge_commit": null,
+      "source_prs": [],
+      "target_after": "351f63e6df43e8e77f18c25fe133bad1cef05f1a",
+      "target_after_tree": "d3e441fed9721a6d7c79b97d83c86b0987a0e3c0",
+      "target_before": "4534f20f3b19c53583d5b463e5ba4225b0806f30",
+      "target_branch": "release/therock-7.12"
+    },
+    {
+      "analysis_notes": "No positive source provenance; treated as release-native, not a cherry-pick.",
+      "classification": "release_native",
+      "id": "ROCm-rocm-libraries-release-therock-7.14-c46807853b5b",
+      "provenance_method": "none",
+      "repository": "ROCm/rocm-libraries",
+      "source_branch": "develop",
+      "source_commits": [],
+      "source_head": null,
+      "source_merge_commit": null,
+      "source_prs": [],
+      "target_after": "c46807853b5bbd857e20ddee304c4c5c0fd6c609",
+      "target_after_tree": "4003a575b6f359a1b97d45c4c88912e51a898295",
+      "target_before": "6a57a446ef2d9194e61c8e5685999dcf5e57de48",
+      "target_branch": "release/therock-7.14"
+    },
+    {
+      "analysis_notes": "Canonical source conflicts with the historical parent; manual result retained diagnostically.",
+      "classification": "manual_resolution",
+      "id": "ROCm-rocm-libraries-release-therock-7.14-c971d54d7aea",
+      "provenance_method": "explicit_source_pr",
+      "repository": "ROCm/rocm-libraries",
+      "source_branch": "develop",
+      "source_commits": [
+        "2bf13aeb791d51bb4ba2e5eabb5ab55092ed1584",
+        "4181e25848a8ea6d1687628d4ebadb817389866c"
+      ],
+      "source_head": "4181e25848a8ea6d1687628d4ebadb817389866c",
+      "source_merge_commit": "c534dd117e1197658ed8c137e6cbe5133b86bfd5",
+      "source_prs": [
+        8988
+      ],
+      "target_after": "c971d54d7aea0d93caca81cd1f5eae2fbbd74dbc",
+      "target_after_tree": "9ab0619d15671a65dbbec483e554472d5d1c6583",
+      "target_before": "c46807853b5bbd857e20ddee304c4c5c0fd6c609",
+      "target_branch": "release/therock-7.14"
+    },
+    {
+      "analysis_notes": "Release transition is an explicit revert, not a strict backport.",
+      "classification": "revert",
+      "id": "ROCm-rocm-libraries-release-therock-7.14-a6950e847349",
+      "provenance_method": "none",
+      "repository": "ROCm/rocm-libraries",
+      "source_branch": "develop",
+      "source_commits": [],
+      "source_head": null,
+      "source_merge_commit": null,
+      "source_prs": [],
+      "target_after": "a6950e8473491c3818f7546773c4c04bac8b5193",
+      "target_after_tree": "faae79156af541011e8f87de01ea99b11fd86551",
+      "target_before": "c971d54d7aea0d93caca81cd1f5eae2fbbd74dbc",
+      "target_branch": "release/therock-7.14"
+    },
+    {
+      "analysis_notes": "One-source replay exactly reproduces the historical tree.",
+      "classification": "strict_exact",
+      "id": "ROCm-rocm-libraries-release-therock-7.14-cd9574023093",
+      "provenance_method": "explicit_source_pr",
+      "repository": "ROCm/rocm-libraries",
+      "source_branch": "develop",
+      "source_commits": [
+        "b0b874b03ad156be582ccc97f1475cdd0a3e3dcd",
+        "9529b290d1dd13a37d961a9fb253f530273b8849",
+        "145d7ab5d11eace6550416b0c4ee3f1f01b5668a"
+      ],
+      "source_head": "145d7ab5d11eace6550416b0c4ee3f1f01b5668a",
+      "source_merge_commit": "47377131eff28bd6786901daecd041f0369ff78c",
+      "source_prs": [
+        9131
+      ],
+      "target_after": "cd9574023093742434e8c992d13b89ab9a6c1cf8",
+      "target_after_tree": "baf070e96ddc7795b54e5d207f890fad59cb4335",
+      "target_before": "a6950e8473491c3818f7546773c4c04bac8b5193",
+      "target_branch": "release/therock-7.14"
+    },
+    {
+      "analysis_notes": "No positive source provenance; treated as release-native, not a cherry-pick.",
+      "classification": "release_native",
+      "id": "ROCm-rocm-libraries-release-therock-10.0-d5561d1bb80f",
+      "provenance_method": "none",
+      "repository": "ROCm/rocm-libraries",
+      "source_branch": "develop",
+      "source_commits": [],
+      "source_head": null,
+      "source_merge_commit": null,
+      "source_prs": [],
+      "target_after": "d5561d1bb80f38761b6b8e49c82b7e02e5cd385c",
+      "target_after_tree": "2788597f2502000198d850e646bb01d4b7fb55f8",
+      "target_before": "eea3da674340fc84af2172241f8b7e3cbe3261e6",
+      "target_branch": "release/therock-10.0"
+    },
+    {
+      "analysis_notes": "One-source replay exactly reproduces the historical tree.",
+      "classification": "strict_exact",
+      "id": "ROCm-rocm-libraries-release-therock-10.0-0a06dbf2f58a",
+      "provenance_method": "explicit_source_pr",
+      "repository": "ROCm/rocm-libraries",
+      "source_branch": "develop",
+      "source_commits": [
+        "16f6d779a31fe4131f34048d41825feecb725aa8",
+        "730d8001f3db6d7788193eded117e134c27cb5bb",
+        "82998642d9c90b2f8f8145ff007777e71d1445e8"
+      ],
+      "source_head": "82998642d9c90b2f8f8145ff007777e71d1445e8",
+      "source_merge_commit": "9aaea2784dd3f66ff4c62a6bf9ce41488f5fa3b7",
+      "source_prs": [
+        10188
+      ],
+      "target_after": "0a06dbf2f58a7dd107eba2a055956fcdcc769518",
+      "target_after_tree": "7c7638658fd152d6d795c5cfa232f3b24d306542",
+      "target_before": "d5561d1bb80f38761b6b8e49c82b7e02e5cd385c",
+      "target_branch": "release/therock-10.0"
+    },
+    {
+      "analysis_notes": "Canonical source conflicts with the historical parent; manual result retained diagnostically.",
+      "classification": "manual_resolution",
+      "id": "ROCm-rocm-libraries-release-therock-10.0-dc74b7eac5b5",
+      "provenance_method": "explicit_source_pr",
+      "repository": "ROCm/rocm-libraries",
+      "source_branch": "develop",
+      "source_commits": [
+        "72afa6473c3ee90820c5d8cfdc3997b95f76e973",
+        "7c2943580143c57fc6cfea1b834ae3db005c395f",
+        "c3ac3ceee3c8c49d8ca3debfd21cd473ae640a8d",
+        "618b5a46820773c5eb37fa505170ec60462c8353",
+        "9a8b18d51c9107070e1c8924c4d8ba0624d3b959",
+        "c0df52c086ee5ca8f299c642fb52d66f6e981b3d",
+        "15aeb1641f266f0c1c8452503c49cb0fd523838b",
+        "9f1dfa239751b990a056501a5088f7148e0f8fa6",
+        "de320a09311d77f49aef6650bbf4217bda8c14ba"
+      ],
+      "source_head": "de320a09311d77f49aef6650bbf4217bda8c14ba",
+      "source_merge_commit": "cf1860557228203baa6516e6844222fa7e3f0355",
+      "source_prs": [
+        10464
+      ],
+      "target_after": "dc74b7eac5b5f00c87bd5c9e254fa8c3758cc5cf",
+      "target_after_tree": "f46bd8350b90db3e04ca50d1a4e54d4a41b43814",
+      "target_before": "0a06dbf2f58a7dd107eba2a055956fcdcc769518",
+      "target_branch": "release/therock-10.0"
+    }
+  ],
+  "schema_version": 1,
+  "snapshots": {
+    "ROCm/TheRock": {
+      "source_branch": "main",
+      "source_tip": "97676f4b949e62b5414444387ec971a35df397d4",
+      "targets": {
+        "release/therock-10.0": "61bb225b69067583de0679d51f1eb26fbcdeb35b",
+        "release/therock-7.12": "3031e31e5c76796d3be83811f9d5c65b6f1f1de4",
+        "release/therock-7.14": "4a4048fdf9a08da9cb2e22f7bae09697b1960430"
+      }
+    },
+    "ROCm/rocm-libraries": {
+      "source_branch": "develop",
+      "source_tip": "3d758396e38ca5c7a43a4f5b2116b27c72c8a749",
+      "targets": {
+        "release/therock-10.0": "dc74b7eac5b5f00c87bd5c9e254fa8c3758cc5cf",
+        "release/therock-7.12": "351f63e6df43e8e77f18c25fe133bad1cef05f1a",
+        "release/therock-7.14": "cd9574023093742434e8c992d13b89ab9a6c1cf8"
+      }
+    },
+    "ROCm/rocm-systems": {
+      "source_branch": "develop",
+      "source_tip": "b6d838028e5b2cdf657c7de38bad36656baf92d4",
+      "targets": {
+        "release/therock-10.0": "70fe1eb59d4d575bedd3fd2403953c438c64acb6",
+        "release/therock-7.12": "769135f77f91c2848871c496ffa04e6230ea3674",
+        "release/therock-7.14": "ca887ee80abfb82671fe1d6d8da708a713438e05"
+      }
+    }
+  }
+}

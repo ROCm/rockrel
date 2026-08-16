@@ -284,10 +284,13 @@ def test_dependency_cherry_pick_url_is_not_the_current_change_provenance():
 def test_contextual_cherry_pick_reference_is_not_a_source_claim():
     mentions = required("mentions_cherry_pick")
 
-    assert mentions(
-        "Adjusting workflow files to support release/therock-7.14 (#7867)",
-        "Pin CI so that cherry pick PRs to this branch run on the release branch.",
-    ) is False
+    assert (
+        mentions(
+            "Adjusting workflow files to support release/therock-7.14 (#7867)",
+            "Pin CI so that cherry pick PRs to this branch run on the release branch.",
+        )
+        is False
+    )
     assert mentions("Cherry-pick required fixes (#201)", "") is True
 
 
@@ -439,9 +442,7 @@ def test_batch_replay_is_bounded_parallel_and_preserves_case_order(
     assert 1 < maximum_active <= 3
     assert worktrees == {
         repository: {
-            tmp_path
-            / ".cherry-pick-replay-worktrees"
-            / repository.split("/", 1)[1]
+            tmp_path / ".cherry-pick-replay-worktrees" / repository.split("/", 1)[1]
         }
         for repository, _source_branch in repositories
     }
@@ -554,9 +555,7 @@ def test_builds_exhaustive_corpus_and_auto_qualifies_only_exact_case(tmp_path):
     assert audit_inventory(manifest, data_root).exit_code == 0
 
 
-def test_corpus_qualification_reuses_persistent_repository_index(
-    monkeypatch, tmp_path
-):
+def test_corpus_qualification_reuses_persistent_repository_index(monkeypatch, tmp_path):
     build = required("build_corpus_manifest")
     mirror_spec = required("MirrorSpec")
     data_root, _release_setup, _target_tip = corpus_repository(tmp_path)
@@ -718,7 +717,9 @@ def test_pull_request_discovery_skips_nested_gitlink_rollups(tmp_path):
     git(path, "config", "user.email", "replay@example.com")
     base = commit_file(path, "base.txt", "base\n", "base")
     git(path, "checkout", "-b", "release/therock-7.14")
-    git(path, "update-index", "--add", "--cacheinfo", f"160000,{base},compiler/amd-llvm")
+    git(
+        path, "update-index", "--add", "--cacheinfo", f"160000,{base},compiler/amd-llvm"
+    )
     git(path, "commit", "-m", "Bump amd-llvm to include cherry-pick (#200)")
     target = git(path, "rev-parse", "HEAD")
     git(path, "update-ref", "refs/remotes/origin/main", base)

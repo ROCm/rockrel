@@ -77,6 +77,43 @@ and distinguish strict exact replays from bundles, manual resolutions, reverts,
 release-native changes, and gitlink adaptations. A conflict or missing object is
 never accepted as proof that the source change was already present.
 
+Freeze an already hydrated corpus without network access:
+
+```bash
+.venv/bin/python scripts/replay_cherry_pick_history.py freeze \
+  --data-root /path/to/replay-data \
+  --manifest scripts/tests/fixtures/historical_cherry_picks.json
+```
+
+Run the full standalone regression suite. `--jobs` bounds concurrent repository
+lanes; cases in the same repository remain serialized and reuse one index:
+
+```bash
+.venv/bin/python scripts/replay_cherry_pick_history.py run \
+  --data-root /path/to/replay-data \
+  --manifest scripts/tests/fixtures/historical_cherry_picks.json \
+  --report-dir /path/to/replay-data/reports \
+  --jobs 4
+```
+
+After interruption—or whenever an operator wants a known clean cache—run:
+
+```bash
+.venv/bin/python scripts/replay_cherry_pick_history.py rollback \
+  --data-root /path/to/replay-data
+```
+
+Rollback does not delete or recreate worktrees. It validates ownership, repairs
+an invalid index from an atomic snapshot or local HEAD, clears sequencer state,
+resets the cached worktree, removes trial-only untracked files, and verifies its
+HEAD/status/tree. A nonzero result is blocking; do not reuse that cache until it
+is understood.
+
+The persistent worktrees can be large, particularly for rocm-libraries. Do not
+delete them during normal regression work: deletion discards the warm-index
+benefit. Any eventual cache deletion is a separate, local, destructive cleanup
+decision and is not part of replay rollback.
+
 ## Conflict or ambiguity
 
 For `blocked_conflict` or `blocked_ambiguous_changeset`:

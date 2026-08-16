@@ -10,8 +10,10 @@ workflow write job has an impossible repository gate, committed train modes are
 non-writing, default API transports deny network access, and the normal CLI
 cannot construct a writer capability.
 
-The controller and its callers now have 203 rockrel tests and 11 source-caller
-tests passing. The remaining activation blocker is measurement of the configured
+The controller and its callers now have 254 rockrel unit tests and 11
+source-caller tests passing. The 77-case standalone historical replay also
+passes with 31 strict exact trees and 46 reviewed diagnostics. The remaining
+activation blocker is measurement of the configured
 90% line/branch coverage threshold: `pytest-cov`/`coverage.py` is not installed
 in any available local Python environment, and the no-network boundary forbids
 downloading it. The unit-test workflow enforces the threshold when a separately
@@ -59,6 +61,8 @@ pre-commit cache were used for Black 25.11.0, mdformat 0.7.21, and actionlint
 | Draft body            | Generated body includes source/destination proof, Jira, dependencies, application, tests, checklist, warning, and identity                                                                      | Closed         |
 | Security              | App manifest omits administration/Actions/Workflows; privileged event paths never execute PR-head code                                                                                          | Closed         |
 | Local safety          | Network-denying defaults, non-writing train modes, impossible write-job gates, and explicit writer capability are tested                                                                        | Closed         |
+| Historical replay     | 77/77 transitions classified; 31/31 strict trees pass; 46 diagnostics include conflicts, adaptations, bundles, reverts, gitlinks, and release-native changes                                    | Closed         |
+| Replay rollback       | Persistent disk indexes, atomic snapshots, corruption recovery, automatic per-case cleanup, and standalone rollback are unit/integration tested                                                 | Closed         |
 | Coverage              | CI enforces 90% line and branch coverage, but the local measurement tool is unavailable and cannot be downloaded                                                                                | **Unverified** |
 
 ## Repository evidence reflected in the implementation
@@ -92,13 +96,20 @@ The work followed the required sequence:
 1. Implement that slice, format with the pinned repository tool, and finish at
    203 passing tests.
 1. Generate thin callers and pass all 11 repository-local caller tests.
+1. Add the historical replay contract red-first, freeze all 77 transitions,
+   and close every evidence gap with positive provenance or reviewed diagnostic
+   classification.
+1. Add persistent rollback/index-corruption tests red-first, then finish with
+   254 unit tests and the standalone historical suite green.
 
 Full commands and commit boundaries are recorded in `tdd-evidence.md`.
 
 ## Activation boundary
 
 All implementation changes, local commits, fixtures, and evidence remain only
-under `/home/jusharri/code/label-driven-cherrypick-automation`. No GitHub/Jira
-call, network Git operation, workflow dispatch, public CI run, branch, label,
-comment, App setting, secret, or pull request was performed. Those tasks are
-listed—but not executed—in `REMOTE_ACTIONS_TODO.md`.
+under `/home/jusharri/code/label-driven-cherrypick-automation`. The sole network
+operation was the documented, read-only hydration of exact official Git refs
+into dedicated local mirrors. No GitHub/Jira mutation, push, workflow dispatch,
+public CI run, public branch, label, comment, App setting, secret, or pull
+request was performed. Those tasks are listed—but not executed—in
+`REMOTE_ACTIONS_TODO.md`.

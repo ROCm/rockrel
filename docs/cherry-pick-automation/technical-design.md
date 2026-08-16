@@ -374,8 +374,31 @@ trees, and manual resolutions are preserved as diagnostic classifications. A
 conflict is never containment evidence. Any strict failure is minimized into a
 synthetic red unit test before an engine correction is made.
 
-The runner emits canonical JSON and Markdown reports with counts by repository,
-branch, and classification; engine status/reason; source, before, planned, and
-historical trees; changed or conflicted paths; and a root-cause category. Exit
-status `0` means the exhaustive strict corpus passed, `1` means a strict replay
-failed, and `2` means evidence or object completeness is insufficient.
+The runner emits canonical JSON and Markdown reports. Each ordered row records
+repository, branch, classification, disposition, engine status/reason,
+destination/planned/historical trees, and a root-cause category; the report
+aggregates disposition counts. Exit status `0` means the exhaustive strict
+corpus passed, `1` means a strict replay failed, and `2` means evidence or
+object completeness is insufficient.
+
+### Persistent replay worktrees and rollback
+
+The data root owns one persistent worktree per repository under
+`.cherry-pick-replay-worktrees/<repository>`. This is derived local cache, not
+a source checkout. The runner parallelizes repository lanes up to `--jobs` and
+serializes cases within a lane. This permits TheRock, rocm-systems, and
+rocm-libraries to replay concurrently without concurrent writes to a shared
+index.
+
+Before and after each trial, the engine validates that the worktree's Git common
+directory belongs to the expected mirror, clears cherry-pick sequencer state,
+resets to the immutable historical parent, removes untracked trial files, and
+requires exact HEAD, clean status, index tree, and destination tree agreement.
+Failure at any point returns blocked evidence.
+
+After a clean rollback, the worktree index is copied to an atomic sidecar
+snapshot. A missing or invalid `DIRC` index is restored from that snapshot. If
+the first snapshot has not yet been created, Git reconstructs a temporary index
+from the local pinned HEAD and atomically installs it; this does not fetch or
+recreate the worktree. The standalone `rollback` command applies this recovery
+to all cached repositories, making interruption recovery explicit and fast.

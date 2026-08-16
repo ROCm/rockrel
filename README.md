@@ -30,6 +30,14 @@ The checked-in automation is not deployed. Its remote-write jobs are
 deliberately impossible to enter during local review, and no committed train is
 in `create-draft` mode.
 
+The offline historical regression runner is
+[`scripts/replay_cherry_pick_history.py`](scripts/replay_cherry_pick_history.py).
+It can freeze a hydrated corpus, replay repository lanes in parallel, and
+quickly roll persistent disk-backed worktrees back to verified clean state
+without rebuilding their indexes. See the
+[operator runbook](docs/cherry-pick-automation/runbook.md#historical-replay-suite)
+for commands and safety boundaries.
+
 ## Release FAQ (Frequently Asked Questions)
 
 ### Why are some packages included in nightly releases but missing from stable releases?
