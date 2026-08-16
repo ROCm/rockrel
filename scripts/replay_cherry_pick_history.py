@@ -42,6 +42,12 @@ def build_parser() -> argparse.ArgumentParser:
     refresh.add_argument("--manifest", type=Path, required=True)
     refresh.add_argument("--allow-read-only-network", action="store_true")
 
+    freeze = subparsers.add_parser(
+        "freeze", description="Freeze a manifest from already hydrated local refs."
+    )
+    freeze.add_argument("--data-root", type=Path, required=True)
+    freeze.add_argument("--manifest", type=Path, required=True)
+
     run = subparsers.add_parser(
         "run", description="Replay a pinned corpus with all network hydration disabled."
     )
@@ -66,6 +72,15 @@ def _refresh(args: argparse.Namespace, stdout: TextIO) -> int:
             allow_read_only_network=args.allow_read_only_network,
             pull_requests=pull_requests[spec.repository],
         )
+    return _freeze(args, stdout, status="corpus_refreshed")
+
+
+def _freeze(
+    args: argparse.Namespace,
+    stdout: TextIO,
+    *,
+    status: str = "corpus_frozen",
+) -> int:
     manifest = build_corpus_manifest(DEFAULT_MIRROR_SPECS, args.data_root)
     args.manifest.parent.mkdir(parents=True, exist_ok=True)
     args.manifest.write_text(
@@ -75,7 +90,7 @@ def _refresh(args: argparse.Namespace, stdout: TextIO) -> int:
     print(
         json.dumps(
             {
-                "status": "corpus_refreshed",
+                "status": status,
                 "manifest": str(args.manifest),
                 "cases": audit.total_count,
                 "strict": audit.strict_count,
@@ -124,6 +139,8 @@ def main(
     try:
         if args.command == "refresh":
             return _refresh(args, stdout)
+        if args.command == "freeze":
+            return _freeze(args, stdout)
         return _run(args, stdout)
     except subprocess.CalledProcessError as exc:
         command = exc.cmd if isinstance(exc.cmd, str) else " ".join(exc.cmd)
