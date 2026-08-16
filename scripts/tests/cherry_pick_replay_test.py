@@ -188,6 +188,44 @@ def test_manifest_audit_blocks_unresolved_cases():
             (),
             "explicit_source_pr",
         ),
+        (
+            "[CherryPick] Fix dependency (#4043)",
+            "Cherrypick of https://github.com/ROCm/TheRock/pull/4033",
+            (4033,),
+            (),
+            "explicit_source_pr",
+        ),
+        (
+            "rocr: Cache probes (#4048)",
+            "ROCM-2928 (cherry-picking\n[https://github.com/ROCm/rocm-systems/pull/3508])",
+            (3508,),
+            (),
+            "explicit_source_pr",
+        ),
+        (
+            "fix(jax): cherry-pick release fixes (#7074)",
+            "Cherry-picks required fixes from main into\nrelease/therock-10.0:\n\n#6956 — first\n#6968 — second",
+            (6956, 6968),
+            (),
+            "explicit_source_pr",
+        ),
+        (
+            "Workflow pinning (#5551)",
+            "3. Cherry-pick [3d58a508d9cc5f5e5fa5a9c961b9f977fc375658\n](https://github.com/ROCm/rocm-libraries/commit/3d58a508d9cc5f5e5fa5a9c961b9f977fc375658)",
+            (),
+            ("3d58a508d9cc5f5e5fa5a9c961b9f977fc375658",),
+            "explicit_commit",
+        ),
+        (
+            "rocjitsu bump (#9880)",
+            "## Original commits\n\n* 41bdeac5c11c7c8a5d86dde74ae47c013a04eb5e\n* 74324f666a320b5f0ce38043b7049bc4105a5b72",
+            (),
+            (
+                "41bdeac5c11c7c8a5d86dde74ae47c013a04eb5e",
+                "74324f666a320b5f0ce38043b7049bc4105a5b72",
+            ),
+            "explicit_commit",
+        ),
     ],
 )
 def test_extracts_only_explicit_historical_provenance(
@@ -220,6 +258,24 @@ def test_unqualified_body_urls_and_shas_are_not_source_provenance():
     )
     assert result.source_prs == (6054,)
     assert result.source_commits == ()
+
+
+def test_contextual_cherry_pick_reference_is_not_a_source_claim():
+    mentions = required("mentions_cherry_pick")
+
+    assert mentions(
+        "Adjusting workflow files to support release/therock-7.14 (#7867)",
+        "Pin CI so that cherry pick PRs to this branch run on the release branch.",
+    ) is False
+    assert mentions("Cherry-pick required fixes (#201)", "") is True
+
+
+def test_explicit_plural_cherry_pick_title_is_a_multi_source_claim():
+    claimed_bundle = required("is_multi_source_claim")
+
+    assert claimed_bundle("Cherry-pick commits needed for Hotswap v2 (#9624)")
+    assert claimed_bundle("cherry picks for Hotswap improvements (#9786)")
+    assert not claimed_bundle("Cherry-pick required fixes (#201)")
 
 
 def test_conventional_revert_title_is_diagnostic_not_source_provenance():
@@ -531,6 +587,72 @@ def test_pull_request_discovery_skips_cross_repository_gitlink_rollups(tmp_path)
 
     result = discover((spec,), path.parent)
     assert result == {"ROCm/TheRock": ()}
+
+
+def test_pull_request_discovery_skips_nested_gitlink_rollups(tmp_path):
+    build = required("build_corpus_manifest")
+    discover = required("discover_corpus_pull_requests")
+    mirror_spec = required("MirrorSpec")
+    path = tmp_path / "data" / "TheRock.git"
+    path.mkdir(parents=True)
+    git(path, "init", "-b", "main")
+    git(path, "config", "user.name", "Replay Test")
+    git(path, "config", "user.email", "replay@example.com")
+    base = commit_file(path, "base.txt", "base\n", "base")
+    git(path, "checkout", "-b", "release/therock-7.14")
+    git(path, "update-index", "--add", "--cacheinfo", f"160000,{base},compiler/amd-llvm")
+    git(path, "commit", "-m", "Bump amd-llvm to include cherry-pick (#200)")
+    target = git(path, "rev-parse", "HEAD")
+    git(path, "update-ref", "refs/remotes/origin/main", base)
+    git(
+        path,
+        "update-ref",
+        "refs/remotes/origin/release/therock-7.14",
+        target,
+    )
+    spec = mirror_spec(
+        repository="ROCm/TheRock",
+        source_branch="main",
+        target_branches=("release/therock-7.14",),
+    )
+
+    result = discover((spec,), path.parent)
+    manifest = build((spec,), path.parent)
+    case = next(item for item in manifest.cases if item.target_after == target)
+
+    assert result == {"ROCm/TheRock": ()}
+    assert case.classification.value == "gitlink_rollup"
+
+
+def test_corpus_classifies_explicit_plural_cherry_pick_as_bundle(tmp_path):
+    build = required("build_corpus_manifest")
+    mirror_spec = required("MirrorSpec")
+    data_root, _release_setup, target_tip = corpus_repository(tmp_path)
+    path = data_root / "TheRock.git"
+    git(path, "checkout", "release/therock-7.14")
+    assert git(path, "rev-parse", "HEAD") == target_tip
+    bundle = commit_file(
+        path,
+        "bundle.txt",
+        "bundle\n",
+        "Cherry-pick commits needed for Hotswap (#201)",
+    )
+    git(
+        path,
+        "update-ref",
+        "refs/remotes/origin/release/therock-7.14",
+        bundle,
+    )
+    spec = mirror_spec(
+        repository="ROCm/TheRock",
+        source_branch="main",
+        target_branches=("release/therock-7.14",),
+    )
+
+    manifest = build((spec,), data_root)
+    case = next(item for item in manifest.cases if item.target_after == bundle)
+
+    assert case.classification.value == "multi_source_bundle"
 
 
 def test_corpus_leaves_cherry_pick_claim_without_source_identity_unresolved(tmp_path):
