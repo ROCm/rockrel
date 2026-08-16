@@ -7,6 +7,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import subprocess
 import sys
 from collections.abc import Sequence
 from pathlib import Path
@@ -124,6 +125,13 @@ def main(
         if args.command == "refresh":
             return _refresh(args, stdout)
         return _run(args, stdout)
+    except subprocess.CalledProcessError as exc:
+        command = exc.cmd if isinstance(exc.cmd, str) else " ".join(exc.cmd)
+        print(
+            f"error: {command} failed with exit status {exc.returncode}",
+            file=stderr,
+        )
+        return 2
     except (OSError, PermissionError, ValueError) as exc:
         print(f"error: {exc}", file=stderr)
         return 2
