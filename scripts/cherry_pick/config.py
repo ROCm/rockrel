@@ -11,7 +11,6 @@ import subprocess
 from dataclasses import dataclass
 from pathlib import Path
 
-
 SUPPORTED_REPOSITORIES = frozenset(
     {"ROCm/TheRock", "ROCm/rocm-systems", "ROCm/rocm-libraries"}
 )
@@ -74,12 +73,12 @@ def _required_string(value: dict[str, object], key: str, context: str) -> str:
     return item
 
 
-def _valid_branch(branch: str) -> bool:
+def valid_branch_name(branch: str) -> bool:
     """Delegate branch syntax to Git's canonical ref-format implementation."""
 
     # Git accepts ``@`` as a branch name, but Git also interprets it as HEAD in
     # revision arguments. Reject that ambiguous spelling at the trust boundary.
-    if branch == "@":
+    if branch == "@" or branch.startswith("refs/"):
         return False
     result = subprocess.run(
         ["git", "check-ref-format", "--branch", branch],
@@ -90,6 +89,9 @@ def _valid_branch(branch: str) -> bool:
         stdin=subprocess.DEVNULL,
     )
     return result.returncode == 0
+
+
+_valid_branch = valid_branch_name
 
 
 def _parse_source_branches(raw: object, context: str) -> tuple[str, ...]:

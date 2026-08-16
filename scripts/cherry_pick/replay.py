@@ -16,8 +16,11 @@ from dataclasses import dataclass
 from enum import StrEnum
 from pathlib import Path
 
+from .config import valid_branch_name
 from .git import (
     ChangesetError,
+    SourceIdentity,
+    WorktreeStateError,
     evaluate_changeset,
     prove_changeset,
     rollback_replay_worktree,
@@ -85,6 +88,19 @@ class ReplayDisposition(StrEnum):
     DIAGNOSTIC = "diagnostic"
     STRICT_FAILURE = "strict_failure"
     EVIDENCE_GAP = "evidence_gap"
+
+
+class ReplayExecutionPhase(StrEnum):
+    """Deepest production behavior a reviewed case is expected to exercise."""
+
+    INVENTORY = "inventory"
+    CORE = "core"
+    COMPONENT = "component"
+
+
+class ReplayTier(StrEnum):
+    FAST = "fast"
+    DEEP = "deep"
 
 
 def _object(value: object, context: str) -> dict[str, object]:
@@ -310,6 +326,220 @@ class CorpusManifest:
             },
             "cases": [case.as_dict() for case in self.cases],
         }
+
+
+def _optional_string(value: object, context: str) -> str | None:
+    if value is None:
+        return None
+    return _string(value, context)
+
+
+def _string_list(value: object, context: str) -> tuple[str, ...]:
+    if not isinstance(value, list) or any(
+        not isinstance(item, str) or not item for item in value
+    ):
+        raise ValueError(f"{context} must be a list of non-empty strings")
+    return tuple(value)
+
+
+@dataclass(frozen=True)
+class ReplayExpectation:
+    """Human-reviewed expected behavior for one immutable inventory case."""
+
+    execution_phase: ReplayExecutionPhase
+    expected_status: str | None
+    expected_reason: str
+    expected_planned_tree: str | None
+    expected_conflict_paths: tuple[str, ...]
+    expected_after_status: str | None
+    expected_after_reason: str | None
+    expected_tip_status: str | None
+    expected_tip_reason: str | None
+    tier: ReplayTier
+
+    @classmethod
+    def from_dict(cls, raw: object) -> "ReplayExpectation":
+        value = _object(raw, "replay expectation")
+        expected_keys = {
+            "execution_phase",
+            "expected_status",
+            "expected_reason",
+            "expected_planned_tree",
+            "expected_conflict_paths",
+            "expected_after_status",
+            "expected_after_reason",
+            "expected_tip_status",
+            "expected_tip_reason",
+            "tier",
+        }
+        unsupported = set(value) - expected_keys
+        if unsupported:
+            raise ValueError(
+                "replay expectation contains unsupported fields: "
+                + ", ".join(sorted(unsupported))
+            )
+        try:
+            phase = ReplayExecutionPhase(value.get("execution_phase"))
+            tier = ReplayTier(value.get("tier"))
+        except (TypeError, ValueError) as exc:
+            raise ValueError("replay expectation phase or tier is unknown") from exc
+        status = _optional_string(value.get("expected_status"), "expected status")
+        reason = _string(value.get("expected_reason"), "expected reason")
+        planned_tree = _sha(
+            value.get("expected_planned_tree"),
+            "expected planned tree",
+            optional=True,
+        )
+        conflict_paths = _string_list(
+            value.get("expected_conflict_paths"), "expected conflict paths"
+        )
+        after_status = _optional_string(
+            value.get("expected_after_status"), "expected after status"
+        )
+        after_reason = _optional_string(
+            value.get("expected_after_reason"), "expected after reason"
+        )
+        tip_status = _optional_string(
+            value.get("expected_tip_status"), "expected tip status"
+        )
+        tip_reason = _optional_string(
+            value.get("expected_tip_reason"), "expected tip reason"
+        )
+        if phase is ReplayExecutionPhase.INVENTORY and status is not None:
+            raise ValueError("inventory expectation status must be null")
+        if phase is not ReplayExecutionPhase.INVENTORY and status is None:
+            raise ValueError("executed expectation status must not be null")
+        if (after_status is None) != (after_reason is None):
+            raise ValueError("after status and reason must both be set or null")
+        if (tip_status is None) != (tip_reason is None):
+            raise ValueError("tip status and reason must both be set or null")
+        return cls(
+            execution_phase=phase,
+            expected_status=status,
+            expected_reason=reason,
+            expected_planned_tree=(
+                str(planned_tree) if planned_tree is not None else None
+            ),
+            expected_conflict_paths=conflict_paths,
+            expected_after_status=after_status,
+            expected_after_reason=after_reason,
+            expected_tip_status=tip_status,
+            expected_tip_reason=tip_reason,
+            tier=tier,
+        )
+
+    def as_dict(self) -> dict[str, object]:
+        return {
+            "execution_phase": self.execution_phase.value,
+            "expected_status": self.expected_status,
+            "expected_reason": self.expected_reason,
+            "expected_planned_tree": self.expected_planned_tree,
+            "expected_conflict_paths": list(self.expected_conflict_paths),
+            "expected_after_status": self.expected_after_status,
+            "expected_after_reason": self.expected_after_reason,
+            "expected_tip_status": self.expected_tip_status,
+            "expected_tip_reason": self.expected_tip_reason,
+            "tier": self.tier.value,
+        }
+
+    def included_in(self, tier: ReplayTier) -> bool:
+        return tier is ReplayTier.DEEP or self.tier is ReplayTier.FAST
+
+
+@dataclass(frozen=True)
+class ReviewedCorpus:
+    """Schema-v2 inventory plus case-complete immutable expectations."""
+
+    schema_version: int
+    inventory: CorpusManifest
+    expectations: dict[str, ReplayExpectation]
+
+    @classmethod
+    def from_dict(cls, raw: object) -> "ReviewedCorpus":
+        value = _object(raw, "reviewed corpus")
+        if value.get("schema_version") != 2:
+            raise ValueError("reviewed corpus schema_version must be 2")
+        inventory = CorpusManifest.from_dict(value.get("inventory"))
+        expectation_value = _object(
+            value.get("expectations"), "reviewed corpus expectations"
+        )
+        expectations = {
+            _string(case_id, "expectation case id"): ReplayExpectation.from_dict(
+                expectation
+            )
+            for case_id, expectation in expectation_value.items()
+        }
+        case_ids = {case.id for case in inventory.cases}
+        expectation_ids = set(expectations)
+        if case_ids != expectation_ids:
+            missing = sorted(case_ids - expectation_ids)
+            extra = sorted(expectation_ids - case_ids)
+            detail = []
+            if missing:
+                detail.append("missing " + ", ".join(missing))
+            if extra:
+                detail.append("unexpected " + ", ".join(extra))
+            raise ValueError(
+                "reviewed corpus expectation mismatch: " + "; ".join(detail)
+            )
+        return cls(schema_version=2, inventory=inventory, expectations=expectations)
+
+    def as_dict(self) -> dict[str, object]:
+        return {
+            "schema_version": self.schema_version,
+            "inventory": self.inventory.as_dict(),
+            "expectations": {
+                case_id: expectation.as_dict()
+                for case_id, expectation in self.expectations.items()
+            },
+        }
+
+
+@dataclass(frozen=True)
+class ManifestComparison:
+    added_case_ids: tuple[str, ...]
+    removed_case_ids: tuple[str, ...]
+    changed_case_ids: tuple[str, ...]
+    snapshot_changed: bool
+    exit_code: int
+
+    def as_dict(self) -> dict[str, object]:
+        return {
+            "added_case_ids": list(self.added_case_ids),
+            "removed_case_ids": list(self.removed_case_ids),
+            "changed_case_ids": list(self.changed_case_ids),
+            "snapshot_changed": self.snapshot_changed,
+            "exit_code": self.exit_code,
+        }
+
+
+def compare_candidate_to_golden(
+    candidate: CorpusManifest,
+    golden: ReviewedCorpus,
+) -> ManifestComparison:
+    """Detect every inventory drift without consulting current engine outcomes."""
+
+    candidate_cases = {case.id: case.as_dict() for case in candidate.cases}
+    golden_cases = {case.id: case.as_dict() for case in golden.inventory.cases}
+    candidate_ids = set(candidate_cases)
+    golden_ids = set(golden_cases)
+    added = tuple(sorted(candidate_ids - golden_ids))
+    removed = tuple(sorted(golden_ids - candidate_ids))
+    changed = tuple(
+        sorted(
+            case_id
+            for case_id in candidate_ids & golden_ids
+            if candidate_cases[case_id] != golden_cases[case_id]
+        )
+    )
+    snapshot_changed = candidate.snapshots != golden.inventory.snapshots
+    return ManifestComparison(
+        added_case_ids=added,
+        removed_case_ids=removed,
+        changed_case_ids=changed,
+        snapshot_changed=snapshot_changed,
+        exit_code=2 if added or removed or changed or snapshot_changed else 0,
+    )
 
 
 @dataclass(frozen=True)
@@ -592,6 +822,15 @@ class ReplayOutcome:
     historical_tree: str
     strict_failure: bool
     root_cause: str
+    execution_phase: str = "core"
+    conflict_paths: tuple[str, ...] = ()
+    postmerge_status: str | None = None
+    postmerge_reason: str | None = None
+    tip_status: str | None = None
+    tip_reason: str | None = None
+    expected_status: str | None = None
+    expected_reason: str | None = None
+    expectation_mismatches: tuple[str, ...] = ()
 
     def as_dict(self) -> dict[str, object]:
         return {
@@ -607,6 +846,15 @@ class ReplayOutcome:
             "historical_tree": self.historical_tree,
             "strict_failure": self.strict_failure,
             "root_cause": self.root_cause,
+            "execution_phase": self.execution_phase,
+            "conflict_paths": list(self.conflict_paths),
+            "postmerge_status": self.postmerge_status,
+            "postmerge_reason": self.postmerge_reason,
+            "tip_status": self.tip_status,
+            "tip_reason": self.tip_reason,
+            "expected_status": self.expected_status,
+            "expected_reason": self.expected_reason,
+            "expectation_mismatches": list(self.expectation_mismatches),
         }
 
 
@@ -619,6 +867,15 @@ def _outcome(
     engine_reason: str | None = None,
     destination_tree: str | None = None,
     planned_tree: str | None = None,
+    execution_phase: str = "core",
+    conflict_paths: tuple[str, ...] = (),
+    postmerge_status: str | None = None,
+    postmerge_reason: str | None = None,
+    tip_status: str | None = None,
+    tip_reason: str | None = None,
+    expected_status: str | None = None,
+    expected_reason: str | None = None,
+    expectation_mismatches: tuple[str, ...] = (),
 ) -> ReplayOutcome:
     return ReplayOutcome(
         case_id=case.id,
@@ -633,6 +890,15 @@ def _outcome(
         historical_tree=case.target_after_tree,
         strict_failure=disposition is ReplayDisposition.STRICT_FAILURE,
         root_cause=root_cause,
+        execution_phase=execution_phase,
+        conflict_paths=conflict_paths,
+        postmerge_status=postmerge_status,
+        postmerge_reason=postmerge_reason,
+        tip_status=tip_status,
+        tip_reason=tip_reason,
+        expected_status=expected_status,
+        expected_reason=expected_reason,
+        expectation_mismatches=expectation_mismatches,
     )
 
 
@@ -698,6 +964,12 @@ def run_replay_case(
     planned_tree = result.evidence.get("planned_tree")
     destination_value = destination_tree if isinstance(destination_tree, str) else None
     planned_value = planned_tree if isinstance(planned_tree, str) else None
+    conflict_value = result.evidence.get("conflict_paths")
+    conflict_paths = (
+        tuple(item for item in conflict_value if isinstance(item, str))
+        if isinstance(conflict_value, list)
+        else ()
+    )
     if not strict:
         return _outcome(
             case,
@@ -707,6 +979,7 @@ def run_replay_case(
             engine_reason=result.reason_code,
             destination_tree=destination_value,
             planned_tree=planned_value,
+            conflict_paths=conflict_paths,
         )
     if result.status is Status.BLOCKED_EVIDENCE:
         return _outcome(
@@ -717,6 +990,7 @@ def run_replay_case(
             engine_reason=result.reason_code,
             destination_tree=destination_value,
             planned_tree=planned_value,
+            conflict_paths=conflict_paths,
         )
     if result.status is not Status.DRAFT_PLANNED:
         return _outcome(
@@ -727,6 +1001,7 @@ def run_replay_case(
             engine_reason=result.reason_code,
             destination_tree=destination_value,
             planned_tree=planned_value,
+            conflict_paths=conflict_paths,
         )
     if planned_value != case.target_after_tree:
         return _outcome(
@@ -737,6 +1012,7 @@ def run_replay_case(
             engine_reason=result.reason_code,
             destination_tree=destination_value,
             planned_tree=planned_value,
+            conflict_paths=conflict_paths,
         )
     return _outcome(
         case,
@@ -746,7 +1022,192 @@ def run_replay_case(
         engine_reason=result.reason_code,
         destination_tree=destination_value,
         planned_tree=planned_value,
+        conflict_paths=conflict_paths,
     )
+
+
+def _source_identity(case: HistoricalReplayCase) -> SourceIdentity | None:
+    if len(case.source_prs) != 1 or case.source_merge_commit is None:
+        return None
+    return SourceIdentity(
+        repository=case.repository,
+        pull_number=case.source_prs[0],
+        merge_commit=case.source_merge_commit,
+    )
+
+
+def run_reviewed_case(
+    repo: str | Path,
+    case: HistoricalReplayCase,
+    expectation: ReplayExpectation,
+    *,
+    target_tip: str,
+    worktree_path: str | Path | None = None,
+) -> ReplayOutcome:
+    """Run one case against immutable forward and containment expectations."""
+
+    if expectation.execution_phase is ReplayExecutionPhase.INVENTORY:
+        return _outcome(
+            case,
+            ReplayDisposition.DIAGNOSTIC,
+            expectation.expected_reason,
+            execution_phase=expectation.execution_phase.value,
+            expected_status=expectation.expected_status,
+            expected_reason=expectation.expected_reason,
+        )
+
+    base = run_replay_case(repo, case, worktree_path=worktree_path)
+    postmerge_status = None
+    postmerge_reason = None
+    tip_status = None
+    tip_reason = None
+    if expectation.expected_after_status is not None:
+        try:
+            if (
+                case.source_merge_commit is None
+                or case.source_head is None
+                or not case.source_commits
+            ):
+                raise ChangesetError("reviewed containment source evidence missing")
+            changeset = prove_changeset(
+                repo,
+                case.source_merge_commit,
+                case.source_head,
+                case.source_commits,
+            )
+            identity = _source_identity(case)
+            after = evaluate_changeset(
+                repo,
+                changeset,
+                case.target_after,
+                worktree_path=worktree_path,
+                source_identity=identity,
+            )
+            postmerge_status = after.status.value
+            postmerge_reason = after.reason_code
+            tip = evaluate_changeset(
+                repo,
+                changeset,
+                target_tip,
+                worktree_path=worktree_path,
+                source_identity=identity,
+            )
+            tip_status = tip.status.value
+            tip_reason = tip.reason_code
+        except (ChangesetError, OSError, WorktreeStateError):
+            postmerge_status = "blocked_evidence"
+            postmerge_reason = "reviewed_containment_evidence_unavailable"
+            tip_status = postmerge_status
+            tip_reason = postmerge_reason
+
+    comparisons = (
+        ("engine_status", base.engine_status, expectation.expected_status),
+        ("engine_reason", base.engine_reason, expectation.expected_reason),
+        (
+            "planned_tree",
+            base.planned_tree,
+            expectation.expected_planned_tree,
+        ),
+        (
+            "conflict_paths",
+            tuple(base.conflict_paths),
+            expectation.expected_conflict_paths,
+        ),
+        (
+            "postmerge_status",
+            postmerge_status,
+            expectation.expected_after_status,
+        ),
+        (
+            "postmerge_reason",
+            postmerge_reason,
+            expectation.expected_after_reason,
+        ),
+        ("tip_status", tip_status, expectation.expected_tip_status),
+        ("tip_reason", tip_reason, expectation.expected_tip_reason),
+    )
+    mismatches = tuple(
+        name for name, actual, expected in comparisons if actual != expected
+    )
+    disposition = ReplayDisposition.STRICT_FAILURE if mismatches else base.disposition
+    return _outcome(
+        case,
+        disposition,
+        "reviewed_expectation_mismatch" if mismatches else "reviewed_expectation_match",
+        engine_status=base.engine_status,
+        engine_reason=base.engine_reason,
+        destination_tree=base.destination_tree,
+        planned_tree=base.planned_tree,
+        execution_phase=expectation.execution_phase.value,
+        conflict_paths=base.conflict_paths,
+        postmerge_status=postmerge_status,
+        postmerge_reason=postmerge_reason,
+        tip_status=tip_status,
+        tip_reason=tip_reason,
+        expected_status=expectation.expected_status,
+        expected_reason=expectation.expected_reason,
+        expectation_mismatches=mismatches,
+    )
+
+
+def run_reviewed_cases(
+    data_root: str | Path,
+    corpus: ReviewedCorpus,
+    *,
+    tier: ReplayTier | str = ReplayTier.FAST,
+    jobs: int = 4,
+) -> tuple[ReplayOutcome, ...]:
+    """Replay a reviewed tier concurrently with deterministic manifest order."""
+
+    selected_tier = ReplayTier(tier)
+    selected = tuple(
+        (index, case, corpus.expectations[case.id])
+        for index, case in enumerate(corpus.inventory.cases)
+        if corpus.expectations[case.id].included_in(selected_tier)
+    )
+    if jobs < 1:
+        raise ValueError("replay jobs must be at least 1")
+    root = Path(data_root)
+    grouped: dict[str, list[tuple[int, HistoricalReplayCase, ReplayExpectation]]] = {}
+    for item in selected:
+        grouped.setdefault(item[1].repository, []).append(item)
+
+    def execute_group(
+        item: tuple[str, list[tuple[int, HistoricalReplayCase, ReplayExpectation]]],
+    ) -> tuple[tuple[int, ReplayOutcome], ...]:
+        repository, cases = item
+        slug = repository.split("/", 1)[1]
+        repo = root / f"{slug}.git"
+        worktree = root / ".cherry-pick-replay-worktrees" / slug
+        snapshot = corpus.inventory.snapshots[repository]
+        return tuple(
+            (
+                index,
+                run_reviewed_case(
+                    repo,
+                    case,
+                    expectation,
+                    target_tip=snapshot.targets[case.target_branch],
+                    worktree_path=worktree,
+                ),
+            )
+            for index, case, expectation in cases
+        )
+
+    groups = tuple(grouped.items())
+    if jobs == 1 or len(groups) <= 1:
+        indexed = tuple(outcome for group in groups for outcome in execute_group(group))
+    else:
+        with ThreadPoolExecutor(
+            max_workers=min(jobs, len(groups)),
+            thread_name_prefix="reviewed-cherry-pick-replay",
+        ) as executor:
+            indexed = tuple(
+                outcome
+                for group_outcomes in executor.map(execute_group, groups)
+                for outcome in group_outcomes
+            )
+    return tuple(outcome for _index, outcome in sorted(indexed))
 
 
 def run_replay_cases(
@@ -836,10 +1297,12 @@ class ReplayReport:
         return cls(values, dict(sorted(counts.items())), exit_code)
 
     def as_dict(self) -> dict[str, object]:
+        execution_counts = Counter(outcome.execution_phase for outcome in self.outcomes)
         return {
-            "schema_version": 1,
+            "schema_version": 2,
             "exit_code": self.exit_code,
             "counts": dict(self.counts),
+            "execution_counts": dict(sorted(execution_counts.items())),
             "outcomes": [outcome.as_dict() for outcome in self.outcomes],
         }
 
@@ -861,9 +1324,16 @@ def render_markdown_report(report: ReplayReport) -> str:
         f"- Strict eligible: {strict_passed}/{strict_total} passed",
         f"- Evidence gaps: {evidence_gaps}",
         f"- Exit code: {report.exit_code}",
+        "- Execution depth: "
+        + ", ".join(
+            f"{phase}={count}"
+            for phase, count in sorted(
+                Counter(item.execution_phase for item in report.outcomes).items()
+            )
+        ),
         "",
-        "| Case | Repository | Branch | Classification | Result | Root cause |",
-        "| --- | --- | --- | --- | --- | --- |",
+        "| Case | Repository | Branch | Classification | Phase | Result | Root cause |",
+        "| --- | --- | --- | --- | --- | --- | --- |",
     ]
     for outcome in report.outcomes:
         lines.append(
@@ -874,6 +1344,7 @@ def render_markdown_report(report: ReplayReport) -> str:
                     outcome.repository,
                     outcome.target_branch,
                     outcome.classification.value,
+                    outcome.execution_phase,
                     outcome.disposition.value,
                     outcome.root_cause,
                 )
@@ -904,8 +1375,8 @@ class MirrorSpec:
         ):
             raise ValueError("target branches must be a non-empty unique sequence")
         for branch in self.target_branches:
-            if not re.fullmatch(r"release/therock-[A-Za-z0-9._-]+", branch):
-                raise ValueError(f"target branch {branch!r} is not supported")
+            if not valid_branch_name(branch):
+                raise ValueError(f"target branch {branch!r} is not a safe Git branch")
 
     @property
     def url(self) -> str:
@@ -1466,6 +1937,12 @@ def load_manifest(path: str | Path) -> CorpusManifest:
     """Load a manifest while retaining strict schema validation."""
 
     return CorpusManifest.from_dict(json.loads(Path(path).read_text()))
+
+
+def load_reviewed_corpus(path: str | Path) -> ReviewedCorpus:
+    """Load immutable schema-v2 expectations for offline execution."""
+
+    return ReviewedCorpus.from_dict(json.loads(Path(path).read_text()))
 
 
 def write_replay_reports(report: ReplayReport, report_dir: str | Path) -> None:

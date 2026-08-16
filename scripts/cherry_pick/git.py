@@ -6,6 +6,7 @@
 from __future__ import annotations
 
 import os
+import re
 import shutil
 import subprocess
 import tempfile
@@ -57,6 +58,23 @@ class Changeset:
     aggregate_head: str
     mainline: int | None
     proof: ChangesetProof
+
+
+@dataclass(frozen=True)
+class SourceIdentity:
+    """Canonical identity used to prove a prior destination application."""
+
+    repository: str
+    pull_number: int
+    merge_commit: str
+
+    def __post_init__(self) -> None:
+        if re.fullmatch(r"[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+", self.repository) is None:
+            raise ValueError("source repository must be an OWNER/REPO slug")
+        if self.pull_number < 1:
+            raise ValueError("source pull number must be positive")
+        if re.fullmatch(r"[0-9a-f]{40}", self.merge_commit) is None:
+            raise ValueError("source merge commit must be a full lowercase SHA")
 
 
 def _run(
@@ -290,6 +308,137 @@ def _is_ancestor(repo: Path, ancestor: str, descendant: str) -> bool | None:
     return None
 
 
+def _conflict_evidence(worktree: Path) -> dict[str, object]:
+    result = _run(worktree, "ls-files", "-u", "-z")
+    stages: dict[str, set[int]] = {}
+    if result.returncode == 0:
+        for record in result.stdout.split("\0"):
+            metadata, separator, path = record.partition("\t")
+            fields = metadata.split()
+            if not separator or len(fields) != 3:
+                continue
+            try:
+                stage = int(fields[2])
+            except ValueError:
+                continue
+            stages.setdefault(path, set()).add(stage)
+    return {
+        "conflicted": True,
+        "conflict_paths": sorted(stages),
+        "conflict_stages": {
+            path: sorted(values) for path, values in sorted(stages.items())
+        },
+    }
+
+
+def _identity_candidates(
+    repo: Path,
+    target: str,
+    identity: SourceIdentity,
+) -> tuple[str, ...]:
+    patterns = (
+        identity.merge_commit,
+        f"https://github.com/{identity.repository}/pull/{identity.pull_number}",
+        f"cherry-pick #{identity.pull_number}",
+        f"cherry pick #{identity.pull_number}",
+    )
+    candidates: list[str] = []
+    for pattern in patterns:
+        result = _run(
+            repo,
+            "log",
+            "--first-parent",
+            "--format=%H",
+            "--fixed-strings",
+            "--regexp-ignore-case",
+            f"--grep={pattern}",
+            target,
+        )
+        if result.returncode != 0:
+            continue
+        candidates.extend(result.stdout.splitlines())
+    return tuple(dict.fromkeys(item for item in candidates if item))
+
+
+def _explicit_revert_after(
+    repo: Path,
+    application: str,
+    target: str,
+) -> str | None:
+    if application == target:
+        return None
+    ancestry = _is_ancestor(repo, application, target)
+    if ancestry is not True:
+        return None
+    result = _run(
+        repo,
+        "log",
+        "--first-parent",
+        "--format=%H",
+        "--fixed-strings",
+        f"--grep=This reverts commit {application}",
+        f"{application}..{target}",
+    )
+    return (
+        result.stdout.splitlines()[0]
+        if result.returncode == 0 and result.stdout
+        else None
+    )
+
+
+def _proven_destination_application(
+    repo: Path,
+    changeset: Changeset,
+    target: str,
+    identity: SourceIdentity,
+    worktree_path: str | Path | None,
+) -> Result | None:
+    for candidate in _identity_candidates(repo, target, identity):
+        try:
+            parents = _parents(repo, candidate)
+            candidate_tree = _tree(repo, candidate)
+        except ChangesetError:
+            continue
+        if len(parents) != 1:
+            continue
+        trial = evaluate_changeset(
+            repo,
+            changeset,
+            parents[0],
+            worktree_path=worktree_path,
+        )
+        if (
+            trial.status is not Status.DRAFT_PLANNED
+            or trial.evidence.get("planned_tree") != candidate_tree
+        ):
+            continue
+        evidence = {
+            "application_commit": candidate,
+            "application_parent": parents[0],
+            "application_tree": candidate_tree,
+            "application_proof": "source_identity_and_exact_tree",
+        }
+        revert = _explicit_revert_after(repo, candidate, target)
+        if revert is not None:
+            return _git_result(
+                Status.BLOCKED_AMBIGUOUS_CHANGESET,
+                "proven_application_later_reverted",
+                "The proven destination application was later explicitly reverted.",
+                changeset=changeset,
+                target=target,
+                extra={**evidence, "revert_commit": revert},
+            )
+        return _git_result(
+            Status.ALREADY_CONTAINED,
+            "complete_changeset_application_ancestor",
+            "A reachable destination commit exactly applies the complete changeset.",
+            changeset=changeset,
+            target=target,
+            extra=evidence,
+        )
+    return None
+
+
 def _patch_id(repo: Path, patch: str) -> str | None:
     environment = dict(os.environ)
     environment.update(
@@ -483,6 +632,7 @@ def evaluate_changeset(
     target_revision: str,
     *,
     worktree_path: str | Path | None = None,
+    source_identity: SourceIdentity | None = None,
 ) -> Result:
     """Apply a proven changeset in a disposable or reusable worktree."""
 
@@ -505,6 +655,24 @@ def evaluate_changeset(
             changeset=changeset,
             target=target,
         )
+    if source_identity is not None:
+        if source_identity.merge_commit != changeset.proof.source_merge_commit:
+            return _git_result(
+                Status.BLOCKED_EVIDENCE,
+                "source_identity_mismatch",
+                "Source identity does not match the proven changeset.",
+                changeset=changeset,
+                target=target,
+            )
+        prior_application = _proven_destination_application(
+            repo_path,
+            changeset,
+            target,
+            source_identity,
+            worktree_path,
+        )
+        if prior_application is not None:
+            return prior_application
     ancestry = tuple(
         _is_ancestor(repo_path, str(commit), target) for commit in resolved_commits
     )
@@ -613,7 +781,7 @@ def evaluate_changeset(
                     "The complete proven changeset conflicts with the destination.",
                     changeset=changeset,
                     target=target,
-                    extra={"conflicted": True},
+                    extra=_conflict_evidence(worktree),
                 )
             if empty_units == len(changeset.commits):
                 return _git_result(

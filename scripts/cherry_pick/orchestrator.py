@@ -20,6 +20,7 @@ from .coverage import find_covering_pull
 from .git import (
     Changeset,
     ChangesetError,
+    SourceIdentity,
     evaluate_changeset,
     prove_changeset,
 )
@@ -541,7 +542,16 @@ class Planner:
                 destination_branch=destination_branch,
                 evidence=base_evidence,
             )
-        git_result = self.evaluator(Path(repo_dir), changeset, destination_head)
+        git_result = self.evaluator(
+            Path(repo_dir),
+            changeset,
+            destination_head,
+            source_identity=SourceIdentity(
+                repository=repository,
+                pull_number=number,
+                merge_commit=merged_sha,
+            ),
+        )
         changeset_evidence = {
             "changeset_kind": changeset.kind.value,
             "ordered_commits": list(changeset.commits),

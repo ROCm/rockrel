@@ -21,13 +21,18 @@ from scripts.cherry_pick.replay import (
     ReplayReport,
     audit_manifest_inventory,
     build_corpus_manifest,
+    compare_candidate_to_golden,
     discover_corpus_pull_requests,
     load_manifest,
+    load_reviewed_corpus,
     refresh_mirror,
     rollback_replay_worktrees,
-    run_replay_cases,
+    run_reviewed_cases,
     write_replay_reports,
 )
+
+ROOT = Path(__file__).resolve().parents[1]
+REVIEWED_GOLDEN = ROOT / "scripts/tests/fixtures/historical_cherry_picks.json"
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -40,14 +45,21 @@ def build_parser() -> argparse.ArgumentParser:
         "refresh", description="Read official Git refs into dedicated local mirrors."
     )
     refresh.add_argument("--data-root", type=Path, required=True)
-    refresh.add_argument("--manifest", type=Path, required=True)
+    refresh.add_argument("--candidate-out", type=Path, required=True)
     refresh.add_argument("--allow-read-only-network", action="store_true")
 
-    freeze = subparsers.add_parser(
-        "freeze", description="Freeze a manifest from already hydrated local refs."
+    inventory = subparsers.add_parser(
+        "inventory",
+        description="Write an unreviewed candidate from already hydrated local refs.",
     )
-    freeze.add_argument("--data-root", type=Path, required=True)
-    freeze.add_argument("--manifest", type=Path, required=True)
+    inventory.add_argument("--data-root", type=Path, required=True)
+    inventory.add_argument("--candidate-out", type=Path, required=True)
+
+    compare = subparsers.add_parser(
+        "compare", description="Compare a candidate inventory with reviewed goldens."
+    )
+    compare.add_argument("--candidate", type=Path, required=True)
+    compare.add_argument("--golden", type=Path, required=True)
 
     run = subparsers.add_parser(
         "run", description="Replay a pinned corpus with all network hydration disabled."
@@ -60,6 +72,12 @@ def build_parser() -> argparse.ArgumentParser:
         type=int,
         default=4,
         help="Maximum concurrent replay cases (default: 4).",
+    )
+    run.add_argument(
+        "--tier",
+        choices=("fast", "deep"),
+        default="fast",
+        help="Reviewed replay tier (default: fast).",
     )
     rollback = subparsers.add_parser(
         "rollback",
@@ -84,18 +102,42 @@ def _refresh(args: argparse.Namespace, stdout: TextIO) -> int:
             allow_read_only_network=args.allow_read_only_network,
             pull_requests=pull_requests[spec.repository],
         )
-    return _freeze(args, stdout, status="corpus_refreshed")
+    return _inventory(args, stdout, status="corpus_refreshed")
 
 
-def _freeze(
+def _candidate_path_is_tracked(path: Path) -> bool:
+    try:
+        relative = path.resolve().relative_to(ROOT)
+    except ValueError:
+        return False
+    result = subprocess.run(
+        ["git", "ls-files", "--error-unmatch", str(relative)],
+        cwd=ROOT,
+        check=False,
+        text=True,
+        stdin=subprocess.DEVNULL,
+        stdout=subprocess.DEVNULL,
+        stderr=subprocess.DEVNULL,
+    )
+    return result.returncode == 0
+
+
+def _inventory(
     args: argparse.Namespace,
     stdout: TextIO,
     *,
-    status: str = "corpus_frozen",
+    status: str = "candidate_inventory_written",
 ) -> int:
+    if (
+        args.candidate_out.resolve() == REVIEWED_GOLDEN.resolve()
+        or _candidate_path_is_tracked(args.candidate_out)
+    ):
+        raise PermissionError(
+            "candidate inventory cannot overwrite the reviewed golden or another tracked file"
+        )
     manifest = build_corpus_manifest(DEFAULT_MIRROR_SPECS, args.data_root)
-    args.manifest.parent.mkdir(parents=True, exist_ok=True)
-    args.manifest.write_text(
+    args.candidate_out.parent.mkdir(parents=True, exist_ok=True)
+    args.candidate_out.write_text(
         json.dumps(manifest.as_dict(), indent=2, sort_keys=True) + "\n"
     )
     audit = audit_manifest_inventory(manifest, args.data_root)
@@ -103,7 +145,7 @@ def _freeze(
         json.dumps(
             {
                 "status": status,
-                "manifest": str(args.manifest),
+                "candidate": str(args.candidate_out),
                 "cases": audit.total_count,
                 "strict": audit.strict_count,
                 "diagnostic": audit.diagnostic_count,
@@ -116,10 +158,24 @@ def _freeze(
     return audit.exit_code
 
 
+def _compare(args: argparse.Namespace, stdout: TextIO) -> int:
+    result = compare_candidate_to_golden(
+        load_manifest(args.candidate),
+        load_reviewed_corpus(args.golden),
+    )
+    print(json.dumps(result.as_dict(), sort_keys=True), file=stdout)
+    return result.exit_code
+
+
 def _run(args: argparse.Namespace, stdout: TextIO) -> int:
-    manifest = load_manifest(args.manifest)
-    inventory_audit = audit_manifest_inventory(manifest, args.data_root)
-    outcomes = run_replay_cases(args.data_root, manifest.cases, jobs=args.jobs)
+    corpus = load_reviewed_corpus(args.manifest)
+    inventory_audit = audit_manifest_inventory(corpus.inventory, args.data_root)
+    outcomes = run_reviewed_cases(
+        args.data_root,
+        corpus,
+        tier=args.tier,
+        jobs=args.jobs,
+    )
     report = ReplayReport.from_outcomes(outcomes)
     write_replay_reports(report, args.report_dir)
     exit_code = 2 if inventory_audit.exit_code == 2 else report.exit_code
@@ -163,8 +219,10 @@ def main(
     try:
         if args.command == "refresh":
             return _refresh(args, stdout)
-        if args.command == "freeze":
-            return _freeze(args, stdout)
+        if args.command == "inventory":
+            return _inventory(args, stdout)
+        if args.command == "compare":
+            return _compare(args, stdout)
         if args.command == "rollback":
             return _rollback(args, stdout)
         return _run(args, stdout)

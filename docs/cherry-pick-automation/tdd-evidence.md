@@ -218,3 +218,26 @@ The failures were the intended missing behavior: four Git containment/evidence
 contracts, eight reviewed-corpus and generic-branch contracts, three local
 pipeline simulation contracts, and five safe CLI contracts. No production
 Python changed before this red result was captured.
+
+The paired implementation added those contracts and migrated the reviewed
+fixture to schema v2 only after generating it outside the repository and
+comparing it with the reviewed inventory. The candidate digest was
+`a7cad5c2bf23b9635eb2a3896ee094ec7dc88cc08ce8f9f2f31d69b38ae336a0`.
+
+```text
+$ .venv/bin/python -m pytest -q scripts/tests
+274 passed in 6.75s
+
+$ .venv/bin/python scripts/replay_cherry_pick_history.py run \
+    --data-root /home/jusharri/code/rocm-cherrypick-replay-data \
+    --manifest scripts/tests/fixtures/historical_cherry_picks.json \
+    --report-dir /home/jusharri/code/rocm-cherrypick-replay-data/reports-v2 \
+    --tier deep --jobs 4
+77 cases; 31 passed; 46 diagnostic; 0 expectation mismatches
+```
+
+All 31 core cases were also evaluated at the known post-merge commit and the
+release tip. Each returned `already_contained`: 20 by complete changeset patch
+identity and 11 by an exact, reachable destination application. The remaining
+46 cases retain explicit inventory-only diagnostic reasons rather than being
+misrepresented as engine passes.

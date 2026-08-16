@@ -15,7 +15,6 @@ from .config import TrainConfig
 from .models import Result, Status
 from .orchestrator import automation_branch, identity_marker, render_pull_body
 
-
 BOT_NAME = "ROCm Cherry-Pick Automation"
 BOT_EMAIL = "cherry-pick-automation@users.noreply.github.com"
 _TEST_CAPABILITY_KEY = object()
@@ -103,10 +102,12 @@ class DraftWriter:
         github: GitHubClient,
         *,
         capability: RemoteWriteCapability | None = None,
+        scratch_root: str | Path | None = None,
     ) -> None:
         if capability is None or capability._key is not _TEST_CAPABILITY_KEY:
             raise PermissionError("an explicit remote write capability is required")
         self.github = github
+        self.scratch_root = Path(scratch_root) if scratch_root is not None else None
 
     def create(
         self,
@@ -221,7 +222,12 @@ class DraftWriter:
                 "invalid_mainline",
                 "The plan mainline evidence is invalid.",
             )
-        with tempfile.TemporaryDirectory(prefix="cherry-pick-write-") as temp_root:
+        if self.scratch_root is not None:
+            self.scratch_root.mkdir(parents=True, exist_ok=True)
+        with tempfile.TemporaryDirectory(
+            prefix="cherry-pick-write-",
+            dir=self.scratch_root,
+        ) as temp_root:
             worktree = Path(temp_root) / "worktree"
             add = _run(
                 repo,
