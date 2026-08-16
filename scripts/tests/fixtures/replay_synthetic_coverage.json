@@ -1,0 +1,270 @@
+{
+  "evidence": [
+    {
+      "dimensions": {
+        "repository": [
+          "ROCm/TheRock",
+          "ROCm/rocm-systems",
+          "ROCm/rocm-libraries"
+        ]
+      },
+      "test_id": "scripts/tests/cherry_pick_0811_fixture_test.py::test_0811_fixture_contains_all_seven_unique_source_requests"
+    },
+    {
+      "dimensions": {
+        "destination_family": [
+          "therock"
+        ]
+      },
+      "test_id": "scripts/tests/cherry_pick_replay_test.py::test_destination_family_is_reporting_metadata_not_branch_policy[release/therock-10.0-therock]"
+    },
+    {
+      "dimensions": {
+        "destination_family": [
+          "bkc"
+        ]
+      },
+      "test_id": "scripts/tests/cherry_pick_replay_test.py::test_destination_family_is_reporting_metadata_not_branch_policy[release/bkc/therock-10.1-20260811-bkc]"
+    },
+    {
+      "dimensions": {
+        "destination_family": [
+          "rocm_rel"
+        ]
+      },
+      "test_id": "scripts/tests/cherry_pick_replay_test.py::test_destination_family_is_reporting_metadata_not_branch_policy[release/rocm-rel-7.1-rocm_rel]"
+    },
+    {
+      "dimensions": {
+        "destination_family": [
+          "release_staging"
+        ]
+      },
+      "test_id": "scripts/tests/cherry_pick_replay_test.py::test_destination_family_is_reporting_metadata_not_branch_policy[release-staging/rocm-rel-10.1-release_staging]"
+    },
+    {
+      "dimensions": {
+        "destination_family": [
+          "arbitrary"
+        ]
+      },
+      "test_id": "scripts/tests/cherry_pick_replay_test.py::test_destination_family_is_reporting_metadata_not_branch_policy[staging/candidate-1-arbitrary]"
+    },
+    {
+      "dimensions": {
+        "changeset_kind": [
+          "single"
+        ],
+        "execution_phase": [
+          "core"
+        ],
+        "file_operation": [
+          "add"
+        ],
+        "outcome": [
+          "draft_planned"
+        ]
+      },
+      "test_id": "scripts/tests/cherry_pick_git_test.py::test_single_commit_merge_is_proven_without_guessing"
+    },
+    {
+      "dimensions": {
+        "changeset_kind": [
+          "squash"
+        ]
+      },
+      "test_id": "scripts/tests/cherry_pick_git_test.py::test_proves_and_applies_complete_squash_changeset"
+    },
+    {
+      "dimensions": {
+        "changeset_kind": [
+          "merge_commit"
+        ]
+      },
+      "test_id": "scripts/tests/cherry_pick_git_test.py::test_proves_two_parent_merge_relative_to_parent_one"
+    },
+    {
+      "dimensions": {
+        "changeset_kind": [
+          "rebase_range"
+        ]
+      },
+      "test_id": "scripts/tests/cherry_pick_git_test.py::test_proves_complete_rebase_range_in_application_order"
+    },
+    {
+      "dimensions": {
+        "outcome": [
+          "already_contained"
+        ]
+      },
+      "test_id": "scripts/tests/cherry_pick_git_test.py::test_patch_equivalent_full_changeset_is_contained"
+    },
+    {
+      "dimensions": {
+        "file_operation": [
+          "modify"
+        ],
+        "outcome": [
+          "blocked_conflict"
+        ]
+      },
+      "test_id": "scripts/tests/cherry_pick_git_test.py::test_conflict_is_never_classified_as_containment"
+    },
+    {
+      "dimensions": {
+        "outcome": [
+          "blocked_ambiguous_changeset"
+        ]
+      },
+      "test_id": "scripts/tests/cherry_pick_git_test.py::test_complete_containment_is_positive_but_partial_range_is_ambiguous"
+    },
+    {
+      "dimensions": {
+        "outcome": [
+          "blocked_evidence"
+        ]
+      },
+      "test_id": "scripts/tests/cherry_pick_replay_test.py::test_missing_source_object_is_an_evidence_gap"
+    },
+    {
+      "dimensions": {
+        "execution_phase": [
+          "planner",
+          "writer"
+        ],
+        "outcome": [
+          "draft_created"
+        ]
+      },
+      "test_id": "scripts/tests/cherry_pick_simulation_test.py::test_local_pipeline_creates_only_a_local_draft_and_is_idempotent"
+    },
+    {
+      "dimensions": {
+        "outcome": [
+          "retryable_partial_write"
+        ],
+        "recovery_mode": [
+          "partial_write"
+        ]
+      },
+      "test_id": "scripts/tests/cherry_pick_writer_test.py::test_post_push_pull_api_failure_becomes_retryable_partial_write"
+    },
+    {
+      "dimensions": {
+        "file_operation": [
+          "delete"
+        ]
+      },
+      "test_id": "scripts/tests/cherry_pick_git_test.py::test_complete_changeset_preserves_git_file_shapes[delete]"
+    },
+    {
+      "dimensions": {
+        "file_operation": [
+          "rename"
+        ]
+      },
+      "test_id": "scripts/tests/cherry_pick_git_test.py::test_complete_changeset_preserves_git_file_shapes[rename]"
+    },
+    {
+      "dimensions": {
+        "file_operation": [
+          "mode"
+        ]
+      },
+      "test_id": "scripts/tests/cherry_pick_git_test.py::test_complete_changeset_preserves_git_file_shapes[mode]"
+    },
+    {
+      "dimensions": {
+        "file_operation": [
+          "symlink"
+        ]
+      },
+      "test_id": "scripts/tests/cherry_pick_git_test.py::test_complete_changeset_preserves_git_file_shapes[symlink]"
+    },
+    {
+      "dimensions": {
+        "file_operation": [
+          "binary"
+        ]
+      },
+      "test_id": "scripts/tests/cherry_pick_git_test.py::test_complete_changeset_preserves_git_file_shapes[binary]"
+    },
+    {
+      "dimensions": {
+        "execution_phase": [
+          "component"
+        ],
+        "file_operation": [
+          "gitlink"
+        ]
+      },
+      "test_id": "scripts/tests/cherry_pick_git_test.py::test_gitlink_directional_decisions_use_new_status_contract"
+    },
+    {
+      "dimensions": {
+        "change_size": [
+          "small"
+        ]
+      },
+      "test_id": "scripts/tests/cherry_pick_replay_test.py::test_change_size_boundaries_are_stable[20-small]"
+    },
+    {
+      "dimensions": {
+        "change_size": [
+          "medium"
+        ]
+      },
+      "test_id": "scripts/tests/cherry_pick_replay_test.py::test_change_size_boundaries_are_stable[200-medium]"
+    },
+    {
+      "dimensions": {
+        "change_size": [
+          "large"
+        ]
+      },
+      "test_id": "scripts/tests/cherry_pick_replay_test.py::test_change_size_boundaries_are_stable[201-large]"
+    },
+    {
+      "dimensions": {
+        "recovery_mode": [
+          "fresh"
+        ]
+      },
+      "test_id": "scripts/tests/cherry_pick_git_test.py::test_disposable_worktree_uses_repository_filesystem"
+    },
+    {
+      "dimensions": {
+        "recovery_mode": [
+          "warm",
+          "interrupted"
+        ]
+      },
+      "test_id": "scripts/tests/cherry_pick_git_test.py::test_reusable_worktree_rolls_back_without_recreating_index"
+    },
+    {
+      "dimensions": {
+        "recovery_mode": [
+          "corrupt_index"
+        ]
+      },
+      "test_id": "scripts/tests/cherry_pick_git_test.py::test_reusable_worktree_restores_corrupt_index_from_atomic_snapshot"
+    },
+    {
+      "dimensions": {
+        "execution_phase": [
+          "inventory"
+        ]
+      },
+      "test_id": "scripts/tests/cherry_pick_replay_test.py::test_inventory_includes_every_first_parent_release_only_commit"
+    },
+    {
+      "dimensions": {
+        "execution_phase": [
+          "postmerge"
+        ]
+      },
+      "test_id": "scripts/tests/cherry_pick_replay_test.py::test_reviewed_replay_checks_forward_and_postmerge_outcomes"
+    }
+  ],
+  "schema_version": 1
+}

@@ -7,6 +7,7 @@ import json
 import subprocess
 import sys
 from pathlib import Path
+from types import SimpleNamespace
 
 ROOT = Path(__file__).parents[2]
 SCRIPT = ROOT / "scripts/replay_cherry_pick_history.py"
@@ -76,6 +77,7 @@ def test_cli_has_explicit_refresh_and_offline_run_contract():
     assert not hasattr(run, "allow_read_only_network")
     assert run.jobs == 4
     assert run.tier == "fast"
+    assert run.synthetic_coverage == module.SYNTHETIC_COVERAGE
 
     parallel_run = parser.parse_args(
         [
@@ -159,33 +161,33 @@ def test_offline_run_writes_both_reports_and_propagates_evidence_gap(tmp_path):
     subprocess.run(["git", "init", "--bare", str(repo)], check=True)
     manifest = tmp_path / "manifest.json"
     inventory = {
-                "schema_version": 1,
-                "snapshots": {
-                    "ROCm/TheRock": {
-                        "source_branch": "main",
-                        "source_tip": "f" * 40,
-                        "targets": {"release/therock-7.14": "1" * 40},
-                    }
-                },
-                "cases": [
-                    {
-                        "id": "missing-evidence",
-                        "repository": "ROCm/TheRock",
-                        "source_branch": "main",
-                        "target_branch": "release/therock-7.14",
-                        "source_prs": [],
-                        "source_merge_commit": None,
-                        "source_head": None,
-                        "source_commits": [],
-                        "target_before": "a" * 40,
-                        "target_after": "b" * 40,
-                        "target_after_tree": "c" * 40,
-                        "provenance_method": "none",
-                        "classification": "unresolved",
-                        "analysis_notes": "Needs provenance review.",
-                    }
-                ],
+        "schema_version": 1,
+        "snapshots": {
+            "ROCm/TheRock": {
+                "source_branch": "main",
+                "source_tip": "f" * 40,
+                "targets": {"release/therock-7.14": "1" * 40},
             }
+        },
+        "cases": [
+            {
+                "id": "missing-evidence",
+                "repository": "ROCm/TheRock",
+                "source_branch": "main",
+                "target_branch": "release/therock-7.14",
+                "source_prs": [],
+                "source_merge_commit": None,
+                "source_head": None,
+                "source_commits": [],
+                "target_before": "a" * 40,
+                "target_after": "b" * 40,
+                "target_after_tree": "c" * 40,
+                "provenance_method": "none",
+                "classification": "unresolved",
+                "analysis_notes": "Needs provenance review.",
+            }
+        ],
+    }
     manifest.write_text(
         json.dumps(
             {
@@ -225,6 +227,48 @@ def test_offline_run_writes_both_reports_and_propagates_evidence_gap(tmp_path):
     assert result == 2
     assert (report_dir / "historical-replay.json").exists()
     assert (report_dir / "historical-replay.md").exists()
+
+
+def test_offline_run_fails_closed_when_required_coverage_is_missing(
+    monkeypatch, tmp_path
+):
+    module = load_module()
+    monkeypatch.setattr(
+        module,
+        "load_reviewed_corpus",
+        lambda _path: SimpleNamespace(inventory=object()),
+    )
+    monkeypatch.setattr(
+        module,
+        "audit_manifest_inventory",
+        lambda _corpus, _root: SimpleNamespace(exit_code=0),
+    )
+    monkeypatch.setattr(module, "run_reviewed_cases", lambda *_args, **_kwargs: ())
+    monkeypatch.setattr(
+        module,
+        "load_synthetic_coverage",
+        lambda _path: SimpleNamespace(as_mapping=lambda: {}),
+    )
+    monkeypatch.setattr(
+        module,
+        "REQUIRED_REPLAY_COVERAGE",
+        {"outcome": ("draft_planned",)},
+    )
+    report_dir = tmp_path / "reports"
+    args = SimpleNamespace(
+        manifest=tmp_path / "manifest.json",
+        data_root=tmp_path / "data",
+        tier="fast",
+        jobs=1,
+        synthetic_coverage=tmp_path / "synthetic.json",
+        report_dir=report_dir,
+    )
+
+    result = module._run(args, io.StringIO())
+
+    assert result == 2
+    report = json.loads((report_dir / "historical-replay.json").read_text())
+    assert report["coverage"]["gaps"] == ["outcome:draft_planned"]
 
 
 def test_refresh_transport_failure_is_a_clean_evidence_exit(monkeypatch, tmp_path):

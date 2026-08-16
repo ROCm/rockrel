@@ -272,3 +272,22 @@ $ .venv/bin/python -m pytest -q \
     scripts/tests/cherry_pick_replay_test.py
 86 passed in 5.14s
 ```
+
+## Coverage-dimension and standalone-gate slice
+
+The next red contract requires real Git-derived coverage dimensions, generic
+destination-family reporting, stable change-size boundaries, a typed registry
+of named synthetic tests, inventory/core separation, report-level fail-closed
+coverage, and standalone CLI integration.
+
+```text
+$ .venv/bin/python -m pytest -q \
+    scripts/tests/cherry_pick_replay_test.py \
+    scripts/tests/replay_cherry_pick_history_test.py
+18 failed, 67 passed in 3.65s
+```
+
+The intended failures cover five missing destination-family cases, five size
+boundaries, Git operation extraction, outcome dimensions, inventory exclusion,
+report gating, typed synthetic evidence, and two CLI contracts. No production
+code changed before this result was captured.

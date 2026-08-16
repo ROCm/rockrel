@@ -3,6 +3,7 @@
 
 import importlib
 import subprocess
+import sys
 import threading
 import time
 from dataclasses import replace
@@ -629,6 +630,184 @@ def test_coverage_audit_names_every_uncovered_required_cell():
         "file_operation:delete",
         "file_operation:rename",
     )
+
+
+@pytest.mark.parametrize(
+    "branch,expected",
+    [
+        ("release/therock-10.0", "therock"),
+        ("release/bkc/therock-10.1-20260811", "bkc"),
+        ("release/rocm-rel-7.1", "rocm_rel"),
+        ("release-staging/rocm-rel-10.1", "release_staging"),
+        ("staging/candidate-1", "arbitrary"),
+    ],
+)
+def test_destination_family_is_reporting_metadata_not_branch_policy(branch, expected):
+    family = required("destination_family")
+
+    assert family(branch) == expected
+
+
+@pytest.mark.parametrize(
+    "changed_lines,expected",
+    [(0, "small"), (20, "small"), (21, "medium"), (200, "medium"), (201, "large")],
+)
+def test_change_size_boundaries_are_stable(changed_lines, expected):
+    classify = required("classify_change_size")
+
+    assert classify(changed_lines) == expected
+
+
+def test_git_shape_classifier_records_every_material_operation(repo):
+    classify = required("classify_replay_file_operations")
+    commit_file(repo, "modify.txt", "before\n", "shape fixture")
+    commit_file(repo, "delete.txt", "remove\n", "delete fixture")
+    before = git(repo, "rev-parse", "HEAD")
+    git(repo, "rm", "delete.txt")
+    git(repo, "mv", "value.txt", "renamed.txt")
+    (repo / "renamed.txt").chmod(0o755)
+    (repo / "modify.txt").write_text("after\n")
+    (repo / "added.txt").write_text("added\n")
+    (repo / "link.txt").symlink_to("relative-target")
+    (repo / "binary.dat").write_bytes(b"\x00\xff\x10\x80")
+    git(repo, "add", "renamed.txt", "modify.txt", "added.txt", "link.txt", "binary.dat")
+    git(repo, "commit", "-m", "all material shapes")
+    after = git(repo, "rev-parse", "HEAD")
+
+    operations, changed_lines = classify(repo, before, after)
+
+    assert set(operations) == {
+        "add",
+        "modify",
+        "delete",
+        "rename",
+        "mode",
+        "symlink",
+        "binary",
+    }
+    assert changed_lines >= 4
+
+
+def test_reviewed_outcome_records_coverage_dimensions_from_real_git(repo):
+    run_reviewed = required("run_reviewed_case")
+    expectation_type = required("ReplayExpectation")
+    case = exact_case(repo)
+    expectation = expectation_type.from_dict(valid_expectation(case.as_dict()))
+
+    outcome = run_reviewed(
+        repo,
+        case,
+        expectation,
+        target_tip=case.target_after,
+    )
+
+    assert outcome.coverage_dimensions == {
+        "repository": ("ROCm/TheRock",),
+        "destination_family": ("therock",),
+        "classification": ("strict_exact",),
+        "execution_phase": ("core", "postmerge"),
+        "changeset_kind": ("single",),
+        "outcome": ("already_contained", "draft_planned"),
+        "file_operation": ("add",),
+        "change_size": ("small",),
+        "recovery_mode": ("fresh",),
+    }
+    assert outcome.as_dict()["coverage_dimensions"]["file_operation"] == ["add"]
+
+
+def test_inventory_only_rows_do_not_satisfy_engine_coverage(repo):
+    run_reviewed = required("run_reviewed_case")
+    audit_coverage = required("audit_replay_coverage")
+    expectation_type = required("ReplayExpectation")
+    case = exact_case(repo)
+    expectation = expectation_type.from_dict(valid_expectation(case.as_dict()))
+    executed = run_reviewed(
+        repo,
+        case,
+        expectation,
+        target_tip=case.target_after,
+    )
+    inventory = replace(
+        executed,
+        execution_phase="inventory",
+        coverage_dimensions={
+            **executed.coverage_dimensions,
+            "execution_phase": ("inventory",),
+        },
+    )
+
+    audit = audit_coverage(
+        (inventory,),
+        synthetic={},
+        required={"outcome": ("draft_planned",)},
+    )
+
+    assert audit.historical["outcome"] == {}
+    assert audit.gaps == ("outcome:draft_planned",)
+
+
+def test_report_includes_coverage_and_fails_closed_on_a_gap(repo):
+    report_type = required("ReplayReport")
+    audit_coverage = required("audit_replay_coverage")
+    outcome = required("run_replay_case")(repo, exact_case(repo))
+    coverage = audit_coverage(
+        (outcome,),
+        synthetic={},
+        required={"recovery_mode": ("interrupted",)},
+    )
+
+    report = report_type.from_outcomes((outcome,), coverage=coverage)
+
+    assert report.exit_code == 2
+    assert report.coverage is coverage
+    assert report.as_dict()["coverage"]["gaps"] == ["recovery_mode:interrupted"]
+
+
+def test_synthetic_coverage_registry_is_typed_and_names_real_tests():
+    load = required("load_synthetic_coverage")
+    required_matrix = required("REQUIRED_REPLAY_COVERAGE")
+    path = Path(__file__).parent / "fixtures/replay_synthetic_coverage.json"
+
+    suite = load(path)
+
+    assert suite.schema_version == 1
+    assert suite.evidence
+    assert set(suite.as_mapping()) <= set(required_matrix)
+    assert len(suite.test_ids) == len(set(suite.test_ids))
+    files = sorted({test_id.partition("::")[0] for test_id in suite.test_ids})
+    collected = subprocess.run(
+        [sys.executable, "-m", "pytest", "--collect-only", "-q", *files],
+        cwd=Path(__file__).parents[2],
+        check=True,
+        text=True,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+    ).stdout.splitlines()
+    collected_ids = {line for line in collected if "::" in line}
+    assert set(suite.test_ids) <= collected_ids
+
+
+def test_synthetic_registry_rejects_unknown_cells_and_duplicate_test_ids():
+    suite_type = required("SyntheticCoverageSuite")
+    evidence = {
+        "test_id": "scripts/tests/cherry_pick_git_test.py::test_single_commit_merge_is_proven_without_guessing",
+        "dimensions": {"changeset_kind": ["single"]},
+    }
+
+    with pytest.raises(ValueError, match="duplicate"):
+        suite_type.from_dict({"schema_version": 1, "evidence": [evidence, evidence]})
+    with pytest.raises(ValueError, match="unknown coverage"):
+        suite_type.from_dict(
+            {
+                "schema_version": 1,
+                "evidence": [
+                    {
+                        **evidence,
+                        "dimensions": {"changeset_kind": ["imaginary"]},
+                    }
+                ],
+            }
+        )
 
 
 def test_batch_replay_is_bounded_parallel_and_preserves_case_order(
