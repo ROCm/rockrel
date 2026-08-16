@@ -6,6 +6,7 @@
 from __future__ import annotations
 
 import os
+import shutil
 import subprocess
 import tempfile
 from contextlib import ExitStack
@@ -62,6 +63,7 @@ def _run(
     repo: Path,
     *args: str,
     check: bool = False,
+    extra_env: dict[str, str] | None = None,
 ) -> subprocess.CompletedProcess[str]:
     environment = dict(os.environ)
     environment.update(
@@ -70,6 +72,7 @@ def _run(
             "GIT_TERMINAL_PROMPT": "0",
         }
     )
+    environment.update(extra_env or {})
     return subprocess.run(
         ["git", *args],
         cwd=repo,
@@ -118,6 +121,90 @@ def _common_dir(repo: Path) -> Path:
     return Path(result.stdout.strip()).resolve()
 
 
+def _worktree_index(worktree: Path) -> Path:
+    result = _run(
+        worktree,
+        "rev-parse",
+        "--path-format=absolute",
+        "--git-path",
+        "index",
+    )
+    if result.returncode != 0 or not result.stdout.strip():
+        raise WorktreeStateError(
+            "worktree_index_unavailable",
+            "Git could not locate the reusable worktree index.",
+            result.stderr.strip(),
+        )
+    return Path(result.stdout.strip())
+
+
+def _index_snapshot(worktree: Path) -> Path:
+    return worktree.parent / ".index-snapshots" / f"{worktree.name}.index"
+
+
+def _valid_index(path: Path) -> bool:
+    try:
+        with path.open("rb") as stream:
+            return stream.read(4) == b"DIRC"
+    except OSError:
+        return False
+
+
+def _atomic_index_copy(source: Path, destination: Path) -> None:
+    destination.parent.mkdir(parents=True, exist_ok=True)
+    descriptor, temporary_name = tempfile.mkstemp(
+        prefix=f".{destination.name}.",
+        dir=destination.parent,
+    )
+    os.close(descriptor)
+    temporary = Path(temporary_name)
+    try:
+        shutil.copyfile(source, temporary)
+        os.replace(temporary, destination)
+    finally:
+        temporary.unlink(missing_ok=True)
+
+
+def _restore_or_rebuild_index(worktree: Path) -> None:
+    index = _worktree_index(worktree)
+    if _valid_index(index):
+        return
+    snapshot = _index_snapshot(worktree)
+    if _valid_index(snapshot):
+        _atomic_index_copy(snapshot, index)
+        return
+
+    head = _resolve(worktree, "HEAD")
+    if head is None:
+        raise WorktreeStateError(
+            "worktree_index_repair_failed",
+            "The corrupt replay index has no recoverable HEAD baseline.",
+        )
+    descriptor, temporary_name = tempfile.mkstemp(
+        prefix=".replay-index-rebuild.",
+        dir=index.parent,
+    )
+    os.close(descriptor)
+    temporary = Path(temporary_name)
+    temporary.unlink()
+    try:
+        rebuild = _run(
+            worktree,
+            "read-tree",
+            head,
+            extra_env={"GIT_INDEX_FILE": str(temporary)},
+        )
+        if rebuild.returncode != 0 or not _valid_index(temporary):
+            raise WorktreeStateError(
+                "worktree_index_repair_failed",
+                "Git could not rebuild the corrupt replay index from HEAD.",
+                rebuild.stderr.strip(),
+            )
+        os.replace(temporary, index)
+    finally:
+        temporary.unlink(missing_ok=True)
+
+
 def rollback_replay_worktree(
     repo: str | Path,
     worktree: str | Path,
@@ -145,6 +232,7 @@ def rollback_replay_worktree(
             "The reusable worktree rollback target is unavailable.",
         )
 
+    _restore_or_rebuild_index(worktree_path)
     _run(worktree_path, "cherry-pick", "--abort")
     _run(worktree_path, "cherry-pick", "--quit")
     reset = _run(worktree_path, "reset", "--hard", target)
@@ -172,6 +260,7 @@ def rollback_replay_worktree(
             "The reusable worktree could not be proven clean after rollback.",
             stderr,
         )
+    _atomic_index_copy(_worktree_index(worktree_path), _index_snapshot(worktree_path))
     return target
 
 
