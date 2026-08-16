@@ -11,6 +11,7 @@ import re
 import subprocess
 from collections import Counter
 from collections.abc import Callable, Mapping, Sequence
+from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass
 from enum import StrEnum
 from pathlib import Path
@@ -661,6 +662,31 @@ def run_replay_case(repo: str | Path, case: HistoricalReplayCase) -> ReplayOutco
         destination_tree=destination_value,
         planned_tree=planned_value,
     )
+
+
+def run_replay_cases(
+    data_root: str | Path,
+    cases: Sequence[HistoricalReplayCase],
+    *,
+    jobs: int = 4,
+) -> tuple[ReplayOutcome, ...]:
+    """Replay cases concurrently while retaining deterministic manifest order."""
+
+    if jobs < 1:
+        raise ValueError("replay jobs must be at least 1")
+    root = Path(data_root)
+
+    def execute(case: HistoricalReplayCase) -> ReplayOutcome:
+        repo = root / f"{case.repository.split('/', 1)[1]}.git"
+        return run_replay_case(repo, case)
+
+    if jobs == 1:
+        return tuple(execute(case) for case in cases)
+    with ThreadPoolExecutor(
+        max_workers=jobs,
+        thread_name_prefix="cherry-pick-replay",
+    ) as executor:
+        return tuple(executor.map(execute, cases))
 
 
 @dataclass(frozen=True)

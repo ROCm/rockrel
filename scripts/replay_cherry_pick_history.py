@@ -24,7 +24,7 @@ from scripts.cherry_pick.replay import (
     discover_corpus_pull_requests,
     load_manifest,
     refresh_mirror,
-    run_replay_case,
+    run_replay_cases,
     write_replay_reports,
 )
 
@@ -54,6 +54,12 @@ def build_parser() -> argparse.ArgumentParser:
     run.add_argument("--data-root", type=Path, required=True)
     run.add_argument("--manifest", type=Path, required=True)
     run.add_argument("--report-dir", type=Path, required=True)
+    run.add_argument(
+        "--jobs",
+        type=int,
+        default=4,
+        help="Maximum concurrent replay cases (default: 4).",
+    )
     return parser
 
 
@@ -107,10 +113,7 @@ def _freeze(
 def _run(args: argparse.Namespace, stdout: TextIO) -> int:
     manifest = load_manifest(args.manifest)
     inventory_audit = audit_manifest_inventory(manifest, args.data_root)
-    outcomes = []
-    for case in manifest.cases:
-        repo = args.data_root / f"{case.repository.split('/', 1)[1]}.git"
-        outcomes.append(run_replay_case(repo, case))
+    outcomes = run_replay_cases(args.data_root, manifest.cases, jobs=args.jobs)
     report = ReplayReport.from_outcomes(outcomes)
     write_replay_reports(report, args.report_dir)
     exit_code = 2 if inventory_audit.exit_code == 2 else report.exit_code
