@@ -1129,6 +1129,8 @@ def build_refresh_commands(
             GitCommand(
                 (
                     "git",
+                    "-c",
+                    "http.version=HTTP/1.1",
                     "-C",
                     str(mirror_path),
                     "fetch",
