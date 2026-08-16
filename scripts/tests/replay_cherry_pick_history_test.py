@@ -2,6 +2,7 @@
 # SPDX-License-Identifier: MIT
 
 import importlib.util
+import io
 import json
 import subprocess
 import sys
@@ -134,3 +135,28 @@ def test_offline_run_writes_both_reports_and_propagates_evidence_gap(tmp_path):
     assert result == 2
     assert (report_dir / "historical-replay.json").exists()
     assert (report_dir / "historical-replay.md").exists()
+
+
+def test_refresh_transport_failure_is_a_clean_evidence_exit(monkeypatch, tmp_path):
+    module = load_module()
+
+    def fail_refresh(_args, _stdout):
+        raise subprocess.CalledProcessError(128, ["git", "fetch"])
+
+    monkeypatch.setattr(module, "_refresh", fail_refresh)
+    stderr = io.StringIO()
+
+    result = module.main(
+        [
+            "refresh",
+            "--data-root",
+            str(tmp_path / "data"),
+            "--manifest",
+            str(tmp_path / "manifest.json"),
+            "--allow-read-only-network",
+        ],
+        stderr=stderr,
+    )
+
+    assert result == 2
+    assert "git fetch" in stderr.getvalue()
