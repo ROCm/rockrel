@@ -1066,6 +1066,8 @@ def _classify_inventory_record(
     source_tip: str,
     branch: str,
     record: InventoryCommit,
+    *,
+    worktree_path: Path | None = None,
 ) -> HistoricalReplayCase:
     provenance = extract_provenance(
         record.subject, record.body, repository=spec.repository
@@ -1156,7 +1158,11 @@ def _classify_inventory_record(
             "analysis_notes": "One canonical source PR; pending exact replay.",
         }
     )
-    outcome = run_replay_case(repo, strict_candidate)
+    outcome = run_replay_case(
+        repo,
+        strict_candidate,
+        worktree_path=worktree_path,
+    )
     if outcome.disposition is ReplayDisposition.PASSED:
         return HistoricalReplayCase(
             **{
@@ -1218,6 +1224,11 @@ def build_corpus_manifest(
     cases: list[HistoricalReplayCase] = []
     for spec in specs:
         repo = _mirror_path(data_root, spec.repository)
+        worktree = (
+            Path(data_root)
+            / ".cherry-pick-replay-worktrees"
+            / spec.repository.split("/", 1)[1]
+        )
         source_tip = _resolve_required(repo, _remote_ref(spec.source_branch))
         targets: dict[str, str] = {}
         for branch in spec.target_branches:
@@ -1225,7 +1236,14 @@ def build_corpus_manifest(
             targets[branch] = target_tip
             for record in inventory_release_commits(repo, source_tip, target_tip):
                 cases.append(
-                    _classify_inventory_record(repo, spec, source_tip, branch, record)
+                    _classify_inventory_record(
+                        repo,
+                        spec,
+                        source_tip,
+                        branch,
+                        record,
+                        worktree_path=worktree,
+                    )
                 )
         snapshots[spec.repository] = Snapshot(
             source_branch=spec.source_branch,
