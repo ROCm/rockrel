@@ -1009,7 +1009,7 @@ def audit_manifest_inventory(
 ) -> ManifestAudit:
     """Compare pinned Git inventory with the exact set of manifest transitions."""
 
-    expected: set[tuple[str, str, str]] = set()
+    expected: dict[tuple[str, str, str], tuple[str, str]] = {}
     unreadable_snapshots = 0
     for repository, snapshot in manifest.snapshots.items():
         repo = _mirror_path(data_root, repository)
@@ -1022,18 +1022,30 @@ def audit_manifest_inventory(
                 unreadable_snapshots += 1
                 continue
             for record in records:
-                expected.add((repository, branch, record.after))
+                expected[(repository, branch, record.after)] = (
+                    record.before,
+                    record.after_tree,
+                )
     actual = {
-        (case.repository, case.target_branch, case.target_after)
+        (case.repository, case.target_branch, case.target_after): (
+            case.target_before,
+            case.target_after_tree,
+        )
         for case in manifest.cases
     }
     unresolved = sum(
         case.classification is ReplayClassification.UNRESOLVED
         for case in manifest.cases
     )
+    expected_keys = set(expected)
+    actual_keys = set(actual)
+    endpoint_mismatches = sum(
+        expected[key] != actual[key] for key in expected_keys & actual_keys
+    )
     evidence_gaps = (
-        len(expected - actual)
-        + len(actual - expected)
+        len(expected_keys - actual_keys)
+        + len(actual_keys - expected_keys)
+        + endpoint_mismatches
         + unresolved
         + unreadable_snapshots
     )
