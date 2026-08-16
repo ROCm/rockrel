@@ -99,6 +99,34 @@ def test_git_subprocesses_disable_lazy_fetch_and_terminal_prompts(repo, monkeypa
     assert environments[-1]["GIT_TERMINAL_PROMPT"] == "0"
 
 
+def test_disposable_worktree_uses_repository_filesystem(repo, monkeypatch):
+    base = git(repo, "rev-parse", "HEAD")
+    git(repo, "checkout", "-b", "topic")
+    original = commit_file(repo, "source.txt", "source\n", "source")
+    git(repo, "checkout", "main")
+    git(repo, "cherry-pick", original)
+    merged = git(repo, "rev-parse", "HEAD")
+    changeset = prove(repo, merged, original, (original,))
+
+    temporary_directories = []
+    original_temporary_directory = git_module.tempfile.TemporaryDirectory
+
+    def capture_temporary_directory(*args, **kwargs):
+        temporary_directories.append(kwargs)
+        return original_temporary_directory(*args, **kwargs)
+
+    monkeypatch.setattr(
+        git_module.tempfile,
+        "TemporaryDirectory",
+        capture_temporary_directory,
+    )
+
+    result = evaluate(repo, changeset, base)
+
+    assert result.status is Status.DRAFT_PLANNED
+    assert temporary_directories == [{"prefix": "cherry-pick-plan-", "dir": repo.parent}]
+
+
 def test_proves_two_parent_merge_relative_to_parent_one(repo):
     _base, first, second = topic_with_two_commits(repo)
     pr_head = second
