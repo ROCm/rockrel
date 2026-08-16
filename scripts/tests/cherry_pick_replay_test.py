@@ -400,3 +400,28 @@ def test_inventory_audit_detects_a_manifest_that_drops_a_release_commit(tmp_path
     result = audit_inventory(incomplete, data_root)
     assert result.exit_code == 2
     assert result.evidence_gap_count == 1
+
+
+def test_inventory_audit_rederives_premerge_parent_and_known_good_tree(tmp_path):
+    build = required("build_corpus_manifest")
+    audit_inventory = required("audit_manifest_inventory")
+    mirror_spec = required("MirrorSpec")
+    manifest_type = required("CorpusManifest")
+    data_root, _release_setup, target_tip = corpus_repository(tmp_path)
+    spec = mirror_spec(
+        repository="ROCm/TheRock",
+        source_branch="main",
+        target_branches=("release/therock-7.14",),
+    )
+    manifest = build((spec,), data_root)
+    value = manifest.as_dict()
+    target_case = next(
+        case for case in value["cases"] if case["target_after"] == target_tip
+    )
+    target_case["target_before"] = target_tip
+    target_case["target_after_tree"] = "f" * 40
+    tampered = manifest_type.from_dict(value)
+
+    result = audit_inventory(tampered, data_root)
+    assert result.exit_code == 2
+    assert result.evidence_gap_count == 1
