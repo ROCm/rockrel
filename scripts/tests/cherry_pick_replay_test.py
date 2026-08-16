@@ -157,7 +157,7 @@ def test_manifest_audit_blocks_unresolved_cases():
         ),
         (
             "Cherry-pick runner updates (#6385)",
-            "### Cherry-picked PRs:\n#6275 - labels\n#6269 - defaults",
+            "### Cherry-picked PRs:\n#6275 - labels\nwrapped description\n#6269 - defaults\n### Changes:\n#999 is unrelated",
             (6275, 6269),
             (),
             "explicit_source_pr",
