@@ -8,6 +8,7 @@ from __future__ import annotations
 import os
 import subprocess
 import tempfile
+from contextlib import ExitStack
 from dataclasses import asdict, dataclass
 from enum import StrEnum
 from pathlib import Path
@@ -24,6 +25,15 @@ class ChangesetKind(StrEnum):
 
 class ChangesetError(RuntimeError):
     """The complete merged PR changeset could not be proven."""
+
+
+class WorktreeStateError(RuntimeError):
+    """A replay-owned worktree could not be proven clean and reusable."""
+
+    def __init__(self, reason_code: str, message: str, stderr: str = "") -> None:
+        super().__init__(message)
+        self.reason_code = reason_code
+        self.stderr = stderr
 
 
 @dataclass(frozen=True)
@@ -90,6 +100,92 @@ def _tree(repo: Path, revision: str) -> str:
     if result.returncode != 0:
         raise ChangesetError(f"could not prove tree for {revision}")
     return result.stdout.strip()
+
+
+def _common_dir(repo: Path) -> Path:
+    result = _run(
+        repo,
+        "rev-parse",
+        "--path-format=absolute",
+        "--git-common-dir",
+    )
+    if result.returncode != 0 or not result.stdout.strip():
+        raise WorktreeStateError(
+            "worktree_identity_unavailable",
+            "Git could not establish the replay worktree owner.",
+            result.stderr.strip(),
+        )
+    return Path(result.stdout.strip()).resolve()
+
+
+def rollback_replay_worktree(
+    repo: str | Path,
+    worktree: str | Path,
+    target_revision: str | None = None,
+) -> str:
+    """Reset one validated replay-owned worktree to a clean detached baseline."""
+
+    repo_path = Path(repo)
+    worktree_path = Path(worktree)
+    if not worktree_path.exists() or _common_dir(worktree_path) != _common_dir(
+        repo_path
+    ):
+        raise WorktreeStateError(
+            "worktree_identity_mismatch",
+            "The reusable path is not a worktree owned by the expected repository.",
+        )
+    target = (
+        _resolve(repo_path, target_revision)
+        if target_revision is not None
+        else _resolve(worktree_path, "HEAD")
+    )
+    if target is None:
+        raise WorktreeStateError(
+            "worktree_target_missing",
+            "The reusable worktree rollback target is unavailable.",
+        )
+
+    _run(worktree_path, "cherry-pick", "--abort")
+    _run(worktree_path, "cherry-pick", "--quit")
+    reset = _run(worktree_path, "reset", "--hard", target)
+    clean = _run(worktree_path, "clean", "-ffd")
+    head = _resolve(worktree_path, "HEAD")
+    status = _run(worktree_path, "status", "--porcelain")
+    tree = _run(worktree_path, "write-tree")
+    expected_tree = _tree(repo_path, target)
+    if (
+        reset.returncode != 0
+        or clean.returncode != 0
+        or head != target
+        or status.returncode != 0
+        or status.stdout.strip()
+        or tree.returncode != 0
+        or tree.stdout.strip() != expected_tree
+    ):
+        stderr = "\n".join(
+            value
+            for value in (reset.stderr.strip(), clean.stderr.strip(), status.stderr.strip())
+            if value
+        )
+        raise WorktreeStateError(
+            "worktree_rollback_failed",
+            "The reusable worktree could not be proven clean after rollback.",
+            stderr,
+        )
+    return target
+
+
+def _prepare_replay_worktree(repo: Path, worktree: Path, target: str) -> None:
+    worktree.parent.mkdir(parents=True, exist_ok=True)
+    if not worktree.exists():
+        add = _run(repo, "worktree", "add", "--detach", str(worktree), target)
+        if add.returncode != 0:
+            raise WorktreeStateError(
+                "worktree_creation_failed",
+                "Git could not create the reusable destination worktree.",
+                add.stderr.strip(),
+            )
+    rollback_replay_worktree(repo, worktree, target)
 
 
 def _is_ancestor(repo: Path, ancestor: str, descendant: str) -> bool | None:
@@ -292,8 +388,10 @@ def evaluate_changeset(
     repo: str | Path,
     changeset: Changeset,
     target_revision: str,
+    *,
+    worktree_path: str | Path | None = None,
 ) -> Result:
-    """Apply a proven changeset in a disposable worktree."""
+    """Apply a proven changeset in a disposable or reusable worktree."""
 
     repo_path = Path(repo)
     target = _resolve(repo_path, target_revision)
@@ -342,22 +440,51 @@ def evaluate_changeset(
             target=target,
         )
 
-    with tempfile.TemporaryDirectory(
-        prefix="cherry-pick-plan-",
-        dir=repo_path.parent,
-    ) as temp_root:
-        worktree = Path(temp_root) / "worktree"
-        add = _run(repo_path, "worktree", "add", "--detach", str(worktree), target)
-        if add.returncode != 0:
-            return _git_result(
-                Status.BLOCKED_EVIDENCE,
-                "worktree_creation_failed",
-                "Git could not create a disposable destination worktree.",
-                changeset=changeset,
-                target=target,
-                extra={"stderr": add.stderr.strip()},
-            )
-        try:
+    try:
+        with ExitStack() as stack:
+            if worktree_path is None:
+                temp_root = stack.enter_context(
+                    tempfile.TemporaryDirectory(
+                        prefix="cherry-pick-plan-",
+                        dir=repo_path.parent,
+                    )
+                )
+                worktree = Path(temp_root) / "worktree"
+                add = _run(
+                    repo_path,
+                    "worktree",
+                    "add",
+                    "--detach",
+                    str(worktree),
+                    target,
+                )
+                if add.returncode != 0:
+                    return _git_result(
+                        Status.BLOCKED_EVIDENCE,
+                        "worktree_creation_failed",
+                        "Git could not create a disposable destination worktree.",
+                        changeset=changeset,
+                        target=target,
+                        extra={"stderr": add.stderr.strip()},
+                    )
+                stack.callback(
+                    _run,
+                    repo_path,
+                    "worktree",
+                    "remove",
+                    "--force",
+                    str(worktree),
+                )
+            else:
+                worktree = Path(worktree_path)
+                _prepare_replay_worktree(repo_path, worktree, target)
+                stack.callback(
+                    rollback_replay_worktree,
+                    repo_path,
+                    worktree,
+                    target,
+                )
+
             failure: subprocess.CompletedProcess[str] | None = None
             empty_units = 0
             applied_units = 0
@@ -455,8 +582,15 @@ def evaluate_changeset(
                     "patch_equivalent": False,
                 },
             )
-        finally:
-            _run(repo_path, "worktree", "remove", "--force", str(worktree))
+    except WorktreeStateError as exc:
+        return _git_result(
+            Status.BLOCKED_EVIDENCE,
+            exc.reason_code,
+            str(exc),
+            changeset=changeset,
+            target=target,
+            extra={"stderr": exc.stderr},
+        )
 
 
 def evaluate_cherry_pick(

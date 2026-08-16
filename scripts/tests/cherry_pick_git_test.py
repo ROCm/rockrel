@@ -300,10 +300,19 @@ def test_conflict_is_never_classified_as_containment(repo):
     changeset = prove(repo, merged, original, (original,))
     git(repo, "checkout", "--detach", base)
     target = commit_file(repo, "value.txt", "target\n", "target")
+    worktree = repo.parent / "conflict-replay-cache"
 
-    result = evaluate(repo, changeset, target)
+    result = git_module.evaluate_changeset(
+        repo,
+        changeset,
+        target,
+        worktree_path=worktree,
+    )
     assert result.status is Status.BLOCKED_CONFLICT
     assert result.reason_code == "cherry_pick_conflict"
+    assert git(worktree, "rev-parse", "HEAD") == target
+    assert git(worktree, "status", "--porcelain") == ""
+    assert git(worktree, "rev-parse", "--verify", "CHERRY_PICK_HEAD", check=False) == ""
 
 
 def test_gitlink_directional_decisions_use_new_status_contract(repo):

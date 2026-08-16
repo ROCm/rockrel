@@ -24,6 +24,7 @@ from scripts.cherry_pick.replay import (
     discover_corpus_pull_requests,
     load_manifest,
     refresh_mirror,
+    rollback_replay_worktrees,
     run_replay_cases,
     write_replay_reports,
 )
@@ -60,6 +61,11 @@ def build_parser() -> argparse.ArgumentParser:
         default=4,
         help="Maximum concurrent replay cases (default: 4).",
     )
+    rollback = subparsers.add_parser(
+        "rollback",
+        description="Clean persistent replay worktrees without rebuilding indexes.",
+    )
+    rollback.add_argument("--data-root", type=Path, required=True)
     return parser
 
 
@@ -132,6 +138,21 @@ def _run(args: argparse.Namespace, stdout: TextIO) -> int:
     return exit_code
 
 
+def _rollback(args: argparse.Namespace, stdout: TextIO) -> int:
+    worktrees = rollback_replay_worktrees(args.data_root)
+    print(
+        json.dumps(
+            {
+                "status": "replay_worktrees_rolled_back",
+                "worktrees": worktrees,
+            },
+            sort_keys=True,
+        ),
+        file=stdout,
+    )
+    return 0
+
+
 def main(
     argv: Sequence[str] | None = None,
     *,
@@ -144,6 +165,8 @@ def main(
             return _refresh(args, stdout)
         if args.command == "freeze":
             return _freeze(args, stdout)
+        if args.command == "rollback":
+            return _rollback(args, stdout)
         return _run(args, stdout)
     except subprocess.CalledProcessError as exc:
         command = exc.cmd if isinstance(exc.cmd, str) else " ".join(exc.cmd)

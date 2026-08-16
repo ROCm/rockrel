@@ -16,7 +16,12 @@ from dataclasses import dataclass
 from enum import StrEnum
 from pathlib import Path
 
-from .git import ChangesetError, evaluate_changeset, prove_changeset
+from .git import (
+    ChangesetError,
+    evaluate_changeset,
+    prove_changeset,
+    rollback_replay_worktree,
+)
 from .models import Status
 
 SHA_PATTERN = re.compile(r"^[0-9a-f]{40}$")
@@ -608,7 +613,12 @@ def _outcome(
     )
 
 
-def run_replay_case(repo: str | Path, case: HistoricalReplayCase) -> ReplayOutcome:
+def run_replay_case(
+    repo: str | Path,
+    case: HistoricalReplayCase,
+    *,
+    worktree_path: str | Path | None = None,
+) -> ReplayOutcome:
     """Replay one case without permitting Git to hydrate missing objects."""
 
     repo_path = Path(repo)
@@ -655,7 +665,12 @@ def run_replay_case(repo: str | Path, case: HistoricalReplayCase) -> ReplayOutco
             ),
             "changeset_proof_failed",
         )
-    result = evaluate_changeset(repo_path, changeset, case.target_before)
+    result = evaluate_changeset(
+        repo_path,
+        changeset,
+        case.target_before,
+        worktree_path=worktree_path,
+    )
     destination_tree = result.evidence.get("destination_tree")
     planned_tree = result.evidence.get("planned_tree")
     destination_value = destination_tree if isinstance(destination_tree, str) else None
@@ -722,18 +737,63 @@ def run_replay_cases(
     if jobs < 1:
         raise ValueError("replay jobs must be at least 1")
     root = Path(data_root)
+    indexed_groups: dict[str, list[tuple[int, HistoricalReplayCase]]] = {}
+    for index, case in enumerate(cases):
+        indexed_groups.setdefault(case.repository, []).append((index, case))
 
-    def execute(case: HistoricalReplayCase) -> ReplayOutcome:
-        repo = root / f"{case.repository.split('/', 1)[1]}.git"
-        return run_replay_case(repo, case)
+    def execute_group(
+        item: tuple[str, list[tuple[int, HistoricalReplayCase]]],
+    ) -> tuple[tuple[int, ReplayOutcome], ...]:
+        repository, indexed_cases = item
+        slug = repository.split("/", 1)[1]
+        repo = root / f"{slug}.git"
+        worktree = root / ".cherry-pick-replay-worktrees" / slug
+        return tuple(
+            (
+                index,
+                run_replay_case(repo, case, worktree_path=worktree),
+            )
+            for index, case in indexed_cases
+        )
 
-    if jobs == 1:
-        return tuple(execute(case) for case in cases)
-    with ThreadPoolExecutor(
-        max_workers=jobs,
-        thread_name_prefix="cherry-pick-replay",
-    ) as executor:
-        return tuple(executor.map(execute, cases))
+    groups = tuple(indexed_groups.items())
+    if jobs == 1 or len(groups) <= 1:
+        indexed_outcomes = tuple(
+            outcome
+            for group in groups
+            for outcome in execute_group(group)
+        )
+    else:
+        with ThreadPoolExecutor(
+            max_workers=min(jobs, len(groups)),
+            thread_name_prefix="cherry-pick-replay",
+        ) as executor:
+            indexed_outcomes = tuple(
+                outcome
+                for group_outcomes in executor.map(execute_group, groups)
+                for outcome in group_outcomes
+            )
+    return tuple(
+        outcome
+        for _index, outcome in sorted(indexed_outcomes, key=lambda item: item[0])
+    )
+
+
+def rollback_replay_worktrees(data_root: str | Path) -> dict[str, str]:
+    """Clean every persistent replay worktree without recreating its index."""
+
+    root = Path(data_root)
+    results: dict[str, str] = {}
+    for repository in SUPPORTED_REPOSITORIES:
+        slug = repository.split("/", 1)[1]
+        repo = root / f"{slug}.git"
+        worktree = root / ".cherry-pick-replay-worktrees" / slug
+        if not worktree.exists():
+            results[repository] = "absent"
+            continue
+        target = rollback_replay_worktree(repo, worktree)
+        results[repository] = f"rolled_back:{target}"
+    return results
 
 
 @dataclass(frozen=True)
