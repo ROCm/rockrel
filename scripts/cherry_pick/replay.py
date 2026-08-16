@@ -384,14 +384,15 @@ def extract_provenance(subject: str, body: str, *, repository: str) -> Provenanc
             in_pr_list = True
             continue
         if in_pr_list:
+            if re.match(r"^#{1,6}\s*[^\d#]", stripped):
+                in_pr_list = False
+                continue
             match = re.match(r"^[*+-]?\s*#(\d+)\b", stripped)
             if match is None:
                 match = PR_URL_PATTERN.search(stripped)
             if match:
                 body_prs.append(int(match.group(1)))
-                continue
-            if stripped and not stripped.startswith(("*", "+", "-", "#")):
-                in_pr_list = False
+            continue
 
     prs = tuple(int(value) for value in _ordered_unique(body_prs))
     if not prs:
