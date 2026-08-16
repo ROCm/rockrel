@@ -292,6 +292,8 @@ def test_offline_git_environment_disables_lazy_fetch_and_prompts():
     assert environment["EXISTING"] == "value"
     assert environment["GIT_NO_LAZY_FETCH"] == "1"
     assert environment["GIT_TERMINAL_PROMPT"] == "0"
+    assert environment["GIT_HTTP_LOW_SPEED_LIMIT"] == "1024"
+    assert environment["GIT_HTTP_LOW_SPEED_TIME"] == "120"
 
 
 def test_refresh_commands_are_official_read_only_and_disable_push(tmp_path):
