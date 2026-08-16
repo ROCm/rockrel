@@ -34,6 +34,12 @@ QUALIFIED_PR_URL_PATTERN = re.compile(
     r"(?:(?!\n\s*\n).){0,240}?"
     r"https://github\.com/ROCm/[A-Za-z0-9_.-]+/pull/(\d+)"
 )
+DEPENDENCY_PR_URL_PATTERN = re.compile(
+    r"(?is)\bfor\b(?:(?!\n\s*\n).){0,80}?"
+    r"\bcherry[ -]?pick(?:ed|ing|s)?\b"
+    r"(?:(?!\n\s*\n).){0,80}?"
+    r"https://github\.com/ROCm/[A-Za-z0-9_.-]+/pull/(\d+)"
+)
 EXPLICIT_PR_PATTERN = re.compile(
     r"(?i)\b(?:cherry[ -]?pick(?:ed|s)?(?:\s+(?:commit|PR))?"
     r"|original\s+PR|source\s+PR)\s*:?\s*#(\d+)"
@@ -398,6 +404,17 @@ def _explicit_commits(body: str) -> tuple[str, ...]:
     return tuple(str(value).lower() for value in _ordered_unique(commits))
 
 
+def _qualified_source_prs(body: str) -> tuple[int, ...]:
+    dependency_numbers = {
+        int(value) for value in DEPENDENCY_PR_URL_PATTERN.findall(body)
+    }
+    return tuple(
+        int(value)
+        for value in QUALIFIED_PR_URL_PATTERN.findall(body)
+        if int(value) not in dependency_numbers
+    )
+
+
 def extract_provenance(subject: str, body: str, *, repository: str) -> Provenance:
     """Extract only explicit source PR or full-SHA evidence from a target commit."""
 
@@ -409,7 +426,7 @@ def extract_provenance(subject: str, body: str, *, repository: str) -> Provenanc
     commits = _explicit_commits(body)
     body_prs: list[int] = [int(value) for value in EXPLICIT_PR_PATTERN.findall(body)]
     body_prs.extend(int(value) for value in BACKPORT_PR_PATTERN.findall(body))
-    body_prs.extend(int(value) for value in QUALIFIED_PR_URL_PATTERN.findall(body))
+    body_prs.extend(_qualified_source_prs(body))
 
     in_pr_list = False
     pending_pr_heading = False
@@ -937,6 +954,17 @@ def _resolve_required(repo: Path, revision: str) -> str:
     return result.stdout.strip()
 
 
+def _resolve_optional(repo: Path, revision: str) -> str | None:
+    result = _git(
+        repo,
+        "rev-parse",
+        "--verify",
+        f"{revision}^{{commit}}",
+        check=False,
+    )
+    return result.stdout.strip() if result.returncode == 0 else None
+
+
 def _source_merge_for_pr(repo: Path, source_tip: str, number: int) -> str | None:
     log = _git(
         repo,
@@ -1065,6 +1093,23 @@ def _classify_inventory_record(
         inputs = _source_inputs_for_pr(repo, source_tip, provenance.source_prs[0])
         if inputs is not None:
             source_merge, source_head, source_commits = inputs
+        else:
+            pr_head = _resolve_optional(
+                repo,
+                f"refs/pull/{provenance.source_prs[0]}/head",
+            )
+            direct_inputs = (
+                _source_inputs_for_commit(repo, pr_head)
+                if pr_head is not None
+                else None
+            )
+            if direct_inputs is not None:
+                source_merge, source_head, source_commits = direct_inputs
+                classification = ReplayClassification.HISTORICAL_ADAPTATION
+                notes = (
+                    "Explicit PR head is not merged into the pinned source "
+                    "snapshot; retained diagnostically."
+                )
     elif len(provenance.source_commits) == 1:
         inputs = _source_inputs_for_commit(repo, provenance.source_commits[0])
         if inputs is not None:
@@ -1096,7 +1141,8 @@ def _classify_inventory_record(
         analysis_notes=notes,
     )
     if (
-        len(provenance.source_prs) != 1
+        classification is not ReplayClassification.UNRESOLVED
+        or len(provenance.source_prs) != 1
         or source_merge is None
         or source_head is None
         or not source_commits
