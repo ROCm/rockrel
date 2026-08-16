@@ -157,7 +157,7 @@ def test_manifest_audit_blocks_unresolved_cases():
         ),
         (
             "Cherry-pick runner updates (#6385)",
-            "Cherry-picked PRs:\n#6275 - labels\n#6269 - defaults",
+            "### Cherry-picked PRs:\n#6275 - labels\n#6269 - defaults",
             (6275, 6269),
             (),
             "explicit_source_pr",
@@ -491,3 +491,34 @@ def test_pull_request_discovery_skips_cross_repository_gitlink_rollups(tmp_path)
 
     result = discover((spec,), path.parent)
     assert result == {"ROCm/TheRock": ()}
+
+
+def test_corpus_leaves_cherry_pick_claim_without_source_identity_unresolved(tmp_path):
+    build = required("build_corpus_manifest")
+    mirror_spec = required("MirrorSpec")
+    data_root, _release_setup, target_tip = corpus_repository(tmp_path)
+    path = data_root / "TheRock.git"
+    git(path, "checkout", "release/therock-7.14")
+    assert git(path, "rev-parse", "HEAD") == target_tip
+    ambiguous = commit_file(
+        path,
+        "ambiguous.txt",
+        "unknown\n",
+        "Cherry-pick required fixes (#201)",
+    )
+    git(
+        path,
+        "update-ref",
+        "refs/remotes/origin/release/therock-7.14",
+        ambiguous,
+    )
+    spec = mirror_spec(
+        repository="ROCm/TheRock",
+        source_branch="main",
+        target_branches=("release/therock-7.14",),
+    )
+
+    manifest = build((spec,), data_root)
+    case = next(item for item in manifest.cases if item.target_after == ambiguous)
+    assert case.classification.value == "unresolved"
+    assert "provenance" in case.analysis_notes.lower()
