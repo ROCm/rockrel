@@ -80,6 +80,16 @@ def test_cli_has_explicit_refresh_and_offline_run_contract():
     )
     assert parallel_run.jobs == 7
 
+    rollback = parser.parse_args(
+        [
+            "rollback",
+            "--data-root",
+            "/tmp/replay-data",
+        ]
+    )
+    assert rollback.command == "rollback"
+    assert rollback.data_root == Path("/tmp/replay-data")
+
 
 def test_cli_is_directly_executable_from_the_repository_root():
     result = subprocess.run(
@@ -225,3 +235,27 @@ def test_offline_freeze_writes_deterministic_manifest(monkeypatch, tmp_path):
 
     assert result == 0
     assert json.loads(manifest.read_text()) == payload
+
+
+def test_rollback_command_cleans_cached_worktrees(monkeypatch, tmp_path):
+    module = load_module()
+    calls = []
+
+    def rollback(data_root):
+        calls.append(data_root)
+        return {"ROCm/TheRock": "rolled_back"}
+
+    monkeypatch.setattr(module, "rollback_replay_worktrees", rollback)
+    stdout = io.StringIO()
+
+    result = module.main(
+        ["rollback", "--data-root", str(tmp_path / "data")],
+        stdout=stdout,
+    )
+
+    assert result == 0
+    assert calls == [tmp_path / "data"]
+    assert json.loads(stdout.getvalue()) == {
+        "status": "replay_worktrees_rolled_back",
+        "worktrees": {"ROCm/TheRock": "rolled_back"},
+    }

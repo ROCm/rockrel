@@ -127,6 +127,50 @@ def test_disposable_worktree_uses_repository_filesystem(repo, monkeypatch):
     assert temporary_directories == [{"prefix": "cherry-pick-plan-", "dir": repo.parent}]
 
 
+def test_reusable_worktree_rolls_back_without_recreating_index(repo, monkeypatch):
+    base = git(repo, "rev-parse", "HEAD")
+    git(repo, "checkout", "-b", "topic")
+    original = commit_file(repo, "source.txt", "source\n", "source")
+    git(repo, "checkout", "main")
+    git(repo, "cherry-pick", original)
+    merged = git(repo, "rev-parse", "HEAD")
+    changeset = prove(repo, merged, original, (original,))
+    worktree = repo.parent / "replay-cache" / "worker"
+    worktree_adds = 0
+    original_run = git_module._run
+
+    def capture_run(run_repo, *args, **kwargs):
+        nonlocal worktree_adds
+        if args[:2] == ("worktree", "add"):
+            worktree_adds += 1
+        return original_run(run_repo, *args, **kwargs)
+
+    monkeypatch.setattr(git_module, "_run", capture_run)
+
+    first = git_module.evaluate_changeset(
+        repo,
+        changeset,
+        base,
+        worktree_path=worktree,
+    )
+    (worktree / "contamination.txt").write_text("must be removed\n")
+    second = git_module.evaluate_changeset(
+        repo,
+        changeset,
+        base,
+        worktree_path=worktree,
+    )
+
+    assert first.status is Status.DRAFT_PLANNED
+    assert second.status is Status.DRAFT_PLANNED
+    assert worktree_adds == 1
+    assert worktree.exists()
+    assert not (worktree / "contamination.txt").exists()
+    assert git(worktree, "rev-parse", "HEAD") == base
+    assert git(worktree, "status", "--porcelain") == ""
+    assert git(worktree, "rev-parse", "--verify", "CHERRY_PICK_HEAD", check=False) == ""
+
+
 def test_proves_two_parent_merge_relative_to_parent_one(repo):
     _base, first, second = topic_with_two_commits(repo)
     pr_head = second

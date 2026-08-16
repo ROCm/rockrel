@@ -375,24 +375,36 @@ def test_batch_replay_is_bounded_parallel_and_preserves_case_order(
 ):
     run_cases = required("run_replay_cases")
     case_type = required("HistoricalReplayCase")
-    cases = tuple(
-        case_type.from_dict(
-            valid_case(
-                id=f"case-{number}",
-                target_after=f"{number:040x}",
+    repositories = (
+        ("ROCm/TheRock", "main"),
+        ("ROCm/rocm-systems", "develop"),
+        ("ROCm/rocm-libraries", "develop"),
+    )
+    cases = []
+    for number in range(1, 7):
+        repository, source_branch = repositories[(number - 1) % len(repositories)]
+        cases.append(
+            case_type.from_dict(
+                valid_case(
+                    id=f"case-{number}",
+                    repository=repository,
+                    source_branch=source_branch,
+                    target_after=f"{number:040x}",
+                )
             )
         )
-        for number in range(1, 7)
-    )
+    cases = tuple(cases)
     lock = threading.Lock()
     active = 0
     maximum_active = 0
+    worktrees = {}
 
-    def fake_run(_repo, case):
+    def fake_run(_repo, case, *, worktree_path=None):
         nonlocal active, maximum_active
         with lock:
             active += 1
             maximum_active = max(maximum_active, active)
+            worktrees.setdefault(case.repository, set()).add(worktree_path)
         time.sleep(0.03)
         with lock:
             active -= 1
@@ -404,6 +416,14 @@ def test_batch_replay_is_bounded_parallel_and_preserves_case_order(
 
     assert outcomes == tuple(case.id for case in cases)
     assert 1 < maximum_active <= 3
+    assert worktrees == {
+        repository: {
+            tmp_path
+            / ".cherry-pick-replay-worktrees"
+            / repository.split("/", 1)[1]
+        }
+        for repository, _source_branch in repositories
+    }
     with pytest.raises(ValueError, match="jobs"):
         run_cases(tmp_path, cases, jobs=0)
 
