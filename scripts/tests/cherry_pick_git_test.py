@@ -40,6 +40,16 @@ def evaluate(repo, changeset, target):
     return function(repo, changeset, target)
 
 
+def source_identity(repository, pull_number, merge_commit):
+    identity_type = getattr(git_module, "SourceIdentity", None)
+    assert identity_type is not None, "containment requires typed source identity"
+    return identity_type(
+        repository=repository,
+        pull_number=pull_number,
+        merge_commit=merge_commit,
+    )
+
+
 @pytest.fixture
 def repo(tmp_path):
     path = tmp_path / "repo"
@@ -354,6 +364,123 @@ def test_conflict_is_never_classified_as_containment(repo):
     assert git(worktree, "rev-parse", "HEAD") == target
     assert git(worktree, "status", "--porcelain") == ""
     assert git(worktree, "rev-parse", "--verify", "CHERRY_PICK_HEAD", check=False) == ""
+
+
+def historical_application_fixture(repo):
+    base = git(repo, "rev-parse", "HEAD")
+    git(repo, "checkout", "-b", "topic")
+    original = commit_file(repo, "value.txt", "source\n", "source change")
+    git(repo, "checkout", "main")
+    git(repo, "cherry-pick", original)
+    git(repo, "commit", "--amend", "-m", "source change (#100)")
+    merged = git(repo, "rev-parse", "HEAD")
+    changeset = prove(repo, merged, original, (original,))
+
+    git(repo, "checkout", "--detach", base)
+    git(repo, "cherry-pick", merged)
+    git(
+        repo,
+        "commit",
+        "--amend",
+        "-m",
+        "Cherry-pick #100 (#200)",
+        "-m",
+        f"Cherry-picks commit {merged}.",
+    )
+    applied = git(repo, "rev-parse", "HEAD")
+    descendant = commit_file(
+        repo,
+        "value.txt",
+        "source with downstream evolution\n",
+        "downstream evolution",
+    )
+    return changeset, merged, applied, descendant
+
+
+def test_reachable_exact_historical_application_proves_containment(repo):
+    changeset, merged, applied, descendant = historical_application_fixture(repo)
+
+    result = git_module.evaluate_changeset(
+        repo,
+        changeset,
+        descendant,
+        source_identity=source_identity("ROCm/TheRock", 100, merged),
+    )
+
+    assert result.status is Status.ALREADY_CONTAINED
+    assert result.reason_code == "complete_changeset_application_ancestor"
+    assert result.evidence["application_commit"] == applied
+    assert result.evidence["application_tree"] == git(
+        repo, "rev-parse", f"{applied}^{{tree}}"
+    )
+
+
+def test_source_text_without_exact_application_is_not_containment(repo):
+    base = git(repo, "rev-parse", "HEAD")
+    git(repo, "checkout", "-b", "topic")
+    original = commit_file(repo, "value.txt", "source\n", "source change")
+    git(repo, "checkout", "main")
+    git(repo, "cherry-pick", original)
+    merged = git(repo, "rev-parse", "HEAD")
+    changeset = prove(repo, merged, original, (original,))
+
+    git(repo, "checkout", "--detach", base)
+    claim = commit_file(
+        repo,
+        "other.txt",
+        "unrelated\n",
+        f"Claims Cherry-pick #100 from {merged}",
+    )
+    target = commit_file(repo, "value.txt", "target\n", "conflicting target")
+
+    result = git_module.evaluate_changeset(
+        repo,
+        changeset,
+        target,
+        source_identity=source_identity("ROCm/TheRock", 100, merged),
+    )
+
+    assert result.status is Status.BLOCKED_CONFLICT
+    assert result.reason_code == "cherry_pick_conflict"
+    assert "application_commit" not in result.evidence
+    assert claim != target
+
+
+def test_explicit_revert_of_proven_application_blocks_for_review(repo):
+    changeset, merged, applied, _descendant = historical_application_fixture(repo)
+    git(repo, "checkout", "--detach", applied)
+    git(repo, "revert", "--no-edit", applied)
+    reverted = git(repo, "rev-parse", "HEAD")
+
+    result = git_module.evaluate_changeset(
+        repo,
+        changeset,
+        reverted,
+        source_identity=source_identity("ROCm/TheRock", 100, merged),
+    )
+
+    assert result.status is Status.BLOCKED_AMBIGUOUS_CHANGESET
+    assert result.reason_code == "proven_application_later_reverted"
+    assert result.evidence["application_commit"] == applied
+    assert result.evidence["revert_commit"] == reverted
+
+
+def test_conflict_evidence_names_paths_and_index_stages(repo):
+    base = git(repo, "rev-parse", "HEAD")
+    git(repo, "checkout", "-b", "topic")
+    source = commit_file(repo, "value.txt", "source\n", "source conflict")
+    git(repo, "checkout", "main")
+    git(repo, "cherry-pick", source)
+    merged = git(repo, "rev-parse", "HEAD")
+    changeset = prove(repo, merged, source, (source,))
+    git(repo, "checkout", "--detach", base)
+    target = commit_file(repo, "value.txt", "target\n", "target conflict")
+
+    result = evaluate(repo, changeset, target)
+
+    assert result.status is Status.BLOCKED_CONFLICT
+    assert result.evidence["conflict_paths"] == ["value.txt"]
+    assert result.evidence["conflict_stages"] == {"value.txt": [1, 2, 3]}
 
 
 def test_gitlink_directional_decisions_use_new_status_contract(repo):

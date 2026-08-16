@@ -30,25 +30,36 @@ def test_cli_has_explicit_refresh_and_offline_run_contract():
             "refresh",
             "--data-root",
             "/tmp/replay-data",
-            "--manifest",
-            "/tmp/manifest.json",
+            "--candidate-out",
+            "/tmp/candidate.json",
             "--allow-read-only-network",
         ]
     )
     assert refresh.command == "refresh"
     assert refresh.allow_read_only_network is True
 
-    freeze = parser.parse_args(
+    inventory = parser.parse_args(
         [
-            "freeze",
+            "inventory",
             "--data-root",
             "/tmp/replay-data",
-            "--manifest",
-            "/tmp/manifest.json",
+            "--candidate-out",
+            "/tmp/candidate.json",
         ]
     )
-    assert freeze.command == "freeze"
-    assert not hasattr(freeze, "allow_read_only_network")
+    assert inventory.command == "inventory"
+    assert not hasattr(inventory, "allow_read_only_network")
+
+    compare = parser.parse_args(
+        [
+            "compare",
+            "--candidate",
+            "/tmp/candidate.json",
+            "--golden",
+            "/tmp/golden.json",
+        ]
+    )
+    assert compare.command == "compare"
 
     run = parser.parse_args(
         [
@@ -64,6 +75,7 @@ def test_cli_has_explicit_refresh_and_offline_run_contract():
     assert run.command == "run"
     assert not hasattr(run, "allow_read_only_network")
     assert run.jobs == 4
+    assert run.tier == "fast"
 
     parallel_run = parser.parse_args(
         [
@@ -76,9 +88,12 @@ def test_cli_has_explicit_refresh_and_offline_run_contract():
             "/tmp/reports",
             "--jobs",
             "7",
+            "--tier",
+            "deep",
         ]
     )
     assert parallel_run.jobs == 7
+    assert parallel_run.tier == "deep"
 
     rollback = parser.parse_args(
         [
@@ -89,6 +104,25 @@ def test_cli_has_explicit_refresh_and_offline_run_contract():
     )
     assert rollback.command == "rollback"
     assert rollback.data_root == Path("/tmp/replay-data")
+
+
+def test_inventory_refuses_to_overwrite_the_tracked_golden(tmp_path):
+    module = load_module()
+    stderr = io.StringIO()
+
+    code = module.main(
+        [
+            "inventory",
+            "--data-root",
+            str(tmp_path),
+            "--candidate-out",
+            str(ROOT / "scripts/tests/fixtures/historical_cherry_picks.json"),
+        ],
+        stderr=stderr,
+    )
+
+    assert code == 2
+    assert "reviewed golden" in stderr.getvalue().lower()
 
 
 def test_cli_is_directly_executable_from_the_repository_root():
@@ -124,9 +158,7 @@ def test_offline_run_writes_both_reports_and_propagates_evidence_gap(tmp_path):
     repo.mkdir(parents=True)
     subprocess.run(["git", "init", "--bare", str(repo)], check=True)
     manifest = tmp_path / "manifest.json"
-    manifest.write_text(
-        json.dumps(
-            {
+    inventory = {
                 "schema_version": 1,
                 "snapshots": {
                     "ROCm/TheRock": {
@@ -153,6 +185,26 @@ def test_offline_run_writes_both_reports_and_propagates_evidence_gap(tmp_path):
                         "analysis_notes": "Needs provenance review.",
                     }
                 ],
+            }
+    manifest.write_text(
+        json.dumps(
+            {
+                "schema_version": 2,
+                "inventory": inventory,
+                "expectations": {
+                    "missing-evidence": {
+                        "execution_phase": "inventory",
+                        "expected_status": None,
+                        "expected_reason": "unresolved_provenance",
+                        "expected_planned_tree": None,
+                        "expected_conflict_paths": [],
+                        "expected_after_status": None,
+                        "expected_after_reason": None,
+                        "expected_tip_status": None,
+                        "expected_tip_reason": None,
+                        "tier": "fast",
+                    }
+                },
             }
         )
     )
@@ -189,8 +241,8 @@ def test_refresh_transport_failure_is_a_clean_evidence_exit(monkeypatch, tmp_pat
             "refresh",
             "--data-root",
             str(tmp_path / "data"),
-            "--manifest",
-            str(tmp_path / "manifest.json"),
+            "--candidate-out",
+            str(tmp_path / "candidate.json"),
             "--allow-read-only-network",
         ],
         stderr=stderr,
@@ -200,7 +252,7 @@ def test_refresh_transport_failure_is_a_clean_evidence_exit(monkeypatch, tmp_pat
     assert "git fetch" in stderr.getvalue()
 
 
-def test_offline_freeze_writes_deterministic_manifest(monkeypatch, tmp_path):
+def test_offline_inventory_writes_deterministic_candidate(monkeypatch, tmp_path):
     module = load_module()
     payload = {"schema_version": 1, "snapshots": {}, "cases": []}
 
@@ -221,20 +273,20 @@ def test_offline_freeze_writes_deterministic_manifest(monkeypatch, tmp_path):
     monkeypatch.setattr(
         module, "audit_manifest_inventory", lambda _manifest, _root: FakeAudit()
     )
-    manifest = tmp_path / "manifest.json"
+    candidate = tmp_path / "candidate.json"
 
     result = module.main(
         [
-            "freeze",
+            "inventory",
             "--data-root",
             str(tmp_path / "data"),
-            "--manifest",
-            str(manifest),
+            "--candidate-out",
+            str(candidate),
         ]
     )
 
     assert result == 0
-    assert json.loads(manifest.read_text()) == payload
+    assert json.loads(candidate.read_text()) == payload
 
 
 def test_rollback_command_cleans_cached_worktrees(monkeypatch, tmp_path):

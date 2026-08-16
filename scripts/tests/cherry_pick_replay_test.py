@@ -95,6 +95,36 @@ def valid_manifest(cases=None):
     }
 
 
+def valid_expectation(case=None, **overrides):
+    case = case or valid_case()
+    value = {
+        "execution_phase": "core",
+        "expected_status": "draft_planned",
+        "expected_reason": "clean_trial_application",
+        "expected_planned_tree": case["target_after_tree"],
+        "expected_conflict_paths": [],
+        "expected_after_status": "already_contained",
+        "expected_after_reason": "complete_changeset_already_applied",
+        "expected_tip_status": "already_contained",
+        "expected_tip_reason": "complete_changeset_already_applied",
+        "tier": "fast",
+    }
+    value.update(overrides)
+    return value
+
+
+def valid_reviewed_corpus(cases=None, expectations=None):
+    inventory = valid_manifest(cases)
+    records = inventory["cases"]
+    return {
+        "schema_version": 2,
+        "inventory": inventory,
+        "expectations": expectations
+        if expectations is not None
+        else {case["id"]: valid_expectation(case) for case in records},
+    }
+
+
 def test_manifest_round_trip_has_strict_typed_contract():
     manifest_type = required("CorpusManifest")
     manifest = manifest_type.from_dict(valid_manifest())
@@ -102,6 +132,71 @@ def test_manifest_round_trip_has_strict_typed_contract():
     assert manifest.schema_version == 1
     assert manifest.cases[0].classification.value == "strict_exact"
     assert manifest.as_dict() == valid_manifest()
+
+
+def test_reviewed_corpus_requires_one_immutable_expectation_per_case():
+    reviewed_type = required("ReviewedCorpus")
+    value = valid_reviewed_corpus()
+
+    reviewed = reviewed_type.from_dict(value)
+
+    assert reviewed.schema_version == 2
+    assert reviewed.expectations[valid_case()["id"]].execution_phase.value == "core"
+    assert reviewed.as_dict() == value
+
+    value["expectations"] = {}
+    with pytest.raises(ValueError, match="expectation"):
+        reviewed_type.from_dict(value)
+
+
+def test_candidate_comparison_blocks_silent_classification_downgrade():
+    manifest_type = required("CorpusManifest")
+    reviewed_type = required("ReviewedCorpus")
+    compare = required("compare_candidate_to_golden")
+    golden = reviewed_type.from_dict(valid_reviewed_corpus())
+    downgraded = valid_manifest()
+    downgraded["cases"][0]["classification"] = "historical_adaptation"
+    candidate = manifest_type.from_dict(downgraded)
+
+    result = compare(candidate, golden)
+
+    assert result.exit_code == 2
+    assert result.added_case_ids == ()
+    assert result.removed_case_ids == ()
+    assert result.changed_case_ids == (valid_case()["id"],)
+
+
+@pytest.mark.parametrize(
+    "branch",
+    [
+        "release/bkc/therock-10.1-20260811",
+        "release/rocm-rel-7.2",
+        "release-staging/rocm-rel-7.0",
+        "staging/candidate-1",
+    ],
+)
+def test_mirror_spec_accepts_any_safe_destination_branch(branch):
+    spec_type = required("MirrorSpec")
+
+    spec = spec_type(
+        repository="ROCm/TheRock",
+        source_branch="main",
+        target_branches=(branch,),
+    )
+
+    assert spec.target_branches == (branch,)
+
+
+@pytest.mark.parametrize("branch", ["-bad", "bad..name", "refs/heads/main", "bad name"])
+def test_mirror_spec_rejects_unsafe_destination_branch(branch):
+    spec_type = required("MirrorSpec")
+
+    with pytest.raises(ValueError, match="target branch"):
+        spec_type(
+            repository="ROCm/TheRock",
+            source_branch="main",
+            target_branches=(branch,),
+        )
 
 
 @pytest.mark.parametrize(
@@ -392,6 +487,52 @@ def test_exact_historical_replay_is_a_strict_tree_gate(repo):
     assert outcome.engine_status == "draft_planned"
     assert outcome.planned_tree == outcome.historical_tree
     assert outcome.strict_failure is False
+
+
+def test_reviewed_replay_checks_forward_and_postmerge_outcomes(repo):
+    run_reviewed = required("run_reviewed_case")
+    expectation_type = required("ReplayExpectation")
+    case = exact_case(repo)
+    expectation = expectation_type.from_dict(valid_expectation(case.as_dict()))
+
+    outcome = run_reviewed(
+        repo,
+        case,
+        expectation,
+        target_tip=case.target_after,
+    )
+
+    assert outcome.disposition.value == "passed"
+    assert outcome.execution_phase == "core"
+    assert outcome.engine_status == "draft_planned"
+    assert outcome.postmerge_status == "already_contained"
+    assert outcome.postmerge_reason == "complete_changeset_already_applied"
+    assert outcome.tip_status == "already_contained"
+    assert outcome.expectation_mismatches == ()
+
+
+def test_reviewed_replay_fails_when_expected_behavior_is_relaxed(repo):
+    run_reviewed = required("run_reviewed_case")
+    expectation_type = required("ReplayExpectation")
+    case = exact_case(repo)
+    expectation = expectation_type.from_dict(
+        valid_expectation(
+            case.as_dict(),
+            expected_status="blocked_conflict",
+            expected_reason="cherry_pick_conflict",
+        )
+    )
+
+    outcome = run_reviewed(
+        repo,
+        case,
+        expectation,
+        target_tip=case.target_after,
+    )
+
+    assert outcome.disposition.value == "strict_failure"
+    assert "engine_status" in outcome.expectation_mismatches
+    assert "engine_reason" in outcome.expectation_mismatches
 
 
 def test_batch_replay_is_bounded_parallel_and_preserves_case_order(

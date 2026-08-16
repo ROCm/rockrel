@@ -9,7 +9,7 @@ from pathlib import Path
 
 import pytest
 
-from scripts.cherry_pick.replay import CorpusManifest
+from scripts.cherry_pick.replay import ReviewedCorpus
 
 ROOT = Path(__file__).parents[2]
 MANIFEST = ROOT / "scripts/tests/fixtures/historical_cherry_picks.json"
@@ -18,18 +18,26 @@ REPLAY_CLI = ROOT / "scripts/replay_cherry_pick_history.py"
 
 
 def load_corpus():
-    return CorpusManifest.from_dict(json.loads(MANIFEST.read_text()))
+    return ReviewedCorpus.from_dict(json.loads(MANIFEST.read_text()))
 
 
 def test_pinned_manifest_is_exhaustive_and_has_no_unknown_cases():
     manifest = load_corpus()
-    assert manifest.cases
-    assert all(case.classification.value != "unresolved" for case in manifest.cases)
-    assert all(snapshot.targets for snapshot in manifest.snapshots.values())
+    assert manifest.inventory.cases
+    assert all(
+        case.classification.value != "unresolved"
+        for case in manifest.inventory.cases
+    )
+    assert all(snapshot.targets for snapshot in manifest.inventory.snapshots.values())
+    assert set(manifest.expectations) == {
+        case.id for case in manifest.inventory.cases
+    }
 
 
 def test_pinned_manifest_has_positive_and_negative_historical_controls():
-    classifications = {case.classification.value for case in load_corpus().cases}
+    classifications = {
+        case.classification.value for case in load_corpus().inventory.cases
+    }
 
     assert {
         "strict_exact",
@@ -60,6 +68,8 @@ def test_standalone_cli_replays_full_corpus_in_parallel(tmp_path):
             str(report_dir),
             "--jobs",
             "4",
+            "--tier",
+            "deep",
         ],
         cwd=ROOT,
         check=False,
@@ -73,12 +83,12 @@ def test_standalone_cli_replays_full_corpus_in_parallel(tmp_path):
     manifest = load_corpus()
     outcomes = report["outcomes"]
     assert [outcome["case_id"] for outcome in outcomes] == [
-        case.id for case in manifest.cases
+        case.id for case in manifest.inventory.cases
     ]
 
     strict_ids = {
         case.id
-        for case in manifest.cases
+        for case in manifest.inventory.cases
         if case.classification.value == "strict_exact"
     }
     assert strict_ids
@@ -88,6 +98,13 @@ def test_standalone_cli_replays_full_corpus_in_parallel(tmp_path):
         if outcome["case_id"] in strict_ids
     )
     assert all(outcome["strict_failure"] is False for outcome in outcomes)
+    strict = [
+        outcome for outcome in outcomes if outcome["classification"] == "strict_exact"
+    ]
+    assert len(strict) == 31
+    assert all(outcome["postmerge_status"] == "already_contained" for outcome in strict)
+    assert all(outcome["tip_status"] == "already_contained" for outcome in strict)
+    assert all(not outcome["expectation_mismatches"] for outcome in outcomes)
 
     manual = [
         outcome
@@ -108,3 +125,9 @@ def test_standalone_cli_replays_full_corpus_in_parallel(tmp_path):
     assert any(
         outcome["planned_tree"] != outcome["historical_tree"] for outcome in adaptations
     )
+    inventory_only = [
+        outcome for outcome in outcomes if outcome["execution_phase"] == "inventory"
+    ]
+    core = [outcome for outcome in outcomes if outcome["execution_phase"] == "core"]
+    assert len(inventory_only) == 38
+    assert len(core) == 39

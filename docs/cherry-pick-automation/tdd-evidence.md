@@ -197,3 +197,24 @@ diagnostics and 4 clean planned tree mismatches. A deliberately zero-filled test
 index is recovered from an atomic snapshot; the real interrupted cache was
 repaired locally by the rollback command without fetching, cloning, or
 recreating its worktree.
+
+## Reviewed-oracle and containment hardening slice
+
+The product requirements, technical design, and runbook were corrected in
+local commit `9b90160` before this slice changed tests or product code.
+
+The complete first red contract added typed source identity, exact reachable
+application containment, explicit-revert blocking, conflict path/stage
+evidence, schema-v2 reviewed expectations, downgrade detection, generic safe
+destination refs, forward/post-merge reviewed replay, a filesystem-only full
+planner/writer simulator, and safe inventory/compare CLI behavior.
+
+```text
+$ .venv/bin/python -m pytest -q scripts/tests
+20 failed, 254 passed in 4.72s
+```
+
+The failures were the intended missing behavior: four Git containment/evidence
+contracts, eight reviewed-corpus and generic-branch contracts, three local
+pipeline simulation contracts, and five safe CLI contracts. No production
+Python changed before this red result was captured.
