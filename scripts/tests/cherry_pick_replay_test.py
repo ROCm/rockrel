@@ -9,6 +9,8 @@ from pathlib import Path
 
 import pytest
 
+from scripts.cherry_pick import git as git_engine
+
 try:
     replay = importlib.import_module("scripts.cherry_pick.replay")
 except ModuleNotFoundError:
@@ -544,6 +546,36 @@ def test_builds_exhaustive_corpus_and_auto_qualifies_only_exact_case(tmp_path):
     assert strict[0].source_head
     assert strict[0].source_commits
     assert audit_inventory(manifest, data_root).exit_code == 0
+
+
+def test_corpus_qualification_reuses_persistent_repository_index(
+    monkeypatch, tmp_path
+):
+    build = required("build_corpus_manifest")
+    mirror_spec = required("MirrorSpec")
+    data_root, _release_setup, _target_tip = corpus_repository(tmp_path)
+    spec = mirror_spec(
+        repository="ROCm/TheRock",
+        source_branch="main",
+        target_branches=("release/therock-7.14",),
+    )
+    worktree_adds = 0
+    original_run = git_engine._run
+
+    def capture_run(repo, *args, **kwargs):
+        nonlocal worktree_adds
+        if args[:2] == ("worktree", "add"):
+            worktree_adds += 1
+        return original_run(repo, *args, **kwargs)
+
+    monkeypatch.setattr(git_engine, "_run", capture_run)
+
+    first = build((spec,), data_root)
+    second = build((spec,), data_root)
+
+    assert first.as_dict() == second.as_dict()
+    assert worktree_adds == 1
+    assert (data_root / ".cherry-pick-replay-worktrees" / "TheRock").exists()
 
 
 def test_unmerged_explicit_pr_head_is_retained_as_diagnostic_adaptation(tmp_path):
