@@ -810,6 +810,50 @@ def test_synthetic_registry_rejects_unknown_cells_and_duplicate_test_ids():
         )
 
 
+def test_reviewed_fast_tier_is_minimized_without_dropping_negative_diversity():
+    load = required("load_reviewed_corpus")
+    tier_type = required("ReplayTier")
+    path = Path(__file__).parent / "fixtures/historical_cherry_picks.json"
+    corpus = load(path)
+    fast_cases = tuple(
+        case
+        for case in corpus.inventory.cases
+        if corpus.expectations[case.id].included_in(tier_type.FAST)
+    )
+    deep_cases = tuple(
+        case
+        for case in corpus.inventory.cases
+        if corpus.expectations[case.id].included_in(tier_type.DEEP)
+    )
+
+    assert 12 <= len(fast_cases) <= 24
+    assert deep_cases == corpus.inventory.cases
+    assert {case.repository for case in fast_cases} == set(
+        required("SUPPORTED_REPOSITORIES")
+    )
+    assert {case.target_branch for case in fast_cases} == {
+        "release/therock-7.12",
+        "release/therock-7.14",
+        "release/therock-10.0",
+    }
+    assert {case.classification.value for case in fast_cases} == {
+        "strict_exact",
+        "multi_source_bundle",
+        "historical_adaptation",
+        "manual_resolution",
+        "release_native",
+        "revert",
+        "gitlink_rollup",
+    }
+    fast_ids = {case.id for case in fast_cases}
+    required_negative_ids = {
+        case.id
+        for case in corpus.inventory.cases
+        if case.classification.value in {"historical_adaptation", "manual_resolution"}
+    }
+    assert required_negative_ids <= fast_ids
+
+
 def test_batch_replay_is_bounded_parallel_and_preserves_case_order(
     monkeypatch, tmp_path
 ):

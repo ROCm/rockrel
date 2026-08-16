@@ -303,3 +303,19 @@ $ .venv/bin/python -m pytest -q \
     scripts/tests/replay_cherry_pick_history_test.py
 85 passed in 3.63s
 ```
+
+## Fast/deep tier separation slice
+
+The tier-diversity contract was added before changing the reviewed fixture. It
+requires a bounded fast subset while retaining all three repositories, all
+three historical release lines, every classification, every manual conflict,
+and every historical adaptation; deep must still select all 77 rows.
+
+```text
+$ .venv/bin/python -m pytest -q \
+    scripts/tests/cherry_pick_replay_test.py::test_reviewed_fast_tier_is_minimized_without_dropping_negative_diversity
+1 failed in 0.10s
+```
+
+The intended failure showed that all 77 rows were marked `fast`, making the
+fast and deep gates identical.
