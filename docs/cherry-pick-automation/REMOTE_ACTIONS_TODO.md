@@ -23,6 +23,9 @@ changes.
 
 - [ ] Review all four local draft branches, commits, red/green evidence,
   coverage, threat model, permissions, and generated workflow diffs.
+- [ ] Review the 17-case fast selection, all 77 schema-v2 golden expectations,
+  the schema-v3 deep report, 21 historical-only gaps, and every named synthetic
+  coverage claim.
 - [ ] Run the configured 90% line/branch coverage gate in an approved
   environment with the pinned test dependencies; treat failure as blocking.
 - [ ] Approve or reject publishing each repository independently.
@@ -65,3 +68,14 @@ changes.
   it ready or merge it.
 - [ ] Require independent operator confirmation of source changeset, Jira,
   destination, dependencies, diff, and native CI before anyone marks it ready.
+
+## Future corpus maintenance
+
+- [ ] Approve any new read-only refresh separately and review the exact official
+  repository/branch refspecs before execution.
+- [ ] Generate the candidate outside the repository and compare it with the
+  tracked golden; never overwrite or auto-promote the golden.
+- [ ] Review every added, removed, reclassified, endpoint-changed, expectation,
+  and fast/deep-tier change before committing an updated corpus.
+- [ ] Re-run unit, fast, deep parallel, deep serial, byte-comparison, and
+  rollback gates before accepting a refreshed corpus.

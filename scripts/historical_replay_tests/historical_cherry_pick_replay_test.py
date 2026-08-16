@@ -25,13 +25,10 @@ def test_pinned_manifest_is_exhaustive_and_has_no_unknown_cases():
     manifest = load_corpus()
     assert manifest.inventory.cases
     assert all(
-        case.classification.value != "unresolved"
-        for case in manifest.inventory.cases
+        case.classification.value != "unresolved" for case in manifest.inventory.cases
     )
     assert all(snapshot.targets for snapshot in manifest.inventory.snapshots.values())
-    assert set(manifest.expectations) == {
-        case.id for case in manifest.inventory.cases
-    }
+    assert set(manifest.expectations) == {case.id for case in manifest.inventory.cases}
 
 
 def test_pinned_manifest_has_positive_and_negative_historical_controls():
@@ -80,6 +77,9 @@ def test_standalone_cli_replays_full_corpus_in_parallel(tmp_path):
 
     assert result.returncode == 0, result.stderr or result.stdout
     report = json.loads((report_dir / "historical-replay.json").read_text())
+    assert report["schema_version"] == 3
+    assert report["coverage"]["gaps"] == []
+    assert len(report["coverage"]["historical_gaps"]) == 21
     manifest = load_corpus()
     outcomes = report["outcomes"]
     assert [outcome["case_id"] for outcome in outcomes] == [
@@ -122,9 +122,21 @@ def test_standalone_cli_replays_full_corpus_in_parallel(tmp_path):
     assert adaptations and all(
         outcome["engine_status"] == "draft_planned" for outcome in adaptations
     )
-    assert any(
-        outcome["planned_tree"] != outcome["historical_tree"] for outcome in adaptations
+    assert (
+        sum(
+            outcome["planned_tree"] != outcome["historical_tree"]
+            for outcome in adaptations
+        )
+        == 4
     )
+    assert (
+        sum(
+            outcome["planned_tree"] == outcome["historical_tree"]
+            for outcome in adaptations
+        )
+        == 1
+    )
+    assert all(outcome["postmerge_status"] is None for outcome in adaptations)
     inventory_only = [
         outcome for outcome in outcomes if outcome["execution_phase"] == "inventory"
     ]

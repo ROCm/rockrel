@@ -174,7 +174,8 @@ red commits include `5ba0672`, `339cd2c`, `eecf040`, `aeba4f6`, `389db7e`,
 `cbb4ac7`. Each selected test failed for its intended missing behavior before
 the paired implementation commit.
 
-The final local results are:
+At completion of that implementation slice, before the later reviewed-oracle
+and coverage work, the local results were:
 
 ```text
 $ .venv/bin/python -m pytest -q scripts/tests
@@ -183,20 +184,21 @@ $ .venv/bin/python -m pytest -q scripts/tests
 $ .venv/bin/python scripts/replay_cherry_pick_history.py rollback ...
 3 repositories rolled back and verified in 4.1 seconds
 
-$ .venv/bin/python scripts/replay_cherry_pick_history.py freeze ...
+$ .venv/bin/python scripts/replay_cherry_pick_history.py inventory ...
 77 cases; 31 strict; 46 diagnostic; 0 evidence gaps
 
 $ .venv/bin/python scripts/replay_cherry_pick_history.py run ... --jobs 4
 77 cases; 31 passed; 46 diagnostic; exit 0
 ```
 
-The first disk-backed cache population took 4m42s. The verified warm freeze
-took 1m52s, approximately 60% faster. Full standalone parallel replay runs took
-1m00s to 1m36s with warm indexes. The corpus contains 3 real conflict
-diagnostics and 4 clean planned tree mismatches. A deliberately zero-filled test
-index is recovered from an atomic snapshot; the real interrupted cache was
-repaired locally by the rollback command without fetching, cloning, or
-recreating its worktree.
+The first disk-backed cache population took 4m42s. A warm inventory took 1m52s,
+approximately 60% faster. Full standalone parallel replay runs took 1m00s to
+1m36s with warm indexes. The later reviewed corpus identifies three real
+conflicts and five clean historical adaptations: four planned-tree mismatches
+and one noncanonical merged-source case. A deliberately zero-filled test index
+is recovered from an atomic snapshot; the real interrupted cache was repaired
+locally by the rollback command without fetching, cloning, or recreating its
+worktree.
 
 ## Reviewed-oracle and containment hardening slice
 
@@ -353,4 +355,69 @@ and uncovered cell (or explicitly says `none`).
 $ .venv/bin/python -m pytest -q \
     scripts/tests/cherry_pick_replay_test.py::test_report_includes_coverage_and_fails_closed_on_a_gap
 1 passed in 0.15s
+```
+
+## Final replay evidence
+
+The current local draft produced the following standalone results with the
+persistent disk-backed worktrees:
+
+```text
+$ replay ... --tier fast --jobs 4
+17 cases; 5 passed; 12 diagnostic; 0 expectation mismatches;
+0 combined coverage gaps; 67.45 seconds
+
+$ replay ... --tier deep --jobs 4
+77 cases; 31 passed; 46 diagnostic; 0 expectation mismatches;
+0 combined coverage gaps; 21 historical-only gaps; 71.62 seconds
+
+$ replay ... --tier deep --jobs 1
+77 cases; 31 passed; 46 diagnostic; 0 expectation mismatches;
+0 combined coverage gaps; 21 historical-only gaps; 116.12 seconds
+```
+
+Serial and parallel schema-v3 reports are byte-identical:
+
+```text
+JSON     c35e36ed21cc4ff7843a1303ada3c89b7903e7cd513cff912a401af8733848e5
+Markdown ab0341982950ab45daed29751e6aa96cdad8ea957bf1f05ed192596f3c2f2017
+```
+
+A fresh offline schema-v1 inventory was generated from the already hydrated
+mirrors in 69.38 seconds. It contained 77 cases, 31 strict candidates, 46
+diagnostics, and zero evidence gaps. Its SHA-256 is
+`7e40b43694927497045ebd13e4f92e3a9edd4839e27a9965053ee7730ce34301`.
+Safe comparison with the reviewed schema-v2 golden reported no added, removed,
+changed, or snapshot-drifted cases.
+
+The standalone rollback then verified all three persistent worktrees and their
+indexes in 0.54 seconds without deleting or recreating any worktree.
+
+## Final current local gates
+
+```text
+$ .venv/bin/python -m pytest -q scripts/tests
+308 passed in 8.92s
+
+$ ROCM_CHERRYPICK_REPLAY_DATA=... .venv/bin/python -m pytest -q \
+    scripts/historical_replay_tests --basetemp=/disk-backed/path
+3 passed in 70.23s
+
+TheRock caller:        3 tests, OK
+rocm-systems caller:   4 tests, OK
+rocm-libraries caller: 4 tests, OK
+```
+
+Pinned Black 25.11.0, mdformat 0.7.21, actionlint 1.7.10, JSON parsing,
+`git diff --check`, source-caller pin/permission tests, candidate/golden
+comparison, and persistent-worktree rollback all pass locally. Black had to be
+invoked once per file because its cached multi-file worker stalled in this
+sandbox; the same pinned executable performed every check.
+
+The configured line/branch coverage gate remains unverified and blocks future
+activation:
+
+```text
+$ .venv/bin/python -m coverage --version
+No module named coverage
 ```

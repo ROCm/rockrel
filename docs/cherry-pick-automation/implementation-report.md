@@ -10,12 +10,17 @@ workflow write job has an impossible repository gate, committed train modes are
 non-writing, default API transports deny network access, and the normal CLI
 cannot construct a writer capability.
 
-The controller and its callers now have 254 rockrel unit tests and 11
-source-caller tests passing. The 77-case standalone historical replay also
-passes with 31 strict exact trees and 46 reviewed diagnostics. The remaining
-activation blocker is measurement of the configured
-90% line/branch coverage threshold: `pytest-cov`/`coverage.py` is not installed
-in any available local Python environment, and the no-network boundary forbids
+The controller and its callers now have 308 rockrel unit tests and 11
+source-caller tests passing. The 17-case fast and 77-case deep standalone
+historical replays pass. Deep contains 31 exact historical trees and 46
+reviewed diagnostics, with zero oracle mismatches and zero combined coverage
+gaps. Its schema-v3 report keeps 21 historical-only gaps visible and maps each
+to named deterministic tests rather than relabeling synthetic behavior as
+history. Detailed evidence is in `historical-replay-analysis.md`.
+
+The remaining activation blocker is measurement of the configured 90% line
+and branch coverage threshold: `pytest-cov`/`coverage.py` is not installed in
+any available local Python environment, and the no-network boundary forbids
 downloading it. The unit-test workflow enforces the threshold when a separately
 approved public CI run becomes available. This is an explicit unverified gate,
 not a claimed pass.
@@ -61,8 +66,11 @@ pre-commit cache were used for Black 25.11.0, mdformat 0.7.21, and actionlint
 | Draft body            | Generated body includes source/destination proof, Jira, dependencies, application, tests, checklist, warning, and identity                                                                      | Closed         |
 | Security              | App manifest omits administration/Actions/Workflows; privileged event paths never execute PR-head code                                                                                          | Closed         |
 | Local safety          | Network-denying defaults, non-writing train modes, impossible write-job gates, and explicit writer capability are tested                                                                        | Closed         |
-| Historical replay     | 77/77 transitions classified; 31/31 strict trees pass; 46 diagnostics include conflicts, adaptations, bundles, reverts, gitlinks, and release-native changes                                    | Closed         |
+| Historical replay     | 17-row fast and 77-row deep gates pass; 31/31 strict trees and contained reruns pass; 46 exact diagnostics remain non-writing                                                                   | Closed         |
+| Replay coverage audit | Schema-v3 reports separate historical and named synthetic cells; zero combined gaps and 21 explicit historical-only gaps                                                                        | Closed         |
+| Replay determinism    | Deep `--jobs 1` and `--jobs 4` JSON/Markdown reports are byte-identical                                                                                                                         | Closed         |
 | Replay rollback       | Persistent disk indexes, atomic snapshots, corruption recovery, automatic per-case cleanup, and standalone rollback are unit/integration tested                                                 | Closed         |
+| Pipeline simulation   | Real planner/writer use frozen adapters, a filesystem bare remote, in-memory drafts, and reject network origins; this is synthetic rather than historical evidence                              | Closed         |
 | Coverage              | CI enforces 90% line and branch coverage, but the local measurement tool is unavailable and cannot be downloaded                                                                                | **Unverified** |
 
 ## Repository evidence reflected in the implementation
@@ -96,11 +104,19 @@ The work followed the required sequence:
 1. Implement that slice, format with the pinned repository tool, and finish at
    203 passing tests.
 1. Generate thin callers and pass all 11 repository-local caller tests.
-1. Add the historical replay contract red-first, freeze all 77 transitions,
+1. Add the historical replay contract red-first, pin all 77 transitions,
    and close every evidence gap with positive provenance or reviewed diagnostic
    classification.
 1. Add persistent rollback/index-corruption tests red-first, then finish with
    254 unit tests and the standalone historical suite green.
+1. Replace engine-derived expectations with a reviewed schema-v2 golden and
+   verify forward plus post-merge containment for every executable row.
+1. Add coverage mutation tests, Git/conflict shape tests, and a typed named
+   synthetic registry before implementing schema-v3 coverage reporting.
+1. Separate the 17-case fast gate from the 77-case deep gate while retaining
+   every adaptation, conflict, repository, release line, and classification.
+1. Finish with 308 unit tests, zero deep oracle/combined-coverage gaps, and
+   byte-identical serial/parallel reports.
 
 Full commands and commit boundaries are recorded in `tdd-evidence.md`.
 

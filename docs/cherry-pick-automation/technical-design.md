@@ -351,18 +351,21 @@ target branches, discovers explicit source PR references, and fetches the
 corresponding `refs/pull/<number>/head` refs so squash, merge-commit, and rebase
 representations can be proven locally.
 
-The refresh writes a deterministic schema-v2 candidate inventory outside the
+The refresh writes a deterministic schema-v1 candidate inventory outside the
 tracked fixture. Each record contains repository and branch identity, immutable
-source and destination SHAs/trees, source PR metadata, provenance method, and
-observed engine behavior. Target commits are enumerated along the first-parent
-history between the source/target merge base and the pinned target tip.
+source and destination SHAs/trees, source PR metadata, provenance method, and a
+proposed classification. Target commits are enumerated along the first-parent
+history between the source/target merge base and the pinned target tip. A
+candidate is discovery evidence, never an oracle.
 
-The tracked schema-v2 golden is a separate, immutable review artifact. It pins
-each case's classification, changeset representation and order, execution
-phase, status/reason, historical/planned tree, conflict paths, post-merge
-containment result, coverage dimensions, and rationale. Candidate generation
-cannot write that path. Comparing a candidate with the golden fails on added,
-removed, reclassified, or changed cases until a human reviews the exact diff.
+The tracked schema-v2 golden wraps that inventory in a separate, immutable
+review artifact. It pins each case's classification and source endpoints plus
+its execution tier/phase, status/reason, historical/planned tree, conflict
+paths, post-merge/tip containment result, and rationale. Changeset kind and
+coverage dimensions are derived independently from the pinned Git objects and
+actual outcome. Candidate generation cannot write the golden path. Comparing a
+candidate with the golden fails on added, removed, reclassified, or changed
+cases until a human reviews the exact diff.
 
 Corpus branch names use the same `git check-ref-format --branch` validation as
 train configuration. The corpus specification explicitly allowlists the three
@@ -386,10 +389,12 @@ target tip; both must return `already_contained` with positive evidence.
 Bundles, release-native changes, target-only reverts, gitlink rollups,
 clean-but-adapted trees, and manual resolutions retain exact diagnostic
 contracts. Inventory-only and engine-executed cases are reported separately.
-Cross-repository gitlink cases use pinned component mirrors and the production
-direction/provenance classifier. A conflict is never containment evidence. Any
-strict failure is minimized into a synthetic red unit test before an engine
-correction is made.
+The current historical gitlink rollups lack one canonical component source and
+remain inventory-only; they are not represented as component-engine coverage.
+The production direction/provenance classifier is exercised with synthetic
+component repositories, including a qualifying single-source gitlink case. A
+conflict is never containment evidence. Any strict failure is minimized into a
+synthetic red unit test before an engine correction is made.
 
 ### Containment by proven destination application
 
@@ -406,34 +411,42 @@ Merely finding text, a similar patch, or a conflict is insufficient. An
 explicit later revert of the proven application returns an ambiguous blocking
 result for operator review.
 
-### Local production-pipeline replay
+### Local production-pipeline simulation
 
-The deep runner can construct frozen GitHub/Jira adapters from the golden,
-invoke the real `Planner`, and pass writable plans to the real `DraftWriter`
+A separate deterministic test harness constructs frozen GitHub/Jira adapters,
+invokes the real `Planner`, and passes writable plans to the real `DraftWriter`
 using only a filesystem bare remote and in-memory pull-request adapter. It
 checks the generated branch parent/tree, `-x` provenance, bot identity, draft
-flag/body, idempotent retry, and post-merge result. Negative cases must leave
-the local remote and fake API unchanged. This simulator has no network client
-and cannot create a public branch or pull request.
+flag/body, idempotent retry, and conflict behavior. Negative cases leave the
+local remote and fake API unchanged. The harness rejects a network origin
+before planning and cannot create a public branch or pull request.
 
-The runner emits canonical JSON and Markdown reports. Each ordered row records
-repository, branch, classification, expected and actual phase/status/reason,
-destination/planned/historical trees, conflict paths, post-merge result,
-coverage dimensions, and a root-cause category. Reports separately count
-inventory-only, core, planner, writer, and post-merge execution. Exit status
-`0` means every reviewed expectation passed, `1` means behavior differed, and
-`2` means evidence, object completeness, inventory review, or coverage is
-insufficient.
+Historical Git rows do not currently contain sufficient frozen GitHub/Jira
+event metadata to drive this harness. The coverage registry therefore cites
+its concrete pytest nodes as synthetic planner/writer evidence instead of
+claiming that the deep historical runner executed them.
+
+The runner emits canonical schema-v3 JSON and Markdown reports. Each ordered
+row records repository, branch, classification, expected and actual
+phase/status/reason, destination/planned/historical trees, conflict paths,
+post-merge result, derived coverage dimensions, and a root-cause category.
+Actual execution counts distinguish inventory and core rows; the coverage
+section separately exposes historical post-merge cells and named synthetic
+component/planner/writer tests. Exit status `0` means every reviewed expectation
+passed and every required coverage cell has historical or named synthetic
+evidence, `1` means behavior differed, and `2` means evidence, object
+completeness, inventory review, or combined coverage is insufficient.
 
 ### Fast and deep gates
 
-The fast gate contains every minimized regression and a representative matrix,
-with a two-minute warm and five-minute cold target. The deep gate processes all
-pinned transitions and emits uncovered historical cells for repository,
-destination family, changeset kind, outcome, file operation, change size, and
-recovery mode. A required cell may be backed by historical or deterministic
-synthetic evidence, but the report exposes the source. Serial and parallel
-reports must be byte-identical.
+The fast gate contains 17 reviewed rows: every historical adaptation and manual
+conflict plus a representative matrix, with a two-minute warm and five-minute
+cold target. The deep gate processes all 77 pinned transitions and emits
+uncovered historical cells for repository, destination family, changeset kind,
+outcome, file operation, change size, and recovery mode. A required cell may be
+backed by historical or deterministic synthetic evidence, but the report
+exposes the source and concrete pytest node IDs. Serial and parallel reports
+must be byte-identical.
 
 ### Persistent replay worktrees and rollback
 

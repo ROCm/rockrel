@@ -6,9 +6,10 @@
 
 This runbook is design documentation only. The automation is not deployed.
 During local review, do not fetch, push, call GitHub/Jira, dispatch workflows,
-or mutate any remote state. Use temporary filesystem repositories and fake
-transports for every exercise. Queue all public actions in
-`REMOTE_ACTIONS_TODO.md`.
+or mutate any remote state. The only exception is a separately approved,
+explicitly gated read-only corpus refresh; ordinary replay never uses it. Use
+filesystem repositories and fake transports for every exercise. Queue all
+public actions in `REMOTE_ACTIONS_TODO.md`.
 
 ## Operating principles
 
@@ -78,6 +79,13 @@ and distinguish strict exact replays from bundles, manual resolutions, reverts,
 release-native changes, and gitlink adaptations. A conflict or missing object is
 never accepted as proof that the source change was already present.
 
+Run the complete unit suite before treating the named synthetic coverage
+registry as evidence:
+
+```bash
+.venv/bin/python -m pytest -q scripts/tests
+```
+
 Generate a candidate inventory from already hydrated mirrors without network
 access. This command refuses to overwrite the tracked golden:
 
@@ -109,9 +117,25 @@ lanes; cases in the same repository remain serialized and reuse one index:
   --jobs 4
 ```
 
-`--tier fast` runs the minimized regression and representative matrix. `deep`
-runs every reviewed transition. An inventory-only case is reported as such and
-does not count toward engine coverage.
+The tracked synthetic registry is used by default; pass
+`--synthetic-coverage /reviewed/path.json` only when deliberately reviewing a
+different registry. `--tier fast` runs 17 minimized/representative rows. `deep`
+runs all 77 reviewed transitions. An inventory-only case is reported as such
+and does not count toward changeset/outcome/file/recovery engine coverage.
+
+The schema-v3 JSON and Markdown reports list both historical-only gaps and
+required cells lacking any evidence. The latter produce exit code 2. Named
+synthetic tests can close a combined gap, but remain visibly separate from
+historical counts. See `historical-replay-analysis.md` for the reviewed current
+result and limitations.
+
+To verify scheduling determinism, run the same deep corpus once with `--jobs 1`
+and once with `--jobs 4`, then compare both report files byte-for-byte:
+
+```bash
+cmp serial/historical-replay.json parallel/historical-replay.json
+cmp serial/historical-replay.md parallel/historical-replay.md
+```
 
 After interruption—or whenever an operator wants a known clean cache—run:
 

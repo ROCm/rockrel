@@ -169,7 +169,9 @@ def test_local_pipeline_conflict_creates_no_branch_or_draft(tmp_path):
 
 def test_local_pipeline_refuses_a_network_origin_before_planning(tmp_path):
     module = simulation_module()
-    repo, _remote, source_head, source_merge, _destination = repository_fixture(tmp_path)
+    repo, _remote, source_head, source_merge, _destination = repository_fixture(
+        tmp_path
+    )
     git(repo, "remote", "set-url", "origin", "https://github.com/ROCm/TheRock.git")
 
     with pytest.raises(PermissionError, match="filesystem remote"):

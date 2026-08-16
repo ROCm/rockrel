@@ -20,10 +20,12 @@ in the [product requirements](docs/cherry-pick-automation/product-requirements.m
 [operator runbook](docs/cherry-pick-automation/runbook.md). The current local
 review status and red/green record are in the
 [implementation audit](docs/cherry-pick-automation/implementation-report.md)
-and [TDD evidence](docs/cherry-pick-automation/tdd-evidence.md). Public GitHub
-work is held in the local-only
-[operator TODO](docs/cherry-pick-automation/operator-todo.md). Train-to-branch and
-optional Jira policy are version controlled in
+and [TDD evidence](docs/cherry-pick-automation/tdd-evidence.md). The reviewed
+historical results and remaining gaps are in the
+[replay analysis](docs/cherry-pick-automation/historical-replay-analysis.md).
+Public GitHub work is held in the local-only
+[operator TODO](docs/cherry-pick-automation/REMOTE_ACTIONS_TODO.md).
+Train-to-branch and optional Jira policy are version controlled in
 [`config/cherry-pick-trains.json`](config/cherry-pick-trains.json).
 
 The checked-in automation is not deployed. Its remote-write jobs are
@@ -32,9 +34,10 @@ in `create-draft` mode.
 
 The offline historical regression runner is
 [`scripts/replay_cherry_pick_history.py`](scripts/replay_cherry_pick_history.py).
-It can freeze a hydrated corpus, replay repository lanes in parallel, and
-quickly roll persistent disk-backed worktrees back to verified clean state
-without rebuilding their indexes. See the
+It can generate a candidate inventory outside the tracked golden, compare the
+two, run 17-case fast or 77-case deep repository lanes in parallel, and quickly
+roll persistent disk-backed worktrees back to verified clean state without
+rebuilding their indexes. See the
 [operator runbook](docs/cherry-pick-automation/runbook.md#historical-replay-suite)
 for commands and safety boundaries.
 
