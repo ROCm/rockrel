@@ -172,6 +172,20 @@ def test_manifest_audit_blocks_unresolved_cases():
             ),
             "explicit_commit",
         ),
+        (
+            "Fix VM reset. Cherry-pick #3925 (#3934)",
+            "Release validation details.",
+            (3925,),
+            (),
+            "explicit_source_pr",
+        ),
+        (
+            "fix(jax): cherry-pick release fixes (#7074)",
+            "Cherry-picks required fixes:\n\n#6956 — first\n#6968 — second\n#6708 — third",
+            (6956, 6968, 6708),
+            (),
+            "explicit_source_pr",
+        ),
     ],
 )
 def test_extracts_only_explicit_historical_provenance(
@@ -193,6 +207,28 @@ def test_revert_title_does_not_treat_quoted_pr_as_source_provenance():
     )
     assert result.source_prs == ()
     assert result.source_commits == ()
+
+
+def test_unqualified_body_urls_and_shas_are_not_source_provenance():
+    extract = required("extract_provenance")
+    result = extract(
+        "feat: Add JAX release support (#6054) (#6202)",
+        "Test: https://github.com/ROCm/example/pull/65 at " + "9" * 40,
+        repository="ROCm/TheRock",
+    )
+    assert result.source_prs == (6054,)
+    assert result.source_commits == ()
+
+
+def test_conventional_revert_title_is_diagnostic_not_source_provenance():
+    is_revert = required("is_revert_subject")
+    extract = required("extract_provenance")
+    subject = "revert(ck): magic division (#8983) (#9110)"
+
+    assert is_revert(subject) is True
+    assert extract(
+        subject, "Original commit " + "a" * 40, repository="ROCm/rocm-libraries"
+    ) == required("Provenance")((), (), "none")
 
 
 def test_inventory_includes_every_first_parent_release_only_commit(repo):
@@ -425,3 +461,33 @@ def test_inventory_audit_rederives_premerge_parent_and_known_good_tree(tmp_path)
     result = audit_inventory(tampered, data_root)
     assert result.exit_code == 2
     assert result.evidence_gap_count == 1
+
+
+def test_pull_request_discovery_skips_cross_repository_gitlink_rollups(tmp_path):
+    discover = required("discover_corpus_pull_requests")
+    mirror_spec = required("MirrorSpec")
+    path = tmp_path / "data" / "TheRock.git"
+    path.mkdir(parents=True)
+    git(path, "init", "-b", "main")
+    git(path, "config", "user.name", "Replay Test")
+    git(path, "config", "user.email", "replay@example.com")
+    base = commit_file(path, "base.txt", "base\n", "base")
+    git(path, "checkout", "-b", "release/therock-7.14")
+    git(path, "update-index", "--add", "--cacheinfo", f"160000,{base},component")
+    git(path, "commit", "-m", "Bump component (#100) (#200)")
+    target = git(path, "rev-parse", "HEAD")
+    git(path, "update-ref", "refs/remotes/origin/main", base)
+    git(
+        path,
+        "update-ref",
+        "refs/remotes/origin/release/therock-7.14",
+        target,
+    )
+    spec = mirror_spec(
+        repository="ROCm/TheRock",
+        source_branch="main",
+        target_branches=("release/therock-7.14",),
+    )
+
+    result = discover((spec,), path.parent)
+    assert result == {"ROCm/TheRock": ()}
