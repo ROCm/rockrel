@@ -264,15 +264,21 @@ def test_unqualified_body_urls_and_shas_are_not_source_provenance():
 
 def test_dependency_cherry_pick_url_is_not_the_current_change_provenance():
     extract = required("extract_provenance")
-    result = extract(
-        "HIP patch version bump for 7.12 cherry-pick (#4010)",
+    mentions = required("mentions_cherry_pick")
+    subject = "HIP patch version bump for 7.12 cherry-pick (#4010)"
+    body = (
         "For 7.12 cherry-pick https://github.com/ROCm/rocm-systems/pull/4009, "
-        "we need to bump HIP patch version in the release branch.",
+        "we need to bump HIP patch version in the release branch."
+    )
+    result = extract(
+        subject,
+        body,
         repository="ROCm/rocm-systems",
     )
 
     assert result.source_prs == ()
     assert result.source_commits == ()
+    assert mentions(subject, body) is False
 
 
 def test_contextual_cherry_pick_reference_is_not_a_source_claim():
