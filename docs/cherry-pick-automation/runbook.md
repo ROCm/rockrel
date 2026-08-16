@@ -68,21 +68,33 @@ tree mismatch blocks; never overwrite it.
 ## Historical replay suite
 
 Corpus refresh is the sole approved network-read exception for this local test
-suite. It writes only dedicated local bare mirrors and a reviewable manifest;
-it never writes to GitHub or an existing checkout. Replay is then run with lazy
-fetching disabled and produces reports outside the repository.
+suite. It writes only dedicated local bare mirrors and an unreviewed candidate
+inventory outside the repository; it never writes to GitHub or an existing
+checkout. Replay is then run with lazy fetching disabled and produces reports
+outside the repository.
 
 The operator must review the inventory totals, ensure no case is unresolved,
 and distinguish strict exact replays from bundles, manual resolutions, reverts,
 release-native changes, and gitlink adaptations. A conflict or missing object is
 never accepted as proof that the source change was already present.
 
-Freeze an already hydrated corpus without network access:
+Generate a candidate inventory from already hydrated mirrors without network
+access. This command refuses to overwrite the tracked golden:
 
 ```bash
-.venv/bin/python scripts/replay_cherry_pick_history.py freeze \
+.venv/bin/python scripts/replay_cherry_pick_history.py inventory \
   --data-root /path/to/replay-data \
-  --manifest scripts/tests/fixtures/historical_cherry_picks.json
+  --candidate-out /path/to/replay-data/candidates/historical-candidate.json
+```
+
+Compare the candidate with the reviewed golden. Added, removed, reclassified,
+or changed cases are blocking until the JSON diff is reviewed and the golden is
+edited deliberately:
+
+```bash
+.venv/bin/python scripts/replay_cherry_pick_history.py compare \
+  --candidate /path/to/replay-data/candidates/historical-candidate.json \
+  --golden scripts/tests/fixtures/historical_cherry_picks.json
 ```
 
 Run the full standalone regression suite. `--jobs` bounds concurrent repository
@@ -93,8 +105,13 @@ lanes; cases in the same repository remain serialized and reuse one index:
   --data-root /path/to/replay-data \
   --manifest scripts/tests/fixtures/historical_cherry_picks.json \
   --report-dir /path/to/replay-data/reports \
+  --tier deep \
   --jobs 4
 ```
+
+`--tier fast` runs the minimized regression and representative matrix. `deep`
+runs every reviewed transition. An inventory-only case is reported as such and
+does not count toward engine coverage.
 
 After interruption—or whenever an operator wants a known clean cache—run:
 

@@ -225,9 +225,13 @@ A future generated PR must:
 ## Historical replay qualification
 
 The Git application engine must be checked against successful changes already
-merged into `release/therock-7.12`, `release/therock-7.14`, and
-`release/therock-10.0` in TheRock, rocm-systems, and rocm-libraries.
+merged into representative destination branches in TheRock, rocm-systems, and
+rocm-libraries. A destination is any safe configured Git branch; replay must not
+encode an Express Train or `release/therock-*` naming convention.
 
+- Discovery inventory and reviewed expectations are separate artifacts.
+  Discovery may propose a classification, but it never overwrites or relaxes a
+  tracked golden expectation.
 - Every first-parent release-only commit in a pinned branch snapshot is
   inventoried; no commit disappears because provenance is incomplete.
 - A candidate is called a cherry-pick only with positive source-commit or
@@ -236,22 +240,39 @@ merged into `release/therock-7.12`, `release/therock-7.14`, and
 - A strict eligible replay has exactly one canonical source PR changeset. The
   engine applies it to the historical destination parent, and its planned Git
   tree must equal the tree actually merged into the release branch.
-- Multi-source bundles, release-native fixes, reverts, gitlink adaptations, and
-  manual conflict resolutions remain in the corpus as named diagnostic cases.
-- Missing Git objects or ambiguous provenance are evidence gaps and block an
-  exhaustive result.
+- Every strict case is also evaluated against its known-good result and pinned
+  branch tip. It must be positively recognized as contained rather than
+  planned again or inferred from a conflict.
+- A release-history commit can prove containment only when it is reachable from
+  the destination, carries exact source identity, and independently reproduces
+  the candidate commit tree when the complete changeset is applied to its first
+  parent. A later explicit revert blocks for operator review.
+- Multi-source bundles are unsupported in v1. Release-native changes and
+  target-only reverts are non-applicable controls. Manual resolutions and
+  historical adaptations remain non-writing diagnostics. A single qualifying
+  source PR containing gitlink changes remains supported.
+- Every diagnostic records an exact expected execution phase, result, reason,
+  tree or conflict-path evidence. An inventory-only record is never counted as
+  engine coverage.
+- Missing Git objects, unreviewed inventory drift, ambiguous provenance, or an
+  expected/actual mismatch blocks an exhaustive result.
 - Corpus refresh may perform an explicitly approved read-only Git fetch into a
   dedicated local mirror. Replay itself is offline and cannot fetch, push, or
-  create a pull request.
-- Repeated replay runs reuse one disk-backed Git worktree and index per
-  repository. Every case starts and ends with a verified clean rollback; an
-  interrupted run can be recovered through one standalone rollback command.
-- Clean index snapshots are written atomically. A corrupt derived index is
-  restored from its snapshot, or rebuilt from the pinned local HEAD when no
-  snapshot exists, without re-cloning or fetching the repository.
-- Repository lanes may run concurrently, but cases sharing one repository are
-  serialized so they never mutate the same index concurrently. Report order
-  remains identical to manifest order.
+  create a public pull request.
+- A local pipeline replay uses frozen GitHub/Jira evidence, a filesystem bare
+  remote, and an in-memory draft API to exercise label-to-draft behavior without
+  any remote service.
+- Repeated replay runs reuse disk-backed Git worktrees and indexes under the
+  caller-selected data root. Every case starts and ends with a verified clean
+  rollback; an interrupted run can be recovered without re-cloning or fetching.
+- Repository or branch lanes may run concurrently only when they have isolated
+  indexes. Report order and contents must be identical for serial and parallel
+  runs.
+
+Historical validation has two tiers. The fast tier contains all known
+regressions plus a representative repository, changeset, outcome, and Git-shape
+matrix. The deep tier inventories every pinned branch transition and reports
+historical gaps separately from deterministic synthetic coverage.
 
 ## Success criteria
 
@@ -265,9 +286,19 @@ merged into `release/therock-7.12`, `release/therock-7.14`, and
 - Squash, merge-commit, and rebase fixtures prove correct complete changesets.
 - Fresh-runner and post-push recovery are deterministic and idempotent.
 - Already-contained decisions require positive complete-change proof.
-- Every commit in each pinned historical target snapshot is classified, every
-  provenance-qualified backport is retained, and all strict eligible replays
-  reproduce the historical destination tree.
+- Every commit in each pinned historical target snapshot has a reviewed,
+  immutable expectation. A generated classification or aggregate count cannot
+  replace that case-level oracle.
+- All strict eligible replays reproduce the historical destination tree and are
+  recognized as contained when rerun against the known-good result.
+- Every diagnostic matches its pinned phase, status, reason, tree, and conflict
+  evidence; no generic unexecuted diagnostic is reported as tested behavior.
+- Safety mutants covering wrong parent/order/mainline, ignored tree mismatch,
+  conflict-as-containment, skipped provenance, dropped gitlink comparison,
+  dirty-index reuse, and classification downgrade are all detected.
+- The coverage report distinguishes historical from synthetic evidence across
+  repository, destination family, changeset representation, outcome, file
+  operation, change size, and recovery mode.
 - A warm corpus rerun does not recreate replay worktrees or indexes, and the
   rollback command proves cached HEAD, status, index, and tree cleanliness.
 - Replay and tests contact no remote service. Only the separately invoked,

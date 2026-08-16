@@ -338,7 +338,8 @@ action is part of this implementation phase.
 
 ## 13. Historical replay architecture
 
-Historical validation has two deliberately separate phases.
+Historical validation has separate discovery, reviewed-oracle, and execution
+phases. Engine output is never allowed to become its own expected result.
 
 ### Read-only corpus refresh
 
@@ -350,12 +351,23 @@ target branches, discovers explicit source PR references, and fetches the
 corresponding `refs/pull/<number>/head` refs so squash, merge-commit, and rebase
 representations can be proven locally.
 
-The refresh writes a deterministic schema-v1 manifest. Each record contains
-repository and branch identity, immutable source and destination SHAs/trees,
-source PR metadata, provenance method, case classification, and expected replay
-behavior. Target commits are enumerated along the first-parent history between
-the source/target merge base and the pinned target tip. Every enumerated commit
-must have a reviewed classification.
+The refresh writes a deterministic schema-v2 candidate inventory outside the
+tracked fixture. Each record contains repository and branch identity, immutable
+source and destination SHAs/trees, source PR metadata, provenance method, and
+observed engine behavior. Target commits are enumerated along the first-parent
+history between the source/target merge base and the pinned target tip.
+
+The tracked schema-v2 golden is a separate, immutable review artifact. It pins
+each case's classification, changeset representation and order, execution
+phase, status/reason, historical/planned tree, conflict paths, post-merge
+containment result, coverage dimensions, and rationale. Candidate generation
+cannot write that path. Comparing a candidate with the golden fails on added,
+removed, reclassified, or changed cases until a human reviews the exact diff.
+
+Corpus branch names use the same `git check-ref-format --branch` validation as
+train configuration. The corpus specification explicitly allowlists the three
+supported repositories and pinned destination refs; the implementation does
+not encode a release-branch prefix.
 
 ### Offline replay
 
@@ -367,19 +379,61 @@ Git evaluation; it cannot construct API clients or `DraftWriter`.
 For a strict one-source case, the engine evaluates the source changeset against
 the historical target parent. `draft_planned` is required, and the engine's
 `planned_tree` must exactly equal the recorded historical after-tree. Commit
-IDs are not compared because cherry-pick metadata changes commit identity.
+IDs are not compared because cherry-pick metadata changes commit identity. The
+same source is then evaluated against the historical after-commit and pinned
+target tip; both must return `already_contained` with positive evidence.
 
-Bundles, release-native changes, reverts, gitlink rollups, clean-but-adapted
-trees, and manual resolutions are preserved as diagnostic classifications. A
-conflict is never containment evidence. Any strict failure is minimized into a
-synthetic red unit test before an engine correction is made.
+Bundles, release-native changes, target-only reverts, gitlink rollups,
+clean-but-adapted trees, and manual resolutions retain exact diagnostic
+contracts. Inventory-only and engine-executed cases are reported separately.
+Cross-repository gitlink cases use pinned component mirrors and the production
+direction/provenance classifier. A conflict is never containment evidence. Any
+strict failure is minimized into a synthetic red unit test before an engine
+correction is made.
+
+### Containment by proven destination application
+
+Direct source ancestry and a completely empty trial application remain the
+fast containment proofs. When later destination evolution makes the source
+conflict, the evaluator may inspect reachable first-parent commits carrying
+strong source identity: a full source merge SHA, Git's `-x` trailer, a canonical
+source URL, or an explicit cherry-pick PR marker.
+
+For each identity candidate, the evaluator applies the complete changeset to
+the candidate's first parent in an isolated worktree. Only exact equality with
+the candidate commit tree proves `complete_changeset_application_ancestor`.
+Merely finding text, a similar patch, or a conflict is insufficient. An
+explicit later revert of the proven application returns an ambiguous blocking
+result for operator review.
+
+### Local production-pipeline replay
+
+The deep runner can construct frozen GitHub/Jira adapters from the golden,
+invoke the real `Planner`, and pass writable plans to the real `DraftWriter`
+using only a filesystem bare remote and in-memory pull-request adapter. It
+checks the generated branch parent/tree, `-x` provenance, bot identity, draft
+flag/body, idempotent retry, and post-merge result. Negative cases must leave
+the local remote and fake API unchanged. This simulator has no network client
+and cannot create a public branch or pull request.
 
 The runner emits canonical JSON and Markdown reports. Each ordered row records
-repository, branch, classification, disposition, engine status/reason,
-destination/planned/historical trees, and a root-cause category; the report
-aggregates disposition counts. Exit status `0` means the exhaustive strict
-corpus passed, `1` means a strict replay failed, and `2` means evidence or
-object completeness is insufficient.
+repository, branch, classification, expected and actual phase/status/reason,
+destination/planned/historical trees, conflict paths, post-merge result,
+coverage dimensions, and a root-cause category. Reports separately count
+inventory-only, core, planner, writer, and post-merge execution. Exit status
+`0` means every reviewed expectation passed, `1` means behavior differed, and
+`2` means evidence, object completeness, inventory review, or coverage is
+insufficient.
+
+### Fast and deep gates
+
+The fast gate contains every minimized regression and a representative matrix,
+with a two-minute warm and five-minute cold target. The deep gate processes all
+pinned transitions and emits uncovered historical cells for repository,
+destination family, changeset kind, outcome, file operation, change size, and
+recovery mode. A required cell may be backed by historical or deterministic
+synthetic evidence, but the report exposes the source. Serial and parallel
+reports must be byte-identical.
 
 ### Persistent replay worktrees and rollback
 
