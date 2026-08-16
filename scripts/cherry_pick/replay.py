@@ -376,7 +376,14 @@ def offline_git_environment(
     """Return a Git environment that cannot prompt or lazy-fetch objects."""
 
     result = dict(os.environ if environ is None else environ)
-    result.update({"GIT_NO_LAZY_FETCH": "1", "GIT_TERMINAL_PROMPT": "0"})
+    result.update(
+        {
+            "GIT_NO_LAZY_FETCH": "1",
+            "GIT_TERMINAL_PROMPT": "0",
+            "GIT_HTTP_LOW_SPEED_LIMIT": "1024",
+            "GIT_HTTP_LOW_SPEED_TIME": "120",
+        }
+    )
     return result
 
 
