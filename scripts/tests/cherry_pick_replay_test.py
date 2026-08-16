@@ -260,6 +260,19 @@ def test_unqualified_body_urls_and_shas_are_not_source_provenance():
     assert result.source_commits == ()
 
 
+def test_dependency_cherry_pick_url_is_not_the_current_change_provenance():
+    extract = required("extract_provenance")
+    result = extract(
+        "HIP patch version bump for 7.12 cherry-pick (#4010)",
+        "For 7.12 cherry-pick https://github.com/ROCm/rocm-systems/pull/4009, "
+        "we need to bump HIP patch version in the release branch.",
+        repository="ROCm/rocm-systems",
+    )
+
+    assert result.source_prs == ()
+    assert result.source_commits == ()
+
+
 def test_contextual_cherry_pick_reference_is_not_a_source_claim():
     mentions = required("mentions_cherry_pick")
 
@@ -531,6 +544,53 @@ def test_builds_exhaustive_corpus_and_auto_qualifies_only_exact_case(tmp_path):
     assert strict[0].source_head
     assert strict[0].source_commits
     assert audit_inventory(manifest, data_root).exit_code == 0
+
+
+def test_unmerged_explicit_pr_head_is_retained_as_diagnostic_adaptation(tmp_path):
+    build = required("build_corpus_manifest")
+    mirror_spec = required("MirrorSpec")
+    path = tmp_path / "data" / "rocm-systems.git"
+    path.mkdir(parents=True)
+    git(path, "init", "-b", "develop")
+    git(path, "config", "user.name", "Replay Test")
+    git(path, "config", "user.email", "replay@example.com")
+    base = commit_file(path, "base.txt", "base\n", "base")
+    git(path, "checkout", "-b", "unmerged-topic")
+    source_head = commit_file(path, "fix.txt", "fix\n", "unmerged fix")
+    git(path, "update-ref", "refs/pull/100/head", source_head)
+    git(path, "checkout", "-b", "release/therock-7.14", base)
+    git(path, "cherry-pick", source_head)
+    git(
+        path,
+        "commit",
+        "--amend",
+        "-m",
+        "Release fix (#200)",
+        "-m",
+        "Cherry-picking https://github.com/ROCm/rocm-systems/pull/100",
+    )
+    target = git(path, "rev-parse", "HEAD")
+    git(path, "update-ref", "refs/remotes/origin/develop", base)
+    git(
+        path,
+        "update-ref",
+        "refs/remotes/origin/release/therock-7.14",
+        target,
+    )
+    spec = mirror_spec(
+        repository="ROCm/rocm-systems",
+        source_branch="develop",
+        target_branches=("release/therock-7.14",),
+    )
+
+    manifest = build((spec,), path.parent)
+    case = next(item for item in manifest.cases if item.target_after == target)
+
+    assert case.source_prs == (100,)
+    assert case.source_head == source_head
+    assert case.source_commits == (source_head,)
+    assert case.classification.value == "historical_adaptation"
+    assert "not merged" in case.analysis_notes.lower()
 
 
 def test_inventory_audit_detects_a_manifest_that_drops_a_release_commit(tmp_path):
