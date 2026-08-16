@@ -19,13 +19,18 @@ from .git import ChangesetError, evaluate_changeset, prove_changeset
 from .models import Status
 
 SHA_PATTERN = re.compile(r"^[0-9a-f]{40}$")
-SHA_IN_TEXT_PATTERN = re.compile(r"(?<![0-9a-f])[0-9a-f]{40}(?![0-9a-f])", re.I)
 TITLE_PR_PATTERN = re.compile(r"\(#(\d+)\)")
 PR_URL_PATTERN = re.compile(
     r"https://github\.com/ROCm/[A-Za-z0-9_.-]+/pull/(\d+)", re.I
 )
 EXPLICIT_PR_PATTERN = re.compile(
-    r"(?i)\b(?:cherry[ -]?pick(?:ed)?|original|source)\s+(?:PR\s*)?#(\d+)"
+    r"(?i)\b(?:cherry[ -]?pick(?:ed|s)?(?:\s+(?:commit|PR))?"
+    r"|original\s+PR|source\s+PR)\s*:?\s*#(\d+)"
+)
+BACKPORT_PR_PATTERN = re.compile(r"(?i)\bbackport\b[^\n]{0,160}\bPR\s*#(\d+)")
+EXPLICIT_COMMIT_PATTERN = re.compile(
+    r"(?i)\b(?:cherry[ -]?pick(?:ed|s)?|original|source|upstream)"
+    r"\s+commits?\s*:?\s*([0-9a-f]{40})"
 )
 SUPPORTED_REPOSITORIES = {
     "ROCm/TheRock": ("main", "https://github.com/ROCm/TheRock.git"),
@@ -327,29 +332,52 @@ def _ordered_unique(values: Sequence[int | str]) -> tuple[int | str, ...]:
     return tuple(dict.fromkeys(values))
 
 
+def is_revert_subject(subject: str) -> bool:
+    """Recognize Git and conventional-commit revert titles."""
+
+    return re.match(r"(?i)^revert(?:\s|[(:])", subject.lstrip()) is not None
+
+
+def _explicit_commits(body: str) -> tuple[str, ...]:
+    commits = list(EXPLICIT_COMMIT_PATTERN.findall(body))
+    in_commit_list = False
+    for line in body.splitlines():
+        stripped = line.strip()
+        if re.match(r"(?i)^original commits?\s*:?.*$", stripped):
+            in_commit_list = True
+            continue
+        if in_commit_list:
+            match = re.match(r"^[*+-]?\s*([0-9a-f]{40})\b", stripped, re.I)
+            if match:
+                commits.append(match.group(1))
+                continue
+            if stripped and not stripped.startswith(("*", "+", "-")):
+                in_commit_list = False
+    return tuple(str(value).lower() for value in _ordered_unique(commits))
+
+
 def extract_provenance(subject: str, body: str, *, repository: str) -> Provenance:
     """Extract only explicit source PR or full-SHA evidence from a target commit."""
 
     if repository not in SUPPORTED_REPOSITORIES:
         raise ValueError(f"repository {repository!r} is not supported")
-    if subject.lstrip().lower().startswith("revert "):
+    if is_revert_subject(subject):
         return Provenance((), (), "none")
 
-    commits = tuple(
-        str(value).lower()
-        for value in _ordered_unique(SHA_IN_TEXT_PATTERN.findall(body))
-    )
-    body_prs: list[int] = [int(value) for value in PR_URL_PATTERN.findall(body)]
-    body_prs.extend(int(value) for value in EXPLICIT_PR_PATTERN.findall(body))
+    commits = _explicit_commits(body)
+    body_prs: list[int] = [int(value) for value in EXPLICIT_PR_PATTERN.findall(body)]
+    body_prs.extend(int(value) for value in BACKPORT_PR_PATTERN.findall(body))
 
     in_pr_list = False
     for line in body.splitlines():
         stripped = line.strip()
-        if re.match(r"(?i)^cherry[ -]?picked PRs\s*:", stripped):
+        if re.match(r"(?i)^cherry[ -]?pick(?:ed|s)?\b.*:\s*$", stripped):
             in_pr_list = True
             continue
         if in_pr_list:
             match = re.match(r"^[*+-]?\s*#(\d+)\b", stripped)
+            if match is None:
+                match = PR_URL_PATTERN.search(stripped)
             if match:
                 body_prs.append(int(match.group(1)))
                 continue
@@ -357,6 +385,11 @@ def extract_provenance(subject: str, body: str, *, repository: str) -> Provenanc
                 in_pr_list = False
 
     prs = tuple(int(value) for value in _ordered_unique(body_prs))
+    if not prs:
+        prs = tuple(
+            int(value)
+            for value in _ordered_unique(EXPLICIT_PR_PATTERN.findall(subject))
+        )
     if not prs:
         title_prs = tuple(int(value) for value in TITLE_PR_PATTERN.findall(subject))
         if len(title_prs) > 1:
@@ -871,7 +904,7 @@ def _classify_inventory_record(
     classification = ReplayClassification.UNRESOLVED
     notes = "Source provenance requires review."
 
-    if record.subject.lstrip().lower().startswith("revert "):
+    if is_revert_subject(record.subject):
         classification = ReplayClassification.REVERT
         notes = "Release transition is an explicit revert, not a strict backport."
     elif _has_gitlink_delta(repo, record.before, record.after):
@@ -966,6 +999,10 @@ def discover_corpus_pull_requests(
         for branch in spec.target_branches:
             target = _resolve_required(repo, _remote_ref(branch))
             for record in inventory_release_commits(repo, source, target):
+                if is_revert_subject(record.subject) or _has_gitlink_delta(
+                    repo, record.before, record.after
+                ):
+                    continue
                 provenance = extract_provenance(
                     record.subject, record.body, repository=spec.repository
                 )
