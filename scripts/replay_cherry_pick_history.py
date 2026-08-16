@@ -18,13 +18,16 @@ if __package__ in (None, ""):
 
 from scripts.cherry_pick.replay import (
     DEFAULT_MIRROR_SPECS,
+    REQUIRED_REPLAY_COVERAGE,
     ReplayReport,
     audit_manifest_inventory,
+    audit_replay_coverage,
     build_corpus_manifest,
     compare_candidate_to_golden,
     discover_corpus_pull_requests,
     load_manifest,
     load_reviewed_corpus,
+    load_synthetic_coverage,
     refresh_mirror,
     rollback_replay_worktrees,
     run_reviewed_cases,
@@ -33,6 +36,7 @@ from scripts.cherry_pick.replay import (
 
 ROOT = Path(__file__).resolve().parents[1]
 REVIEWED_GOLDEN = ROOT / "scripts/tests/fixtures/historical_cherry_picks.json"
+SYNTHETIC_COVERAGE = ROOT / "scripts/tests/fixtures/replay_synthetic_coverage.json"
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -67,6 +71,12 @@ def build_parser() -> argparse.ArgumentParser:
     run.add_argument("--data-root", type=Path, required=True)
     run.add_argument("--manifest", type=Path, required=True)
     run.add_argument("--report-dir", type=Path, required=True)
+    run.add_argument(
+        "--synthetic-coverage",
+        type=Path,
+        default=SYNTHETIC_COVERAGE,
+        help="Reviewed deterministic test coverage registry.",
+    )
     run.add_argument(
         "--jobs",
         type=int,
@@ -176,7 +186,13 @@ def _run(args: argparse.Namespace, stdout: TextIO) -> int:
         tier=args.tier,
         jobs=args.jobs,
     )
-    report = ReplayReport.from_outcomes(outcomes)
+    synthetic = load_synthetic_coverage(args.synthetic_coverage)
+    coverage = audit_replay_coverage(
+        outcomes,
+        synthetic=synthetic.as_mapping(),
+        required=REQUIRED_REPLAY_COVERAGE,
+    )
+    report = ReplayReport.from_outcomes(outcomes, coverage=coverage)
     write_replay_reports(report, args.report_dir)
     exit_code = 2 if inventory_audit.exit_code == 2 else report.exit_code
     print(
@@ -185,6 +201,7 @@ def _run(args: argparse.Namespace, stdout: TextIO) -> int:
                 "status": "historical_replay_complete",
                 "report_dir": str(args.report_dir),
                 "cases": len(outcomes),
+                "coverage_gaps": len(coverage.gaps),
                 "exit_code": exit_code,
             },
             sort_keys=True,

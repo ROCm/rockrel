@@ -12,7 +12,7 @@ import subprocess
 from collections import Counter
 from collections.abc import Callable, Mapping, Sequence
 from concurrent.futures import ThreadPoolExecutor
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from enum import StrEnum
 from pathlib import Path
 
@@ -101,6 +101,97 @@ class ReplayExecutionPhase(StrEnum):
 class ReplayTier(StrEnum):
     FAST = "fast"
     DEEP = "deep"
+
+
+REQUIRED_REPLAY_COVERAGE: dict[str, tuple[str, ...]] = {
+    "repository": tuple(SUPPORTED_REPOSITORIES),
+    "destination_family": (
+        "therock",
+        "bkc",
+        "rocm_rel",
+        "release_staging",
+        "arbitrary",
+    ),
+    "classification": (
+        "strict_exact",
+        "multi_source_bundle",
+        "historical_adaptation",
+        "manual_resolution",
+        "release_native",
+        "revert",
+        "gitlink_rollup",
+    ),
+    "execution_phase": (
+        "inventory",
+        "core",
+        "component",
+        "planner",
+        "writer",
+        "postmerge",
+    ),
+    "changeset_kind": ("single", "squash", "merge_commit", "rebase_range"),
+    "outcome": (
+        "draft_planned",
+        "already_contained",
+        "blocked_conflict",
+        "blocked_ambiguous_changeset",
+        "blocked_evidence",
+        "draft_created",
+        "retryable_partial_write",
+    ),
+    "file_operation": (
+        "add",
+        "modify",
+        "delete",
+        "rename",
+        "mode",
+        "symlink",
+        "binary",
+        "gitlink",
+    ),
+    "change_size": ("small", "medium", "large"),
+    "recovery_mode": (
+        "fresh",
+        "warm",
+        "interrupted",
+        "corrupt_index",
+        "partial_write",
+    ),
+}
+
+ENGINE_COVERAGE_DIMENSIONS = {
+    "changeset_kind",
+    "outcome",
+    "file_operation",
+    "change_size",
+    "recovery_mode",
+}
+
+
+def destination_family(branch: str) -> str:
+    """Classify branch names for reporting without restricting valid branches."""
+
+    if branch.startswith("release/bkc/"):
+        return "bkc"
+    if branch.startswith("release-staging/rocm-rel-"):
+        return "release_staging"
+    if branch.startswith("release/rocm-rel-"):
+        return "rocm_rel"
+    if branch.startswith("release/therock-"):
+        return "therock"
+    return "arbitrary"
+
+
+def classify_change_size(changed_lines: int) -> str:
+    """Bucket textual additions plus deletions using stable review thresholds."""
+
+    if changed_lines < 0:
+        raise ValueError("changed lines cannot be negative")
+    if changed_lines <= 20:
+        return "small"
+    if changed_lines <= 200:
+        return "medium"
+    return "large"
 
 
 def _object(value: object, context: str) -> dict[str, object]:
@@ -340,6 +431,111 @@ def _string_list(value: object, context: str) -> tuple[str, ...]:
     ):
         raise ValueError(f"{context} must be a list of non-empty strings")
     return tuple(value)
+
+
+@dataclass(frozen=True)
+class SyntheticCoverageEvidence:
+    """One reviewed unit-test claim about deterministic non-historical coverage."""
+
+    test_id: str
+    dimensions: dict[str, tuple[str, ...]]
+
+    @classmethod
+    def from_dict(cls, raw: object) -> "SyntheticCoverageEvidence":
+        value = _object(raw, "synthetic coverage evidence")
+        if set(value) != {"test_id", "dimensions"}:
+            raise ValueError("synthetic coverage evidence fields are invalid")
+        test_id = _string(value.get("test_id"), "synthetic coverage test_id")
+        if (
+            re.fullmatch(
+                r"scripts/tests/[A-Za-z0-9_]+_test\.py::test_[^\s]+",
+                test_id,
+            )
+            is None
+        ):
+            raise ValueError("synthetic coverage test_id must be a pytest node id")
+        raw_dimensions = _object(
+            value.get("dimensions"), "synthetic coverage dimensions"
+        )
+        if not raw_dimensions:
+            raise ValueError("synthetic coverage dimensions must not be empty")
+        dimensions: dict[str, tuple[str, ...]] = {}
+        for dimension, raw_values in raw_dimensions.items():
+            if dimension not in REQUIRED_REPLAY_COVERAGE:
+                raise ValueError(f"unknown coverage dimension: {dimension}")
+            values = _string_list(raw_values, f"synthetic coverage {dimension} values")
+            if not values or len(values) != len(set(values)):
+                raise ValueError(
+                    f"synthetic coverage {dimension} values must be non-empty and unique"
+                )
+            unknown = set(values) - set(REQUIRED_REPLAY_COVERAGE[dimension])
+            if unknown:
+                raise ValueError(
+                    "unknown coverage cell: "
+                    + ", ".join(f"{dimension}:{item}" for item in sorted(unknown))
+                )
+            dimensions[dimension] = values
+        return cls(test_id=test_id, dimensions=dimensions)
+
+    def as_dict(self) -> dict[str, object]:
+        return {
+            "test_id": self.test_id,
+            "dimensions": {
+                dimension: list(values)
+                for dimension, values in sorted(self.dimensions.items())
+            },
+        }
+
+
+@dataclass(frozen=True)
+class SyntheticCoverageSuite:
+    """Reviewed mapping from required coverage cells to concrete pytest nodes."""
+
+    schema_version: int
+    evidence: tuple[SyntheticCoverageEvidence, ...]
+
+    @classmethod
+    def from_dict(cls, raw: object) -> "SyntheticCoverageSuite":
+        value = _object(raw, "synthetic coverage suite")
+        if set(value) != {"schema_version", "evidence"}:
+            raise ValueError("synthetic coverage suite fields are invalid")
+        if value.get("schema_version") != 1:
+            raise ValueError("synthetic coverage schema_version must be 1")
+        raw_evidence = value.get("evidence")
+        if not isinstance(raw_evidence, list) or not raw_evidence:
+            raise ValueError("synthetic coverage evidence must be a non-empty list")
+        evidence = tuple(
+            SyntheticCoverageEvidence.from_dict(item) for item in raw_evidence
+        )
+        test_ids = tuple(item.test_id for item in evidence)
+        if len(test_ids) != len(set(test_ids)):
+            raise ValueError("synthetic coverage contains a duplicate test_id")
+        return cls(schema_version=1, evidence=evidence)
+
+    @property
+    def test_ids(self) -> tuple[str, ...]:
+        return tuple(item.test_id for item in self.evidence)
+
+    def as_mapping(self) -> dict[str, dict[str, tuple[str, ...]]]:
+        mapping: dict[str, dict[str, list[str]]] = {}
+        for item in self.evidence:
+            for dimension, values in item.dimensions.items():
+                for value in values:
+                    mapping.setdefault(dimension, {}).setdefault(value, []).append(
+                        item.test_id
+                    )
+        return {
+            dimension: {
+                value: tuple(test_ids) for value, test_ids in sorted(values.items())
+            }
+            for dimension, values in sorted(mapping.items())
+        }
+
+    def as_dict(self) -> dict[str, object]:
+        return {
+            "schema_version": self.schema_version,
+            "evidence": [item.as_dict() for item in self.evidence],
+        }
 
 
 @dataclass(frozen=True)
@@ -753,6 +949,67 @@ def _git(
     )
 
 
+def classify_replay_file_operations(
+    repo: str | Path,
+    before: str,
+    after: str,
+) -> tuple[tuple[str, ...], int]:
+    """Derive material Git operations and textual change size from two trees."""
+
+    repo_path = Path(repo)
+    raw = _git(
+        repo_path,
+        "diff-tree",
+        "--no-commit-id",
+        "--raw",
+        "-r",
+        "-M",
+        before,
+        after,
+    )
+    operations: set[str] = set()
+    for line in raw.stdout.splitlines():
+        header, separator, _paths = line.partition("\t")
+        fields = header.split()
+        if not separator or len(fields) != 5:
+            continue
+        old_mode = fields[0].removeprefix(":")
+        new_mode = fields[1]
+        status = fields[4][:1]
+        operation = {"A": "add", "D": "delete", "R": "rename"}.get(status)
+        if operation is not None:
+            operations.add(operation)
+        elif status in {"M", "T"}:
+            operations.add("modify")
+        if old_mode != new_mode and "000000" not in {old_mode, new_mode}:
+            operations.add("mode")
+        if "120000" in {old_mode, new_mode}:
+            operations.add("symlink")
+        if "160000" in {old_mode, new_mode}:
+            operations.add("gitlink")
+
+    numstat = _git(repo_path, "diff", "--numstat", "--no-renames", before, after)
+    changed_lines = 0
+    for line in numstat.stdout.splitlines():
+        additions, separator, remainder = line.partition("\t")
+        deletions, second_separator, _path = remainder.partition("\t")
+        if not separator or not second_separator:
+            continue
+        if additions == "-" or deletions == "-":
+            operations.add("binary")
+            continue
+        try:
+            changed_lines += int(additions) + int(deletions)
+        except ValueError:
+            continue
+    ordered = tuple(
+        operation
+        for operation in REQUIRED_REPLAY_COVERAGE["file_operation"]
+        if operation in operations
+    )
+    return ordered, changed_lines
+
+
 @dataclass(frozen=True)
 class InventoryCommit:
     before: str
@@ -831,6 +1088,7 @@ class ReplayOutcome:
     expected_status: str | None = None
     expected_reason: str | None = None
     expectation_mismatches: tuple[str, ...] = ()
+    coverage_dimensions: dict[str, tuple[str, ...]] = field(default_factory=dict)
 
     def as_dict(self) -> dict[str, object]:
         return {
@@ -855,6 +1113,10 @@ class ReplayOutcome:
             "expected_status": self.expected_status,
             "expected_reason": self.expected_reason,
             "expectation_mismatches": list(self.expectation_mismatches),
+            "coverage_dimensions": {
+                dimension: list(values)
+                for dimension, values in sorted(self.coverage_dimensions.items())
+            },
         }
 
 
@@ -895,6 +1157,7 @@ class ReplayCoverageAudit:
 
     historical: dict[str, dict[str, int]]
     synthetic: dict[str, dict[str, tuple[str, ...]]]
+    historical_gaps: tuple[str, ...]
     gaps: tuple[str, ...]
 
     def as_dict(self) -> dict[str, object]:
@@ -909,17 +1172,25 @@ class ReplayCoverageAudit:
                 }
                 for dimension, values in sorted(self.synthetic.items())
             },
+            "historical_gaps": list(self.historical_gaps),
             "gaps": list(self.gaps),
         }
 
 
-def _coverage_value(outcome: ReplayOutcome, dimension: str) -> str | None:
+def _coverage_values(outcome: ReplayOutcome, dimension: str) -> tuple[str, ...]:
+    if dimension in ENGINE_COVERAGE_DIMENSIONS and (
+        outcome.execution_phase == ReplayExecutionPhase.INVENTORY.value
+    ):
+        return ()
+    dimensions = outcome.coverage_dimensions
+    if dimension in dimensions:
+        return dimensions[dimension]
     value = getattr(outcome, dimension, None)
     if value is None:
-        return None
+        return ()
     if isinstance(value, StrEnum):
-        return value.value
-    return str(value)
+        return (value.value,)
+    return (str(value),)
 
 
 def audit_replay_coverage(
@@ -932,12 +1203,13 @@ def audit_replay_coverage(
 
     historical: dict[str, dict[str, int]] = {}
     normalized_synthetic: dict[str, dict[str, tuple[str, ...]]] = {}
+    historical_gaps: list[str] = []
     gaps: list[str] = []
     for dimension, required_values in required.items():
         counts = Counter(
             value
             for outcome in outcomes
-            if (value := _coverage_value(outcome, dimension)) is not None
+            for value in _coverage_values(outcome, dimension)
         )
         historical[dimension] = dict(sorted(counts.items()))
         supplied = synthetic.get(dimension, {})
@@ -945,11 +1217,15 @@ def audit_replay_coverage(
             value: tuple(test_ids) for value, test_ids in sorted(supplied.items())
         }
         for value in required_values:
-            if counts[value] == 0 and not normalized_synthetic[dimension].get(value):
-                gaps.append(f"{dimension}:{value}")
+            cell = f"{dimension}:{value}"
+            if counts[value] == 0:
+                historical_gaps.append(cell)
+                if not normalized_synthetic[dimension].get(value):
+                    gaps.append(cell)
     return ReplayCoverageAudit(
         historical=historical,
         synthetic=normalized_synthetic,
+        historical_gaps=tuple(historical_gaps),
         gaps=tuple(gaps),
     )
 
@@ -972,7 +1248,18 @@ def _outcome(
     expected_status: str | None = None,
     expected_reason: str | None = None,
     expectation_mismatches: tuple[str, ...] = (),
+    coverage_dimensions: Mapping[str, Sequence[str]] | None = None,
 ) -> ReplayOutcome:
+    dimensions: dict[str, tuple[str, ...]] = {
+        "repository": (case.repository,),
+        "destination_family": (destination_family(case.target_branch),),
+        "classification": (case.classification.value,),
+        "execution_phase": (execution_phase,),
+    }
+    if engine_status is not None:
+        dimensions["outcome"] = (engine_status,)
+    for dimension, values in (coverage_dimensions or {}).items():
+        dimensions[dimension] = tuple(dict.fromkeys(values))
     return ReplayOutcome(
         case_id=case.id,
         repository=case.repository,
@@ -995,6 +1282,7 @@ def _outcome(
         expected_status=expected_status,
         expected_reason=expected_reason,
         expectation_mismatches=expectation_mismatches,
+        coverage_dimensions=dimensions,
     )
 
 
@@ -1066,6 +1354,17 @@ def run_replay_case(
         if isinstance(conflict_value, list)
         else ()
     )
+    operations, changed_lines = classify_replay_file_operations(
+        repo_path,
+        case.target_before,
+        case.target_after,
+    )
+    coverage_dimensions = {
+        "changeset_kind": (changeset.kind.value,),
+        "file_operation": operations,
+        "change_size": (classify_change_size(changed_lines),),
+        "recovery_mode": ("warm" if worktree_path is not None else "fresh",),
+    }
     if not strict:
         return _outcome(
             case,
@@ -1076,6 +1375,7 @@ def run_replay_case(
             destination_tree=destination_value,
             planned_tree=planned_value,
             conflict_paths=conflict_paths,
+            coverage_dimensions=coverage_dimensions,
         )
     if result.status is Status.BLOCKED_EVIDENCE:
         return _outcome(
@@ -1087,6 +1387,7 @@ def run_replay_case(
             destination_tree=destination_value,
             planned_tree=planned_value,
             conflict_paths=conflict_paths,
+            coverage_dimensions=coverage_dimensions,
         )
     if result.status is not Status.DRAFT_PLANNED:
         return _outcome(
@@ -1098,6 +1399,7 @@ def run_replay_case(
             destination_tree=destination_value,
             planned_tree=planned_value,
             conflict_paths=conflict_paths,
+            coverage_dimensions=coverage_dimensions,
         )
     if planned_value != case.target_after_tree:
         return _outcome(
@@ -1109,6 +1411,7 @@ def run_replay_case(
             destination_tree=destination_value,
             planned_tree=planned_value,
             conflict_paths=conflict_paths,
+            coverage_dimensions=coverage_dimensions,
         )
     return _outcome(
         case,
@@ -1119,6 +1422,7 @@ def run_replay_case(
         destination_tree=destination_value,
         planned_tree=planned_value,
         conflict_paths=conflict_paths,
+        coverage_dimensions=coverage_dimensions,
     )
 
 
@@ -1196,6 +1500,16 @@ def run_reviewed_case(
             tip_status = postmerge_status
             tip_reason = postmerge_reason
 
+    coverage_dimensions = dict(base.coverage_dimensions)
+    phases = list(coverage_dimensions.get("execution_phase", ()))
+    outcomes = list(coverage_dimensions.get("outcome", ()))
+    if expectation.expected_after_status is not None:
+        phases.append("postmerge")
+    outcomes.extend(
+        status for status in (postmerge_status, tip_status) if status is not None
+    )
+    coverage_dimensions["execution_phase"] = tuple(dict.fromkeys(phases))
+    coverage_dimensions["outcome"] = tuple(sorted(set(outcomes)))
     evaluated = _outcome(
         case,
         base.disposition,
@@ -1212,6 +1526,7 @@ def run_reviewed_case(
         tip_reason=tip_reason,
         expected_status=expectation.expected_status,
         expected_reason=expectation.expected_reason,
+        coverage_dimensions=coverage_dimensions,
     )
     mismatches = compare_outcome_to_expectation(evaluated, expectation)
     disposition = ReplayDisposition.STRICT_FAILURE if mismatches else base.disposition
@@ -1232,6 +1547,7 @@ def run_reviewed_case(
         expected_status=expectation.expected_status,
         expected_reason=expectation.expected_reason,
         expectation_mismatches=mismatches,
+        coverage_dimensions=coverage_dimensions,
     )
 
 
@@ -1368,18 +1684,26 @@ class ReplayReport:
     outcomes: tuple[ReplayOutcome, ...]
     counts: dict[str, int]
     exit_code: int
+    coverage: ReplayCoverageAudit | None = None
 
     @classmethod
-    def from_outcomes(cls, outcomes: Sequence[ReplayOutcome]) -> "ReplayReport":
+    def from_outcomes(
+        cls,
+        outcomes: Sequence[ReplayOutcome],
+        *,
+        coverage: ReplayCoverageAudit | None = None,
+    ) -> "ReplayReport":
         values = tuple(outcomes)
         counts = Counter(outcome.disposition.value for outcome in values)
-        if counts[ReplayDisposition.EVIDENCE_GAP.value]:
+        if counts[ReplayDisposition.EVIDENCE_GAP.value] or (
+            coverage is not None and coverage.gaps
+        ):
             exit_code = 2
         elif counts[ReplayDisposition.STRICT_FAILURE.value]:
             exit_code = 1
         else:
             exit_code = 0
-        return cls(values, dict(sorted(counts.items())), exit_code)
+        return cls(values, dict(sorted(counts.items())), exit_code, coverage)
 
     def as_dict(self) -> dict[str, object]:
         execution_counts = Counter(outcome.execution_phase for outcome in self.outcomes)
@@ -1388,6 +1712,7 @@ class ReplayReport:
             "exit_code": self.exit_code,
             "counts": dict(self.counts),
             "execution_counts": dict(sorted(execution_counts.items())),
+            "coverage": self.coverage.as_dict() if self.coverage is not None else None,
             "outcomes": [outcome.as_dict() for outcome in self.outcomes],
         }
 
@@ -1403,11 +1728,17 @@ def render_markdown_report(report: ReplayReport) -> str:
         outcome.disposition is ReplayDisposition.PASSED for outcome in report.outcomes
     )
     evidence_gaps = report.counts.get(ReplayDisposition.EVIDENCE_GAP.value, 0)
+    coverage_gaps = len(report.coverage.gaps) if report.coverage is not None else 0
+    historical_gaps = (
+        len(report.coverage.historical_gaps) if report.coverage is not None else 0
+    )
     lines = [
         "# Historical cherry-pick replay",
         "",
         f"- Strict eligible: {strict_passed}/{strict_total} passed",
         f"- Evidence gaps: {evidence_gaps}",
+        f"- Historical coverage gaps: {historical_gaps}",
+        f"- Uncovered required cells: {coverage_gaps}",
         f"- Exit code: {report.exit_code}",
         "- Execution depth: "
         + ", ".join(
@@ -2028,6 +2359,12 @@ def load_reviewed_corpus(path: str | Path) -> ReviewedCorpus:
     """Load immutable schema-v2 expectations for offline execution."""
 
     return ReviewedCorpus.from_dict(json.loads(Path(path).read_text()))
+
+
+def load_synthetic_coverage(path: str | Path) -> SyntheticCoverageSuite:
+    """Load reviewed deterministic test-to-coverage claims."""
+
+    return SyntheticCoverageSuite.from_dict(json.loads(Path(path).read_text()))
 
 
 def write_replay_reports(report: ReplayReport, report_dir: str | Path) -> None:

@@ -291,3 +291,15 @@ The intended failures cover five missing destination-family cases, five size
 boundaries, Git operation extraction, outcome dimensions, inventory exclusion,
 report gating, typed synthetic evidence, and two CLI contracts. No production
 code changed before this result was captured.
+
+The implementation now derives coverage from immutable Git endpoints, keeps
+inventory-only evidence out of engine cells, validates every synthetic claim
+against a required vocabulary and concrete pytest node ID, and makes uncovered
+required cells an exit-2 condition in the standalone CLI.
+
+```text
+$ .venv/bin/python -m pytest -q \
+    scripts/tests/cherry_pick_replay_test.py \
+    scripts/tests/replay_cherry_pick_history_test.py
+85 passed in 3.63s
+```
