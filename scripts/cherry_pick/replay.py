@@ -338,6 +338,12 @@ def is_revert_subject(subject: str) -> bool:
     return re.match(r"(?i)^revert(?:\s|[(:])", subject.lstrip()) is not None
 
 
+def mentions_cherry_pick(subject: str, body: str) -> bool:
+    """Detect an unproven historical cherry-pick claim conservatively."""
+
+    return re.search(r"(?i)\bcherry[ -]?pick", f"{subject}\n{body}") is not None
+
+
 def _explicit_commits(body: str) -> tuple[str, ...]:
     commits = list(EXPLICIT_COMMIT_PATTERN.findall(body))
     in_commit_list = False
@@ -371,7 +377,10 @@ def extract_provenance(subject: str, body: str, *, repository: str) -> Provenanc
     in_pr_list = False
     for line in body.splitlines():
         stripped = line.strip()
-        if re.match(r"(?i)^cherry[ -]?pick(?:ed|s)?\b.*:\s*$", stripped):
+        if re.match(
+            r"(?i)^(?:#{1,6}\s*)?cherry[ -]?pick(?:ed|s)?\b.*:\s*$",
+            stripped,
+        ):
             in_pr_list = True
             continue
         if in_pr_list:
@@ -924,8 +933,12 @@ def _classify_inventory_record(
             classification = ReplayClassification.HISTORICAL_ADAPTATION
             notes = "Explicit commit lacks one canonical source PR; diagnostic only."
     else:
-        classification = ReplayClassification.RELEASE_NATIVE
-        notes = "No positive source provenance; treated as release-native, not a cherry-pick."
+        if mentions_cherry_pick(record.subject, record.body):
+            classification = ReplayClassification.UNRESOLVED
+            notes = "Cherry-pick claim has no positive source provenance."
+        else:
+            classification = ReplayClassification.RELEASE_NATIVE
+            notes = "No positive source provenance; treated as release-native, not a cherry-pick."
 
     provisional = HistoricalReplayCase(
         id=_case_id(spec.repository, branch, record.after),
