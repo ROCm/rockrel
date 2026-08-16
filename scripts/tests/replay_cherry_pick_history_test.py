@@ -38,6 +38,18 @@ def test_cli_has_explicit_refresh_and_offline_run_contract():
     assert refresh.command == "refresh"
     assert refresh.allow_read_only_network is True
 
+    freeze = parser.parse_args(
+        [
+            "freeze",
+            "--data-root",
+            "/tmp/replay-data",
+            "--manifest",
+            "/tmp/manifest.json",
+        ]
+    )
+    assert freeze.command == "freeze"
+    assert not hasattr(freeze, "allow_read_only_network")
+
     run = parser.parse_args(
         [
             "run",
@@ -160,3 +172,40 @@ def test_refresh_transport_failure_is_a_clean_evidence_exit(monkeypatch, tmp_pat
 
     assert result == 2
     assert "git fetch" in stderr.getvalue()
+
+
+def test_offline_freeze_writes_deterministic_manifest(monkeypatch, tmp_path):
+    module = load_module()
+    payload = {"schema_version": 1, "snapshots": {}, "cases": []}
+
+    class FakeManifest:
+        def as_dict(self):
+            return payload
+
+    class FakeAudit:
+        total_count = 0
+        strict_count = 0
+        diagnostic_count = 0
+        evidence_gap_count = 0
+        exit_code = 0
+
+    monkeypatch.setattr(
+        module, "build_corpus_manifest", lambda _specs, _root: FakeManifest()
+    )
+    monkeypatch.setattr(
+        module, "audit_manifest_inventory", lambda _manifest, _root: FakeAudit()
+    )
+    manifest = tmp_path / "manifest.json"
+
+    result = module.main(
+        [
+            "freeze",
+            "--data-root",
+            str(tmp_path / "data"),
+            "--manifest",
+            str(manifest),
+        ]
+    )
+
+    assert result == 0
+    assert json.loads(manifest.read_text()) == payload
