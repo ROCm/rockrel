@@ -319,3 +319,14 @@ $ .venv/bin/python -m pytest -q \
 
 The intended failure showed that all 77 rows were marked `fast`, making the
 fast and deep gates identical.
+
+The reviewed tier field was then curated locally: 17 cases remain fast and 60
+are deep-only. The fast set retains every historical adaptation and manual
+conflict plus representative positive and inventory cases across all required
+dimensions; the deep set still includes all 77.
+
+```text
+$ .venv/bin/python -m pytest -q \
+    scripts/tests/cherry_pick_replay_test.py::test_reviewed_fast_tier_is_minimized_without_dropping_negative_diversity
+1 passed in 0.07s
+```

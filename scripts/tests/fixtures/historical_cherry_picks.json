@@ -10,7 +10,7 @@
       "expected_status": null,
       "expected_tip_reason": null,
       "expected_tip_status": null,
-      "tier": "fast"
+      "tier": "deep"
     },
     "ROCm-TheRock-release-therock-10.0-30e5284a899b": {
       "execution_phase": "inventory",
@@ -22,7 +22,7 @@
       "expected_status": null,
       "expected_tip_reason": null,
       "expected_tip_status": null,
-      "tier": "fast"
+      "tier": "deep"
     },
     "ROCm-TheRock-release-therock-10.0-41101d64ceb1": {
       "execution_phase": "inventory",
@@ -34,7 +34,7 @@
       "expected_status": null,
       "expected_tip_reason": null,
       "expected_tip_status": null,
-      "tier": "fast"
+      "tier": "deep"
     },
     "ROCm-TheRock-release-therock-10.0-418c0aea0d96": {
       "execution_phase": "core",
@@ -46,7 +46,7 @@
       "expected_status": "draft_planned",
       "expected_tip_reason": "complete_changeset_already_applied",
       "expected_tip_status": "already_contained",
-      "tier": "fast"
+      "tier": "deep"
     },
     "ROCm-TheRock-release-therock-10.0-51dfd409ee1e": {
       "execution_phase": "inventory",
@@ -58,7 +58,7 @@
       "expected_status": null,
       "expected_tip_reason": null,
       "expected_tip_status": null,
-      "tier": "fast"
+      "tier": "deep"
     },
     "ROCm-TheRock-release-therock-10.0-600ba5509b42": {
       "execution_phase": "inventory",
@@ -70,7 +70,7 @@
       "expected_status": null,
       "expected_tip_reason": null,
       "expected_tip_status": null,
-      "tier": "fast"
+      "tier": "deep"
     },
     "ROCm-TheRock-release-therock-10.0-61bb225b6906": {
       "execution_phase": "inventory",
@@ -82,7 +82,7 @@
       "expected_status": null,
       "expected_tip_reason": null,
       "expected_tip_status": null,
-      "tier": "fast"
+      "tier": "deep"
     },
     "ROCm-TheRock-release-therock-10.0-848470f797b9": {
       "execution_phase": "inventory",
@@ -94,7 +94,7 @@
       "expected_status": null,
       "expected_tip_reason": null,
       "expected_tip_status": null,
-      "tier": "fast"
+      "tier": "deep"
     },
     "ROCm-TheRock-release-therock-10.0-8c7d479627ae": {
       "execution_phase": "inventory",
@@ -106,7 +106,7 @@
       "expected_status": null,
       "expected_tip_reason": null,
       "expected_tip_status": null,
-      "tier": "fast"
+      "tier": "deep"
     },
     "ROCm-TheRock-release-therock-10.0-ac8bf7e62d65": {
       "execution_phase": "core",
@@ -130,7 +130,7 @@
       "expected_status": null,
       "expected_tip_reason": null,
       "expected_tip_status": null,
-      "tier": "fast"
+      "tier": "deep"
     },
     "ROCm-TheRock-release-therock-10.0-adbe0d23c9ba": {
       "execution_phase": "inventory",
@@ -142,7 +142,7 @@
       "expected_status": null,
       "expected_tip_reason": null,
       "expected_tip_status": null,
-      "tier": "fast"
+      "tier": "deep"
     },
     "ROCm-TheRock-release-therock-10.0-b6fbc3fb9374": {
       "execution_phase": "core",
@@ -154,7 +154,7 @@
       "expected_status": "draft_planned",
       "expected_tip_reason": "complete_changeset_application_ancestor",
       "expected_tip_status": "already_contained",
-      "tier": "fast"
+      "tier": "deep"
     },
     "ROCm-TheRock-release-therock-10.0-c354d42fa9af": {
       "execution_phase": "core",
@@ -166,7 +166,7 @@
       "expected_status": "draft_planned",
       "expected_tip_reason": "complete_changeset_application_ancestor",
       "expected_tip_status": "already_contained",
-      "tier": "fast"
+      "tier": "deep"
     },
     "ROCm-TheRock-release-therock-10.0-e32edf6d6751": {
       "execution_phase": "inventory",
@@ -178,7 +178,7 @@
       "expected_status": null,
       "expected_tip_reason": null,
       "expected_tip_status": null,
-      "tier": "fast"
+      "tier": "deep"
     },
     "ROCm-TheRock-release-therock-7.12-01bb6c2009eb": {
       "execution_phase": "core",
@@ -190,7 +190,7 @@
       "expected_status": "draft_planned",
       "expected_tip_reason": "complete_changeset_application_ancestor",
       "expected_tip_status": "already_contained",
-      "tier": "fast"
+      "tier": "deep"
     },
     "ROCm-TheRock-release-therock-7.12-02b6c1a59af8": {
       "execution_phase": "core",
@@ -202,7 +202,7 @@
       "expected_status": "draft_planned",
       "expected_tip_reason": "complete_changeset_application_ancestor",
       "expected_tip_status": "already_contained",
-      "tier": "fast"
+      "tier": "deep"
     },
     "ROCm-TheRock-release-therock-7.12-3031e31e5c76": {
       "execution_phase": "inventory",
@@ -214,7 +214,7 @@
       "expected_status": null,
       "expected_tip_reason": null,
       "expected_tip_status": null,
-      "tier": "fast"
+      "tier": "deep"
     },
     "ROCm-TheRock-release-therock-7.12-5a000d3f9839": {
       "execution_phase": "core",
@@ -226,7 +226,7 @@
       "expected_status": "draft_planned",
       "expected_tip_reason": "complete_changeset_application_ancestor",
       "expected_tip_status": "already_contained",
-      "tier": "fast"
+      "tier": "deep"
     },
     "ROCm-TheRock-release-therock-7.12-5de9a934c3e4": {
       "execution_phase": "core",
@@ -238,7 +238,7 @@
       "expected_status": "draft_planned",
       "expected_tip_reason": "complete_changeset_application_ancestor",
       "expected_tip_status": "already_contained",
-      "tier": "fast"
+      "tier": "deep"
     },
     "ROCm-TheRock-release-therock-7.12-9349588516bd": {
       "execution_phase": "core",
@@ -250,7 +250,7 @@
       "expected_status": "draft_planned",
       "expected_tip_reason": "complete_changeset_application_ancestor",
       "expected_tip_status": "already_contained",
-      "tier": "fast"
+      "tier": "deep"
     },
     "ROCm-TheRock-release-therock-7.12-b32d28a3cba3": {
       "execution_phase": "core",
@@ -300,7 +300,7 @@
       "expected_status": null,
       "expected_tip_reason": null,
       "expected_tip_status": null,
-      "tier": "fast"
+      "tier": "deep"
     },
     "ROCm-TheRock-release-therock-7.14-418cd5f63abb": {
       "execution_phase": "inventory",
@@ -312,7 +312,7 @@
       "expected_status": null,
       "expected_tip_reason": null,
       "expected_tip_status": null,
-      "tier": "fast"
+      "tier": "deep"
     },
     "ROCm-TheRock-release-therock-7.14-42bdd92291f2": {
       "execution_phase": "inventory",
@@ -324,7 +324,7 @@
       "expected_status": null,
       "expected_tip_reason": null,
       "expected_tip_status": null,
-      "tier": "fast"
+      "tier": "deep"
     },
     "ROCm-TheRock-release-therock-7.14-4a4048fdf9a0": {
       "execution_phase": "inventory",
@@ -336,7 +336,7 @@
       "expected_status": null,
       "expected_tip_reason": null,
       "expected_tip_status": null,
-      "tier": "fast"
+      "tier": "deep"
     },
     "ROCm-TheRock-release-therock-7.14-5d3b1b754b94": {
       "execution_phase": "inventory",
@@ -384,7 +384,7 @@
       "expected_status": "draft_planned",
       "expected_tip_reason": "complete_changeset_application_ancestor",
       "expected_tip_status": "already_contained",
-      "tier": "fast"
+      "tier": "deep"
     },
     "ROCm-TheRock-release-therock-7.14-d1674be5a71c": {
       "execution_phase": "inventory",
@@ -396,7 +396,7 @@
       "expected_status": null,
       "expected_tip_reason": null,
       "expected_tip_status": null,
-      "tier": "fast"
+      "tier": "deep"
     },
     "ROCm-TheRock-release-therock-7.14-e5e8093c2957": {
       "execution_phase": "inventory",
@@ -408,7 +408,7 @@
       "expected_status": null,
       "expected_tip_reason": null,
       "expected_tip_status": null,
-      "tier": "fast"
+      "tier": "deep"
     },
     "ROCm-TheRock-release-therock-7.14-f406eb81ea65": {
       "execution_phase": "inventory",
@@ -420,7 +420,7 @@
       "expected_status": null,
       "expected_tip_reason": null,
       "expected_tip_status": null,
-      "tier": "fast"
+      "tier": "deep"
     },
     "ROCm-rocm-libraries-release-therock-10.0-0a06dbf2f58a": {
       "execution_phase": "core",
@@ -432,7 +432,7 @@
       "expected_status": "draft_planned",
       "expected_tip_reason": "complete_changeset_already_applied",
       "expected_tip_status": "already_contained",
-      "tier": "fast"
+      "tier": "deep"
     },
     "ROCm-rocm-libraries-release-therock-10.0-d5561d1bb80f": {
       "execution_phase": "inventory",
@@ -444,7 +444,7 @@
       "expected_status": null,
       "expected_tip_reason": null,
       "expected_tip_status": null,
-      "tier": "fast"
+      "tier": "deep"
     },
     "ROCm-rocm-libraries-release-therock-10.0-dc74b7eac5b5": {
       "execution_phase": "core",
@@ -472,7 +472,7 @@
       "expected_status": null,
       "expected_tip_reason": null,
       "expected_tip_status": null,
-      "tier": "fast"
+      "tier": "deep"
     },
     "ROCm-rocm-libraries-release-therock-7.12-4534f20f3b19": {
       "execution_phase": "core",
@@ -496,7 +496,7 @@
       "expected_status": null,
       "expected_tip_reason": null,
       "expected_tip_status": null,
-      "tier": "fast"
+      "tier": "deep"
     },
     "ROCm-rocm-libraries-release-therock-7.14-c46807853b5b": {
       "execution_phase": "inventory",
@@ -508,7 +508,7 @@
       "expected_status": null,
       "expected_tip_reason": null,
       "expected_tip_status": null,
-      "tier": "fast"
+      "tier": "deep"
     },
     "ROCm-rocm-libraries-release-therock-7.14-c971d54d7aea": {
       "execution_phase": "core",
@@ -546,7 +546,7 @@
       "expected_status": null,
       "expected_tip_reason": null,
       "expected_tip_status": null,
-      "tier": "fast"
+      "tier": "deep"
     },
     "ROCm-rocm-systems-release-therock-10.0-42a8f71a24f3": {
       "execution_phase": "core",
@@ -570,7 +570,7 @@
       "expected_status": "draft_planned",
       "expected_tip_reason": "complete_changeset_already_applied",
       "expected_tip_status": "already_contained",
-      "tier": "fast"
+      "tier": "deep"
     },
     "ROCm-rocm-systems-release-therock-10.0-6ccde5dbc271": {
       "execution_phase": "core",
@@ -582,7 +582,7 @@
       "expected_status": "draft_planned",
       "expected_tip_reason": "complete_changeset_already_applied",
       "expected_tip_status": "already_contained",
-      "tier": "fast"
+      "tier": "deep"
     },
     "ROCm-rocm-systems-release-therock-10.0-6db399a32cf4": {
       "execution_phase": "inventory",
@@ -594,7 +594,7 @@
       "expected_status": null,
       "expected_tip_reason": null,
       "expected_tip_status": null,
-      "tier": "fast"
+      "tier": "deep"
     },
     "ROCm-rocm-systems-release-therock-10.0-70fe1eb59d4d": {
       "execution_phase": "core",
@@ -606,7 +606,7 @@
       "expected_status": "draft_planned",
       "expected_tip_reason": "complete_changeset_already_applied",
       "expected_tip_status": "already_contained",
-      "tier": "fast"
+      "tier": "deep"
     },
     "ROCm-rocm-systems-release-therock-10.0-7b9bd31b76ff": {
       "execution_phase": "core",
@@ -618,7 +618,7 @@
       "expected_status": "draft_planned",
       "expected_tip_reason": "complete_changeset_already_applied",
       "expected_tip_status": "already_contained",
-      "tier": "fast"
+      "tier": "deep"
     },
     "ROCm-rocm-systems-release-therock-10.0-a50677cd18f4": {
       "execution_phase": "core",
@@ -630,7 +630,7 @@
       "expected_status": "draft_planned",
       "expected_tip_reason": "complete_changeset_already_applied",
       "expected_tip_status": "already_contained",
-      "tier": "fast"
+      "tier": "deep"
     },
     "ROCm-rocm-systems-release-therock-10.0-b1959daa9c74": {
       "execution_phase": "inventory",
@@ -642,7 +642,7 @@
       "expected_status": null,
       "expected_tip_reason": null,
       "expected_tip_status": null,
-      "tier": "fast"
+      "tier": "deep"
     },
     "ROCm-rocm-systems-release-therock-10.0-f60b84655e21": {
       "execution_phase": "inventory",
@@ -654,7 +654,7 @@
       "expected_status": null,
       "expected_tip_reason": null,
       "expected_tip_status": null,
-      "tier": "fast"
+      "tier": "deep"
     },
     "ROCm-rocm-systems-release-therock-7.12-436058d0d6a1": {
       "execution_phase": "core",
@@ -666,7 +666,7 @@
       "expected_status": "draft_planned",
       "expected_tip_reason": "complete_changeset_already_applied",
       "expected_tip_status": "already_contained",
-      "tier": "fast"
+      "tier": "deep"
     },
     "ROCm-rocm-systems-release-therock-7.12-57601ddffeae": {
       "execution_phase": "inventory",
@@ -678,7 +678,7 @@
       "expected_status": null,
       "expected_tip_reason": null,
       "expected_tip_status": null,
-      "tier": "fast"
+      "tier": "deep"
     },
     "ROCm-rocm-systems-release-therock-7.12-63ff71cf4caa": {
       "execution_phase": "core",
@@ -690,7 +690,7 @@
       "expected_status": "draft_planned",
       "expected_tip_reason": "complete_changeset_application_ancestor",
       "expected_tip_status": "already_contained",
-      "tier": "fast"
+      "tier": "deep"
     },
     "ROCm-rocm-systems-release-therock-7.12-769135f77f91": {
       "execution_phase": "inventory",
@@ -702,7 +702,7 @@
       "expected_status": null,
       "expected_tip_reason": null,
       "expected_tip_status": null,
-      "tier": "fast"
+      "tier": "deep"
     },
     "ROCm-rocm-systems-release-therock-7.12-830204dbcbba": {
       "execution_phase": "core",
@@ -738,7 +738,7 @@
       "expected_status": null,
       "expected_tip_reason": null,
       "expected_tip_status": null,
-      "tier": "fast"
+      "tier": "deep"
     },
     "ROCm-rocm-systems-release-therock-7.12-a1e043c26374": {
       "execution_phase": "inventory",
@@ -750,7 +750,7 @@
       "expected_status": null,
       "expected_tip_reason": null,
       "expected_tip_status": null,
-      "tier": "fast"
+      "tier": "deep"
     },
     "ROCm-rocm-systems-release-therock-7.12-b2e709492b36": {
       "execution_phase": "core",
@@ -774,7 +774,7 @@
       "expected_status": null,
       "expected_tip_reason": null,
       "expected_tip_status": null,
-      "tier": "fast"
+      "tier": "deep"
     },
     "ROCm-rocm-systems-release-therock-7.12-c8726b9a77df": {
       "execution_phase": "core",
@@ -786,7 +786,7 @@
       "expected_status": "draft_planned",
       "expected_tip_reason": "complete_changeset_already_applied",
       "expected_tip_status": "already_contained",
-      "tier": "fast"
+      "tier": "deep"
     },
     "ROCm-rocm-systems-release-therock-7.12-e091924c969a": {
       "execution_phase": "core",
@@ -822,7 +822,7 @@
       "expected_status": "draft_planned",
       "expected_tip_reason": "complete_changeset_already_applied",
       "expected_tip_status": "already_contained",
-      "tier": "fast"
+      "tier": "deep"
     },
     "ROCm-rocm-systems-release-therock-7.14-2b22ab0195cc": {
       "execution_phase": "core",
@@ -834,7 +834,7 @@
       "expected_status": "draft_planned",
       "expected_tip_reason": "complete_changeset_already_applied",
       "expected_tip_status": "already_contained",
-      "tier": "fast"
+      "tier": "deep"
     },
     "ROCm-rocm-systems-release-therock-7.14-5148f726e165": {
       "execution_phase": "core",
@@ -846,7 +846,7 @@
       "expected_status": "draft_planned",
       "expected_tip_reason": "complete_changeset_already_applied",
       "expected_tip_status": "already_contained",
-      "tier": "fast"
+      "tier": "deep"
     },
     "ROCm-rocm-systems-release-therock-7.14-53a7a4f3fe60": {
       "execution_phase": "core",
@@ -858,7 +858,7 @@
       "expected_status": "draft_planned",
       "expected_tip_reason": "complete_changeset_application_ancestor",
       "expected_tip_status": "already_contained",
-      "tier": "fast"
+      "tier": "deep"
     },
     "ROCm-rocm-systems-release-therock-7.14-5402680335d1": {
       "execution_phase": "core",
@@ -870,7 +870,7 @@
       "expected_status": "draft_planned",
       "expected_tip_reason": "complete_changeset_already_applied",
       "expected_tip_status": "already_contained",
-      "tier": "fast"
+      "tier": "deep"
     },
     "ROCm-rocm-systems-release-therock-7.14-7dc033ad0aee": {
       "execution_phase": "core",
@@ -882,7 +882,7 @@
       "expected_status": "draft_planned",
       "expected_tip_reason": "complete_changeset_already_applied",
       "expected_tip_status": "already_contained",
-      "tier": "fast"
+      "tier": "deep"
     },
     "ROCm-rocm-systems-release-therock-7.14-a5cc42898ca0": {
       "execution_phase": "inventory",
@@ -894,7 +894,7 @@
       "expected_status": null,
       "expected_tip_reason": null,
       "expected_tip_status": null,
-      "tier": "fast"
+      "tier": "deep"
     },
     "ROCm-rocm-systems-release-therock-7.14-c11bf10a673d": {
       "execution_phase": "core",
@@ -906,7 +906,7 @@
       "expected_status": "draft_planned",
       "expected_tip_reason": "complete_changeset_already_applied",
       "expected_tip_status": "already_contained",
-      "tier": "fast"
+      "tier": "deep"
     },
     "ROCm-rocm-systems-release-therock-7.14-ca887ee80abf": {
       "execution_phase": "inventory",
@@ -918,7 +918,7 @@
       "expected_status": null,
       "expected_tip_reason": null,
       "expected_tip_status": null,
-      "tier": "fast"
+      "tier": "deep"
     },
     "ROCm-rocm-systems-release-therock-7.14-cf929fd25b19": {
       "execution_phase": "core",
@@ -930,7 +930,7 @@
       "expected_status": "draft_planned",
       "expected_tip_reason": "complete_changeset_already_applied",
       "expected_tip_status": "already_contained",
-      "tier": "fast"
+      "tier": "deep"
     }
   },
   "inventory": {
