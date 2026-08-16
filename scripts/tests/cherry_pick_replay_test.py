@@ -313,6 +313,7 @@ def test_refresh_commands_are_official_read_only_and_disable_push(tmp_path):
     flattened = [item for command in commands for item in command.args]
     assert "https://github.com/ROCm/TheRock.git" in flattened
     assert "disabled://read-only" in flattened
+    assert "http.version=HTTP/1.1" in flattened
     assert "push" not in [command.args[1] for command in commands]
     assert any("refs/pull/3897/head" in item for item in flattened)
     assert any("refs/heads/release/therock-10.0" in item for item in flattened)
