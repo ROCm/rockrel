@@ -3,6 +3,8 @@
 
 import importlib
 import subprocess
+import threading
+import time
 from pathlib import Path
 
 import pytest
@@ -310,6 +312,44 @@ def test_exact_historical_replay_is_a_strict_tree_gate(repo):
     assert outcome.engine_status == "draft_planned"
     assert outcome.planned_tree == outcome.historical_tree
     assert outcome.strict_failure is False
+
+
+def test_batch_replay_is_bounded_parallel_and_preserves_case_order(
+    monkeypatch, tmp_path
+):
+    run_cases = required("run_replay_cases")
+    case_type = required("HistoricalReplayCase")
+    cases = tuple(
+        case_type.from_dict(
+            valid_case(
+                id=f"case-{number}",
+                target_after=f"{number:040x}",
+            )
+        )
+        for number in range(1, 7)
+    )
+    lock = threading.Lock()
+    active = 0
+    maximum_active = 0
+
+    def fake_run(_repo, case):
+        nonlocal active, maximum_active
+        with lock:
+            active += 1
+            maximum_active = max(maximum_active, active)
+        time.sleep(0.03)
+        with lock:
+            active -= 1
+        return case.id
+
+    monkeypatch.setattr(replay, "run_replay_case", fake_run)
+
+    outcomes = run_cases(tmp_path, cases, jobs=3)
+
+    assert outcomes == tuple(case.id for case in cases)
+    assert 1 < maximum_active <= 3
+    with pytest.raises(ValueError, match="jobs"):
+        run_cases(tmp_path, cases, jobs=0)
 
 
 def test_missing_source_object_is_an_evidence_gap(repo):

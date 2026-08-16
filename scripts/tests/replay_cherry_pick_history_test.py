@@ -63,6 +63,22 @@ def test_cli_has_explicit_refresh_and_offline_run_contract():
     )
     assert run.command == "run"
     assert not hasattr(run, "allow_read_only_network")
+    assert run.jobs == 4
+
+    parallel_run = parser.parse_args(
+        [
+            "run",
+            "--data-root",
+            "/tmp/replay-data",
+            "--manifest",
+            "/tmp/manifest.json",
+            "--report-dir",
+            "/tmp/reports",
+            "--jobs",
+            "7",
+        ]
+    )
+    assert parallel_run.jobs == 7
 
 
 def test_cli_is_directly_executable_from_the_repository_root():
