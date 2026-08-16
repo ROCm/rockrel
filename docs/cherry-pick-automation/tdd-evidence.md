@@ -330,3 +330,18 @@ $ .venv/bin/python -m pytest -q \
     scripts/tests/cherry_pick_replay_test.py::test_reviewed_fast_tier_is_minimized_without_dropping_negative_diversity
 1 passed in 0.07s
 ```
+
+## Report-schema and reviewer-visibility slice
+
+The final report contract was made red before implementation. It requires the
+coverage-bearing JSON to use schema v3 and the Markdown report to name both
+historical-only and genuinely uncovered required cells.
+
+```text
+$ .venv/bin/python -m pytest -q \
+    scripts/tests/cherry_pick_replay_test.py::test_report_includes_coverage_and_fails_closed_on_a_gap
+1 failed in 0.25s
+```
+
+The intended failure was the stale schema-v2 marker; the pre-change Markdown
+also reported only aggregate counts.

@@ -760,7 +760,12 @@ def test_report_includes_coverage_and_fails_closed_on_a_gap(repo):
 
     assert report.exit_code == 2
     assert report.coverage is coverage
-    assert report.as_dict()["coverage"]["gaps"] == ["recovery_mode:interrupted"]
+    payload = report.as_dict()
+    assert payload["schema_version"] == 3
+    assert payload["coverage"]["gaps"] == ["recovery_mode:interrupted"]
+    markdown = required("render_markdown_report")(report)
+    assert "Historical-only gaps" in markdown
+    assert "Uncovered required cells: recovery_mode:interrupted" in markdown
 
 
 def test_synthetic_coverage_registry_is_typed_and_names_real_tests():
