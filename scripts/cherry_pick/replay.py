@@ -24,6 +24,11 @@ TITLE_PR_PATTERN = re.compile(r"\(#(\d+)\)")
 PR_URL_PATTERN = re.compile(
     r"https://github\.com/ROCm/[A-Za-z0-9_.-]+/pull/(\d+)", re.I
 )
+QUALIFIED_PR_URL_PATTERN = re.compile(
+    r"(?is)\bcherry[ -]?pick(?:ed|ing|s)?\b"
+    r"(?:(?!\n\s*\n).){0,240}?"
+    r"https://github\.com/ROCm/[A-Za-z0-9_.-]+/pull/(\d+)"
+)
 EXPLICIT_PR_PATTERN = re.compile(
     r"(?i)\b(?:cherry[ -]?pick(?:ed|s)?(?:\s+(?:commit|PR))?"
     r"|original\s+PR|source\s+PR)\s*:?\s*#(\d+)"
@@ -32,6 +37,10 @@ BACKPORT_PR_PATTERN = re.compile(r"(?i)\bbackport\b[^\n]{0,160}\bPR\s*#(\d+)")
 EXPLICIT_COMMIT_PATTERN = re.compile(
     r"(?i)\b(?:cherry[ -]?pick(?:ed|s)?|original|source|upstream)"
     r"\s+commits?\s*:?\s*([0-9a-f]{40})"
+)
+QUALIFIED_COMMIT_PATTERN = re.compile(
+    r"(?is)\bcherry[ -]?pick(?:ed|ing|s)?\b"
+    r"(?:(?!\n\s*\n).){0,120}?([0-9a-f]{40})"
 )
 SUPPORTED_REPOSITORIES = {
     "ROCm/TheRock": ("main", "https://github.com/ROCm/TheRock.git"),
@@ -342,15 +351,36 @@ def is_revert_subject(subject: str) -> bool:
 def mentions_cherry_pick(subject: str, body: str) -> bool:
     """Detect an unproven historical cherry-pick claim conservatively."""
 
-    return re.search(r"(?i)\bcherry[ -]?pick", f"{subject}\n{body}") is not None
+    if re.search(r"(?i)\bcherry[ -]?pick", subject) is not None:
+        return True
+    without_context = re.sub(
+        r"(?i)\bcherry[ -]?pick\s+PRs?\s+to\s+(?:this|the)\s+branch\b",
+        "",
+        body,
+    )
+    return re.search(r"(?i)\bcherry[ -]?pick", without_context) is not None
+
+
+def is_multi_source_claim(subject: str) -> bool:
+    """Recognize titles that explicitly claim a plural cherry-pick bundle."""
+
+    return (
+        re.search(r"(?i)\bcherry[ -]?picks\b", subject) is not None
+        or re.search(r"(?i)\bcherry[ -]?pick(?:ed)?\s+commits\b", subject)
+        is not None
+    )
 
 
 def _explicit_commits(body: str) -> tuple[str, ...]:
     commits = list(EXPLICIT_COMMIT_PATTERN.findall(body))
+    commits.extend(QUALIFIED_COMMIT_PATTERN.findall(body))
     in_commit_list = False
     for line in body.splitlines():
         stripped = line.strip()
-        if re.match(r"(?i)^original commits?\s*:?.*$", stripped):
+        if re.match(
+            r"(?i)^(?:#{1,6}\s*)?original commits?\s*:?.*$",
+            stripped,
+        ):
             in_commit_list = True
             continue
         if in_commit_list:
@@ -374,15 +404,32 @@ def extract_provenance(subject: str, body: str, *, repository: str) -> Provenanc
     commits = _explicit_commits(body)
     body_prs: list[int] = [int(value) for value in EXPLICIT_PR_PATTERN.findall(body)]
     body_prs.extend(int(value) for value in BACKPORT_PR_PATTERN.findall(body))
+    body_prs.extend(int(value) for value in QUALIFIED_PR_URL_PATTERN.findall(body))
 
     in_pr_list = False
+    pending_pr_heading = False
     for line in body.splitlines():
         stripped = line.strip()
-        if re.match(
+        heading = re.match(
             r"(?i)^(?:#{1,6}\s*)?cherry[ -]?pick(?:ed|s)?\b.*:\s*$",
             stripped,
-        ):
+        )
+        if heading:
             in_pr_list = True
+            pending_pr_heading = False
+            continue
+        if re.match(
+            r"(?i)^(?:#{1,6}\s*)?cherry[ -]?pick(?:ed|s)?\b",
+            stripped,
+        ):
+            pending_pr_heading = True
+            continue
+        if pending_pr_heading:
+            if not stripped:
+                continue
+            pending_pr_heading = False
+            if stripped.endswith(":"):
+                in_pr_list = True
             continue
         if in_pr_list:
             if re.match(r"^#{1,6}\s*[^\d#]", stripped):
@@ -910,6 +957,7 @@ def _has_gitlink_delta(repo: Path, before: str, after: str) -> bool:
         "diff-tree",
         "--no-commit-id",
         "--raw",
+        "-r",
         before,
         after,
         check=False,
@@ -946,7 +994,11 @@ def _classify_inventory_record(
     elif _has_gitlink_delta(repo, record.before, record.after):
         classification = ReplayClassification.GITLINK_ROLLUP
         notes = "Transition changes a gitlink and is retained as a diagnostic rollup."
-    elif len(provenance.source_prs) > 1 or len(provenance.source_commits) > 1:
+    elif (
+        len(provenance.source_prs) > 1
+        or len(provenance.source_commits) > 1
+        or is_multi_source_claim(record.subject)
+    ):
         classification = ReplayClassification.MULTI_SOURCE_BUNDLE
         notes = "Transition explicitly combines multiple source changes."
     elif len(provenance.source_prs) == 1:
