@@ -858,6 +858,102 @@ class ReplayOutcome:
         }
 
 
+def compare_outcome_to_expectation(
+    outcome: ReplayOutcome,
+    expectation: ReplayExpectation,
+) -> tuple[str, ...]:
+    """Return every safety-relevant field that differs from reviewed evidence."""
+
+    comparisons = (
+        ("engine_status", outcome.engine_status, expectation.expected_status),
+        ("engine_reason", outcome.engine_reason, expectation.expected_reason),
+        ("planned_tree", outcome.planned_tree, expectation.expected_planned_tree),
+        (
+            "conflict_paths",
+            tuple(outcome.conflict_paths),
+            expectation.expected_conflict_paths,
+        ),
+        (
+            "postmerge_status",
+            outcome.postmerge_status,
+            expectation.expected_after_status,
+        ),
+        (
+            "postmerge_reason",
+            outcome.postmerge_reason,
+            expectation.expected_after_reason,
+        ),
+        ("tip_status", outcome.tip_status, expectation.expected_tip_status),
+        ("tip_reason", outcome.tip_reason, expectation.expected_tip_reason),
+    )
+    return tuple(name for name, actual, expected in comparisons if actual != expected)
+
+
+@dataclass(frozen=True)
+class ReplayCoverageAudit:
+    """Independent historical and synthetic evidence for required replay cells."""
+
+    historical: dict[str, dict[str, int]]
+    synthetic: dict[str, dict[str, tuple[str, ...]]]
+    gaps: tuple[str, ...]
+
+    def as_dict(self) -> dict[str, object]:
+        return {
+            "historical": {
+                dimension: dict(sorted(values.items()))
+                for dimension, values in sorted(self.historical.items())
+            },
+            "synthetic": {
+                dimension: {
+                    value: list(test_ids) for value, test_ids in sorted(values.items())
+                }
+                for dimension, values in sorted(self.synthetic.items())
+            },
+            "gaps": list(self.gaps),
+        }
+
+
+def _coverage_value(outcome: ReplayOutcome, dimension: str) -> str | None:
+    value = getattr(outcome, dimension, None)
+    if value is None:
+        return None
+    if isinstance(value, StrEnum):
+        return value.value
+    return str(value)
+
+
+def audit_replay_coverage(
+    outcomes: Sequence[ReplayOutcome],
+    *,
+    synthetic: Mapping[str, Mapping[str, Sequence[str]]],
+    required: Mapping[str, Sequence[str]],
+) -> ReplayCoverageAudit:
+    """Audit required cells without presenting synthetic tests as history."""
+
+    historical: dict[str, dict[str, int]] = {}
+    normalized_synthetic: dict[str, dict[str, tuple[str, ...]]] = {}
+    gaps: list[str] = []
+    for dimension, required_values in required.items():
+        counts = Counter(
+            value
+            for outcome in outcomes
+            if (value := _coverage_value(outcome, dimension)) is not None
+        )
+        historical[dimension] = dict(sorted(counts.items()))
+        supplied = synthetic.get(dimension, {})
+        normalized_synthetic[dimension] = {
+            value: tuple(test_ids) for value, test_ids in sorted(supplied.items())
+        }
+        for value in required_values:
+            if counts[value] == 0 and not normalized_synthetic[dimension].get(value):
+                gaps.append(f"{dimension}:{value}")
+    return ReplayCoverageAudit(
+        historical=historical,
+        synthetic=normalized_synthetic,
+        gaps=tuple(gaps),
+    )
+
+
 def _outcome(
     case: HistoricalReplayCase,
     disposition: ReplayDisposition,
@@ -1100,35 +1196,24 @@ def run_reviewed_case(
             tip_status = postmerge_status
             tip_reason = postmerge_reason
 
-    comparisons = (
-        ("engine_status", base.engine_status, expectation.expected_status),
-        ("engine_reason", base.engine_reason, expectation.expected_reason),
-        (
-            "planned_tree",
-            base.planned_tree,
-            expectation.expected_planned_tree,
-        ),
-        (
-            "conflict_paths",
-            tuple(base.conflict_paths),
-            expectation.expected_conflict_paths,
-        ),
-        (
-            "postmerge_status",
-            postmerge_status,
-            expectation.expected_after_status,
-        ),
-        (
-            "postmerge_reason",
-            postmerge_reason,
-            expectation.expected_after_reason,
-        ),
-        ("tip_status", tip_status, expectation.expected_tip_status),
-        ("tip_reason", tip_reason, expectation.expected_tip_reason),
+    evaluated = _outcome(
+        case,
+        base.disposition,
+        "reviewed_expectation_match",
+        engine_status=base.engine_status,
+        engine_reason=base.engine_reason,
+        destination_tree=base.destination_tree,
+        planned_tree=base.planned_tree,
+        execution_phase=expectation.execution_phase.value,
+        conflict_paths=base.conflict_paths,
+        postmerge_status=postmerge_status,
+        postmerge_reason=postmerge_reason,
+        tip_status=tip_status,
+        tip_reason=tip_reason,
+        expected_status=expectation.expected_status,
+        expected_reason=expectation.expected_reason,
     )
-    mismatches = tuple(
-        name for name, actual, expected in comparisons if actual != expected
-    )
+    mismatches = compare_outcome_to_expectation(evaluated, expectation)
     disposition = ReplayDisposition.STRICT_FAILURE if mismatches else base.disposition
     return _outcome(
         case,

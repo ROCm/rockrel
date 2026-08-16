@@ -261,3 +261,14 @@ The eight intended failures were six missing
 `audit_replay_coverage` contracts. The new delete, rename, executable mode,
 symlink, binary, add/add, delete/modify, and rename/rename Git cases already
 passed against the preceding engine implementation.
+
+The paired implementation extracted the reviewed-field oracle into a pure
+comparator and added a deterministic coverage auditor that keeps historical
+counts and named synthetic evidence separate.
+
+```text
+$ .venv/bin/python -m pytest -q \
+    scripts/tests/cherry_pick_git_test.py \
+    scripts/tests/cherry_pick_replay_test.py
+86 passed in 5.14s
+```
