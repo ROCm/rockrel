@@ -362,8 +362,16 @@ def is_revert_subject(subject: str) -> bool:
 def mentions_cherry_pick(subject: str, body: str) -> bool:
     """Detect an unproven historical cherry-pick claim conservatively."""
 
-    if re.search(r"(?i)\bcherry[ -]?pick", subject) is not None:
+    dependency_bump = re.search(
+        r"(?i)\b(?:version\s+)?bump\b.{0,80}\bfor\b.{0,40}"
+        r"\bcherry[ -]?pick",
+        subject,
+    )
+    if dependency_bump is None and re.search(
+        r"(?i)\bcherry[ -]?pick", subject
+    ) is not None:
         return True
+    body = DEPENDENCY_PR_URL_PATTERN.sub("", body)
     without_context = re.sub(
         r"(?i)\bcherry[ -]?pick\s+PRs?\s+to\s+(?:this|the)\s+branch\b",
         "",
