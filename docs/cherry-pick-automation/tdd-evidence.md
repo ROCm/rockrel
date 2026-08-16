@@ -345,3 +345,12 @@ $ .venv/bin/python -m pytest -q \
 
 The intended failure was the stale schema-v2 marker; the pre-change Markdown
 also reported only aggregate counts.
+
+The JSON report now declares schema v3, and Markdown names every historical-only
+and uncovered cell (or explicitly says `none`).
+
+```text
+$ .venv/bin/python -m pytest -q \
+    scripts/tests/cherry_pick_replay_test.py::test_report_includes_coverage_and_fails_closed_on_a_gap
+1 passed in 0.15s
+```

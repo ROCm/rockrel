@@ -1708,7 +1708,7 @@ class ReplayReport:
     def as_dict(self) -> dict[str, object]:
         execution_counts = Counter(outcome.execution_phase for outcome in self.outcomes)
         return {
-            "schema_version": 2,
+            "schema_version": 3,
             "exit_code": self.exit_code,
             "counts": dict(self.counts),
             "execution_counts": dict(sorted(execution_counts.items())),
@@ -1747,10 +1747,26 @@ def render_markdown_report(report: ReplayReport) -> str:
                 Counter(item.execution_phase for item in report.outcomes).items()
             )
         ),
-        "",
-        "| Case | Repository | Branch | Classification | Phase | Result | Root cause |",
-        "| --- | --- | --- | --- | --- | --- | --- |",
     ]
+    if report.coverage is not None:
+        lines.extend(
+            (
+                "",
+                "## Coverage gaps",
+                "",
+                "- Historical-only gaps: "
+                + (", ".join(report.coverage.historical_gaps) or "none"),
+                "- Uncovered required cells: "
+                + (", ".join(report.coverage.gaps) or "none"),
+            )
+        )
+    lines.extend(
+        (
+            "",
+            "| Case | Repository | Branch | Classification | Phase | Result | Root cause |",
+            "| --- | --- | --- | --- | --- | --- | --- |",
+        )
+    )
     for outcome in report.outcomes:
         lines.append(
             "| "
