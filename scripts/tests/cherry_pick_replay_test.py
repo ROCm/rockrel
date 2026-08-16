@@ -5,6 +5,7 @@ import importlib
 import subprocess
 import threading
 import time
+from dataclasses import replace
 from pathlib import Path
 
 import pytest
@@ -119,9 +120,11 @@ def valid_reviewed_corpus(cases=None, expectations=None):
     return {
         "schema_version": 2,
         "inventory": inventory,
-        "expectations": expectations
-        if expectations is not None
-        else {case["id"]: valid_expectation(case) for case in records},
+        "expectations": (
+            expectations
+            if expectations is not None
+            else {case["id"]: valid_expectation(case) for case in records}
+        ),
     }
 
 
@@ -533,6 +536,99 @@ def test_reviewed_replay_fails_when_expected_behavior_is_relaxed(repo):
     assert outcome.disposition.value == "strict_failure"
     assert "engine_status" in outcome.expectation_mismatches
     assert "engine_reason" in outcome.expectation_mismatches
+
+
+@pytest.mark.parametrize(
+    "mutation,expected_mismatch",
+    [
+        (lambda item: replace(item, engine_status="blocked_conflict"), "engine_status"),
+        (
+            lambda item: replace(item, engine_reason="cherry_pick_conflict"),
+            "engine_reason",
+        ),
+        (lambda item: replace(item, planned_tree="0" * 40), "planned_tree"),
+        (lambda item: replace(item, conflict_paths=("wrong.txt",)), "conflict_paths"),
+        (
+            lambda item: replace(item, postmerge_status="blocked_conflict"),
+            "postmerge_status",
+        ),
+        (
+            lambda item: replace(item, tip_reason="cherry_pick_conflict"),
+            "tip_reason",
+        ),
+    ],
+)
+def test_reviewed_oracle_kills_safety_outcome_mutants(
+    repo, mutation, expected_mismatch
+):
+    run_reviewed = required("run_reviewed_case")
+    compare = required("compare_outcome_to_expectation")
+    expectation_type = required("ReplayExpectation")
+    case = exact_case(repo)
+    expectation = expectation_type.from_dict(valid_expectation(case.as_dict()))
+    original = run_reviewed(
+        repo,
+        case,
+        expectation,
+        target_tip=case.target_after,
+    )
+
+    mismatches = compare(mutation(original), expectation)
+
+    assert expected_mismatch in mismatches
+
+
+def test_coverage_audit_combines_historical_and_synthetic_evidence(repo):
+    run_reviewed = required("run_reviewed_case")
+    audit_coverage = required("audit_replay_coverage")
+    expectation_type = required("ReplayExpectation")
+    case = exact_case(repo)
+    expectation = expectation_type.from_dict(valid_expectation(case.as_dict()))
+    outcome = run_reviewed(
+        repo,
+        case,
+        expectation,
+        target_tip=case.target_after,
+    )
+    required_dimensions = {
+        "repository": ("ROCm/TheRock", "ROCm/rocm-systems"),
+        "execution_phase": ("core", "pipeline"),
+    }
+    synthetic = {
+        "repository": {"ROCm/rocm-systems": ("synthetic-systems",)},
+        "execution_phase": {"pipeline": ("local-pipeline-test",)},
+    }
+
+    audit = audit_coverage(
+        (outcome,),
+        synthetic=synthetic,
+        required=required_dimensions,
+    )
+
+    assert audit.gaps == ()
+    assert audit.historical["repository"]["ROCm/TheRock"] == 1
+    assert audit.synthetic["execution_phase"]["pipeline"] == ("local-pipeline-test",)
+    assert audit.as_dict()["gaps"] == []
+
+
+def test_coverage_audit_names_every_uncovered_required_cell():
+    audit_coverage = required("audit_replay_coverage")
+
+    audit = audit_coverage(
+        (),
+        synthetic={},
+        required={
+            "changeset_kind": ("merge_commit", "rebase_range"),
+            "file_operation": ("delete", "rename"),
+        },
+    )
+
+    assert audit.gaps == (
+        "changeset_kind:merge_commit",
+        "changeset_kind:rebase_range",
+        "file_operation:delete",
+        "file_operation:rename",
+    )
 
 
 def test_batch_replay_is_bounded_parallel_and_preserves_case_order(

@@ -483,6 +483,77 @@ def test_conflict_evidence_names_paths_and_index_stages(repo):
     assert result.evidence["conflict_stages"] == {"value.txt": [1, 2, 3]}
 
 
+@pytest.mark.parametrize("shape", ["delete", "rename", "mode", "symlink", "binary"])
+def test_complete_changeset_preserves_git_file_shapes(repo, shape):
+    base = git(repo, "rev-parse", "HEAD")
+    git(repo, "checkout", "-b", "topic")
+    if shape == "delete":
+        git(repo, "rm", "value.txt")
+    elif shape == "rename":
+        git(repo, "mv", "value.txt", "renamed.txt")
+    elif shape == "mode":
+        (repo / "value.txt").chmod(0o755)
+        git(repo, "add", "value.txt")
+    elif shape == "symlink":
+        (repo / "value.txt").unlink()
+        (repo / "value.txt").symlink_to("relative-target")
+        git(repo, "add", "value.txt")
+    else:
+        (repo / "binary.dat").write_bytes(b"\x00\xff\x10\x80")
+        git(repo, "add", "binary.dat")
+    git(repo, "commit", "-m", f"{shape} source")
+    source = git(repo, "rev-parse", "HEAD")
+    git(repo, "checkout", "main")
+    git(repo, "cherry-pick", source)
+    merged = git(repo, "rev-parse", "HEAD")
+    changeset = prove(repo, merged, source, (source,))
+
+    result = evaluate(repo, changeset, base)
+
+    assert result.status is Status.DRAFT_PLANNED
+    assert result.evidence["planned_tree"] == git(
+        repo, "rev-parse", f"{merged}^{{tree}}"
+    )
+
+
+@pytest.mark.parametrize("shape", ["add_add", "delete_modify", "rename_rename"])
+def test_conflict_evidence_covers_distinct_index_shapes(repo, shape):
+    base = git(repo, "rev-parse", "HEAD")
+    git(repo, "checkout", "-b", "topic")
+    if shape == "add_add":
+        source = commit_file(repo, "new.txt", "source\n", "source add")
+    elif shape == "delete_modify":
+        git(repo, "rm", "value.txt")
+        git(repo, "commit", "-m", "source delete")
+        source = git(repo, "rev-parse", "HEAD")
+    else:
+        git(repo, "mv", "value.txt", "renamed.txt")
+        git(repo, "commit", "-m", "source rename")
+        source = git(repo, "rev-parse", "HEAD")
+    git(repo, "checkout", "main")
+    git(repo, "cherry-pick", source)
+    merged = git(repo, "rev-parse", "HEAD")
+    changeset = prove(repo, merged, source, (source,))
+    git(repo, "checkout", "--detach", base)
+    if shape == "add_add":
+        target = commit_file(repo, "new.txt", "target\n", "target add")
+    elif shape == "delete_modify":
+        target = commit_file(repo, "value.txt", "target\n", "target modify")
+    else:
+        git(repo, "mv", "value.txt", "other-name.txt")
+        git(repo, "commit", "-m", "target rename")
+        target = git(repo, "rev-parse", "HEAD")
+
+    result = evaluate(repo, changeset, target)
+
+    assert result.status is Status.BLOCKED_CONFLICT
+    assert result.evidence["conflict_paths"]
+    assert all(
+        set(stages) <= {1, 2, 3}
+        for stages in result.evidence["conflict_stages"].values()
+    )
+
+
 def test_gitlink_directional_decisions_use_new_status_contract(repo):
     desired = commit_file(repo, "one.txt", "one\n", "desired")
     target = commit_file(repo, "two.txt", "two\n", "target descendant")

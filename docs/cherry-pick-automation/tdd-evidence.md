@@ -241,3 +241,23 @@ release tip. Each returned `already_contained`: 20 by complete changeset patch
 identity and 11 by an exact, reachable destination application. The remaining
 46 cases retain explicit inventory-only diagnostic reasons rather than being
 misrepresented as engine passes.
+
+## Coverage-audit and oracle-mutation slice
+
+The next tests were written before their implementation. They add Git file
+shape and conflict-shape cases, mutate each safety-critical reviewed outcome
+field to prove the oracle rejects regressions, and require an explicit combined
+historical/synthetic coverage audit.
+
+```text
+$ .venv/bin/python -m pytest -q \
+    scripts/tests/cherry_pick_git_test.py \
+    scripts/tests/cherry_pick_replay_test.py
+8 failed, 78 passed in 4.28s
+```
+
+The eight intended failures were six missing
+`compare_outcome_to_expectation` contracts and two missing
+`audit_replay_coverage` contracts. The new delete, rename, executable mode,
+symlink, binary, add/add, delete/modify, and rename/rename Git cases already
+passed against the preceding engine implementation.
