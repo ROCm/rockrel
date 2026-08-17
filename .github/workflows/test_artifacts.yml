@@ -40,9 +40,9 @@ on:
         type: string
         default: 'false'
       release_type:
-        description: 'Release type: "" for CI, or "dev", "nightly", "prerelease".'
+        description: "Release type for the artifacts being tested; passed through to TheRock."
         type: string
-        default: ""
+        default: dev
       repository:
         description: "TheRock repository to checkout."
         type: string
