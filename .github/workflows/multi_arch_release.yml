@@ -35,6 +35,13 @@ on:
         description: "TheRock branch, tag, or SHA. Empty = default branch."
         type: string
         default: ""
+      # Enable Quartz release-lineage tracking. When on, TheRock propagates this
+      # run's id to every triggered workflow as quartz_tracking_id, formatted as
+      # "<github.run_id>;<release_type>". Scheduled nightly runs always enable it.
+      enable_quartz_tracking:
+        description: "Enable Quartz release-lineage tracking (on by default)."
+        type: boolean
+        default: true
 
   # Trigger on a schedule to build nightly releases.
   schedule:
@@ -76,6 +83,7 @@ jobs:
       run_full_pytorch_tests: ${{ github.event_name == 'schedule' || inputs.release_type == 'prerelease' }}
       repository: "ROCm/TheRock"
       ref: ${{ inputs.ref || '' }}
+      enable_quartz_tracking: ${{ github.event_name == 'schedule' || inputs.enable_quartz_tracking }}
     permissions:
       contents: write
       actions: write

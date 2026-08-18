@@ -53,6 +53,12 @@ on:
         description: "Branch, tag, or SHA to checkout in TheRock."
         type: string
         default: ""
+      quartz_tracking_id:
+        description: >-
+          Leave empty. Internal Quartz tracking id, set automatically to link
+          this run to its release lineage.
+        type: string
+        default: ""
 
 permissions:
   contents: read
@@ -91,6 +97,7 @@ jobs:
       tests_to_include: ${{ inputs.tests_to_include }}
       repository: ${{ inputs.repository }}
       ref: ${{ inputs.ref }}
+      quartz_tracking_id: ${{ inputs.quartz_tracking_id }}
 
   notify_quartz_completed:
     name: "Quartz - completed - test PyTorch wheels (full suite)"

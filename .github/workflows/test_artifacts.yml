@@ -55,6 +55,12 @@ on:
         description: "Build variant (e.g., release, asan)."
         type: string
         default: "release"
+      quartz_tracking_id:
+        description: >-
+          Leave empty. Internal Quartz tracking id, set automatically to link
+          this run to its release lineage.
+        type: string
+        default: ""
 
 permissions:
   contents: read
@@ -96,6 +102,7 @@ jobs:
       repository: ${{ inputs.repository }}
       ref: ${{ inputs.ref }}
       build_variant: ${{ inputs.build_variant }}
+      quartz_tracking_id: ${{ inputs.quartz_tracking_id }}
 
   notify_quartz_completed:
     name: "Quartz - completed - test ROCm artifacts (rockrel)"
