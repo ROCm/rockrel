@@ -16,8 +16,8 @@ on:
         type: string
       release_type:
         description: "Release type for the artifacts being tested; passed through to TheRock."
+        required: true
         type: string
-        default: dev
       gpg_key_url:
         description: "GPG key URL for signed repos"
         type: string
