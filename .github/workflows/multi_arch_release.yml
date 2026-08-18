@@ -5,18 +5,22 @@ name: Multi-Arch Release
 # Release type | Trigger details
 # ------------ | --------------------------------------------------------------
 # dev          | "workflow_dispatch" for testing with any set of inputs
+# dev-bkc      | "workflow_dispatch" for BKC development builds
 # nightly      | "schedule", or "workflow_dispatch" as needed (default inputs)
+# nightly-bkc  | "workflow_dispatch" for BKC nightly builds
 # prerelease   | "workflow_dispatch" for stable releases (explicit GPU family lists?)
 
 on:
   workflow_dispatch:
     inputs:
       release_type:
-        description: 'Release type: "dev", "nightly", or "prerelease".'
+        description: 'Release type: "dev", "dev-bkc", "nightly", "nightly-bkc", or "prerelease".'
         type: choice
         options:
           - dev
+          - dev-bkc
           - nightly
+          - nightly-bkc
           - prerelease
         default: dev
       prerelease_version:
