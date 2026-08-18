@@ -46,23 +46,23 @@ on:
           Container image reference. Leave empty to run directly on the runner
           (required for Windows and native Linux runners).
         type: string
-      repository:
-        description: "TheRock repository to checkout."
-        type: string
-        default: "ROCm/TheRock"
       ref:
-        description: "Branch, tag, or SHA to checkout in TheRock."
+        description: "Branch, tag, or SHA to checkout."
         type: string
         default: ""
+      repository:
+        description: "Repository to checkout. Defaults to ROCm/TheRock."
+        type: string
+        default: "ROCm/TheRock"
 
 permissions:
   contents: read
 
-run-name: Test ROCm Wheels (${{ inputs.amdgpu_family }}, py${{ inputs.python_version }}, ${{ inputs.rocm_version }})
+run-name: Test ROCm Wheels (${{ inputs.amdgpu_family }}, py${{ inputs.python_version }}, ${{ inputs.rocm_version }}, ${{ inputs.test_runs_on }})
 
 jobs:
   notify_quartz_start:
-    name: "Quartz - started - test rocm wheels (rockrel)"
+    name: "Quartz - started - test ROCm wheels (rockrel)"
     if: ${{ vars.NOTIFY_QUARTZ_ENABLED == 'true' }}
     runs-on: ubuntu-24.04
     timeout-minutes: 10
@@ -93,7 +93,7 @@ jobs:
       ref: ${{ inputs.ref }}
 
   notify_quartz_completed:
-    name: "Quartz - completed - test rocm wheels (rockrel)"
+    name: "Quartz - completed - test ROCm wheels (rockrel)"
     if: ${{ always() && vars.NOTIFY_QUARTZ_ENABLED == 'true' }}
     needs: [test]
     runs-on: ubuntu-24.04
