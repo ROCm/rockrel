@@ -11,9 +11,15 @@ on:
         type: string
         default: ""
       release_type:
-        description: 'Release type: "dev", "nightly", or "prerelease".'
-        type: string
-        required: true
+        description: 'Release type: "dev", "dev-bkc", "nightly", "nightly-bkc", or "prerelease".'
+        type: choice
+        options:
+          - dev
+          - dev-bkc
+          - nightly
+          - nightly-bkc
+          - prerelease
+        default: dev
       rocm_version:
         description: "ROCm package version to build against."
         type: string
