@@ -15,7 +15,7 @@ on:
         required: true
         type: string
       release_type:
-        description: "Release Type (ci, dev, nightly, prerelease)."
+        description: "Release type for the artifacts being tested; passed through to TheRock."
         required: true
         type: string
       gpg_key_url:
