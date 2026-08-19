@@ -50,6 +50,10 @@ on:
         description: "Build variant (e.g. 'asan'). Changes expected package names to match variant-suffixed packages."
         type: string
         default: ""
+      run_uninstall:
+        description: "Enable uninstall verification: remove installed ROCm metapackages and assert clean teardown (sanity/full only). Disabled by default."
+        type: boolean
+        default: false
 
 permissions:
   contents: read
@@ -87,6 +91,7 @@ jobs:
       repository: ${{ inputs.repository }}
       ref: ${{ inputs.ref }}
       build_variant: ${{ inputs.build_variant }}
+      run_uninstall: ${{ inputs.run_uninstall }}
 
   notify_quartz_completed:
     name: "Quartz - completed - test rpm/deb install (rockrel)"
