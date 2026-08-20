@@ -1,0 +1,110 @@
+# Copyright Advanced Micro Devices, Inc.
+# SPDX-License-Identifier: MIT
+
+# Thin wrapper that dispatches to TheRock's test_rocm_wheels.yml.
+# This exists so that release workflows running in rockrel's context
+# can dispatch test runs to this repo (which then calls TheRock).
+
+name: Test ROCm Wheels
+
+on:
+  workflow_dispatch:
+    inputs:
+      amdgpu_family:
+        description: GPU family to test (e.g., gfx94X-dcgpu, gfx110X-all)
+        required: true
+        type: string
+      test_runs_on:
+        description: Runner label to use. The selected runner should have a GPU supported by amdgpu_family
+        required: true
+        type: string
+      package_index_url:
+        description: Full Python package index URL for use with --index-url.
+        type: string
+      package_find_links_url:
+        description: Full Python package index URL for use with --find-links (usually instead of package_index_url)
+        type: string
+      python_version:
+        required: true
+        type: string
+        default: "3.12"
+      rocm_version:
+        description: ROCm version to pip install (e.g. "7.10.0a20251124")
+        required: true
+        type: string
+      kpack_split:
+        description: Whether the package index is split by kernel packages (kpack)
+        type: boolean
+        default: true
+      container_image_name:
+        description: >-
+          Short, human-readable label for the container image (e.g. 'ubuntu24.04',
+          'ubi10', 'native').
+        type: string
+      container_image_url:
+        description: >-
+          Container image reference. Leave empty to run directly on the runner
+          (required for Windows and native Linux runners).
+        type: string
+      ref:
+        description: "Branch, tag, or SHA to checkout."
+        type: string
+        default: ""
+      repository:
+        description: "Repository to checkout. Defaults to ROCm/TheRock."
+        type: string
+        default: "ROCm/TheRock"
+
+permissions:
+  contents: read
+
+run-name: Test ROCm Wheels (${{ inputs.amdgpu_family }}, py${{ inputs.python_version }}, ${{ inputs.rocm_version }}, ${{ inputs.test_runs_on }})
+
+jobs:
+  notify_quartz_start:
+    name: "Quartz - started - test ROCm wheels (rockrel)"
+    if: ${{ vars.NOTIFY_QUARTZ_ENABLED == 'true' }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    continue-on-error: true
+    steps:
+      - uses: ROCm/Quartz/.github/actions/notify_quartz@f386a9756620938616af0b4d5d04b24ae6e0353f # notify_quartz/v1.1.1
+        with:
+          run_phase: started
+          reporting_workflow: test_rocm_wheels.yml
+          workflow_inputs: ${{ toJSON(inputs) }}
+          gh_app_client_id: ${{ secrets.GH_APP_HAULY_CID }}
+          gh_app_private_key: ${{ secrets.GH_APP_HAULY_PRIVATE_KEY }}
+
+  test:
+    uses: ROCm/TheRock/.github/workflows/test_rocm_wheels.yml@main
+    secrets: inherit
+    with:
+      amdgpu_family: ${{ inputs.amdgpu_family }}
+      test_runs_on: ${{ inputs.test_runs_on }}
+      package_index_url: ${{ inputs.package_index_url }}
+      package_find_links_url: ${{ inputs.package_find_links_url }}
+      python_version: ${{ inputs.python_version }}
+      rocm_version: ${{ inputs.rocm_version }}
+      kpack_split: ${{ inputs.kpack_split }}
+      container_image_name: ${{ inputs.container_image_name }}
+      container_image_url: ${{ inputs.container_image_url }}
+      repository: ${{ inputs.repository }}
+      ref: ${{ inputs.ref }}
+
+  notify_quartz_completed:
+    name: "Quartz - completed - test ROCm wheels (rockrel)"
+    if: ${{ always() && vars.NOTIFY_QUARTZ_ENABLED == 'true' }}
+    needs: [test]
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    continue-on-error: true
+    steps:
+      - uses: ROCm/Quartz/.github/actions/notify_quartz@f386a9756620938616af0b4d5d04b24ae6e0353f # notify_quartz/v1.1.1
+        with:
+          run_phase: completed
+          reporting_workflow: test_rocm_wheels.yml
+          workflow_inputs: ${{ toJSON(inputs) }}
+          workflow_captured_outputs: ${{ toJSON(needs) }}
+          gh_app_client_id: ${{ secrets.GH_APP_HAULY_CID }}
+          gh_app_private_key: ${{ secrets.GH_APP_HAULY_PRIVATE_KEY }}
