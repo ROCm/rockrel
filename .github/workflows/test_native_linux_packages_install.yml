@@ -46,6 +46,10 @@ on:
         description: "Branch, tag or SHA to checkout. Defaults to the reference or SHA that triggered the workflow"
         type: string
         default: ""
+      build_variant:
+        description: "Build variant (e.g. 'asan'). Changes expected package names to match variant-suffixed packages."
+        type: string
+        default: ""
 
 permissions:
   contents: read
@@ -67,3 +71,4 @@ jobs:
       test_type: ${{ inputs.test_type }}
       repository: ${{ inputs.repository }}
       ref: ${{ inputs.ref }}
+      build_variant: ${{ inputs.build_variant }}
