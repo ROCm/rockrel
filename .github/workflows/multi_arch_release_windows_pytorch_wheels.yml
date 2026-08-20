@@ -47,6 +47,12 @@ on:
         description: "Build runner label"
         type: string
         default: "aws-windows-scale-rocm-prod"
+      quartz_tracking_id:
+        description: >-
+          Leave empty. Internal Quartz tracking id, set automatically to link
+          this run to its release lineage.
+        type: string
+        default: ""
 
 permissions:
   id-token: write
@@ -83,6 +89,7 @@ jobs:
       ref: ${{ inputs.ref || '' }}
       python_version: ${{ inputs.python_version }}
       build_runs_on: ${{ inputs.build_runs_on }}
+      quartz_tracking_id: ${{ inputs.quartz_tracking_id }}
 
   notify_quartz_completed:
     name: "Quartz - completed - release PyTorch wheels (rockrel)"
