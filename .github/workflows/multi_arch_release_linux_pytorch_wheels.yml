@@ -82,7 +82,7 @@ jobs:
           gh_app_private_key: ${{ secrets.GH_APP_HAULY_PRIVATE_KEY }}
 
   release:
-    uses: ROCm/TheRock/.github/workflows/multi_arch_release_linux_pytorch_wheels.yml@main
+    uses: ROCm/TheRock/.github/workflows/multi_arch_release_linux_pytorch_wheels.yml@users/marbre/release_repo_amd_bucket_rewire
     secrets: inherit
     with:
       amdgpu_families: ${{ inputs.amdgpu_families }}

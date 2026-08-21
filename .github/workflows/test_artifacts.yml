@@ -84,7 +84,7 @@ jobs:
           gh_app_private_key: ${{ secrets.GH_APP_HAULY_PRIVATE_KEY }}
 
   test:
-    uses: ROCm/TheRock/.github/workflows/test_artifacts.yml@main
+    uses: ROCm/TheRock/.github/workflows/test_artifacts.yml@users/marbre/release_repo_amd_bucket_rewire
     secrets: inherit
     with:
       artifact_group: ${{ inputs.artifact_group }}

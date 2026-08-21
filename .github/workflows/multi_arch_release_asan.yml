@@ -62,7 +62,7 @@ run-name: >-
 
 jobs:
   release:
-    uses: ROCm/TheRock/.github/workflows/multi_arch_release_asan.yml@main
+    uses: ROCm/TheRock/.github/workflows/multi_arch_release_asan.yml@users/marbre/release_repo_amd_bucket_rewire
     secrets: inherit
     with:
       release_type: ${{ inputs.release_type || 'nightly' }}
