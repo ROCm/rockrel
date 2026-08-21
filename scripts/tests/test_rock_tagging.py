@@ -20,7 +20,8 @@ import pytest
 
 import sys
 sys.path.insert(0, str(Path(__file__).parent.parent.parent))
-from scripts.rock_tagging import RepoInfo, RockTagging
+from scripts.rock_tagging import RockTagging
+from scripts.release_utils import RepoInfo
 
 
 _FAKE_COMMIT = "a" * 40
