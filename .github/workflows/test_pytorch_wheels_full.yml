@@ -25,7 +25,7 @@ on:
       package_index_url:
         type: string
         required: true
-        default: "https://rocm.nightlies.amd.com/v4/whl-staging"
+        default: "https://nightly.repo.amd.com/rocm/whl-next/"
       python_version:
         type: string
         required: true
