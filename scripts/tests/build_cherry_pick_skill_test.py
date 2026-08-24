@@ -18,6 +18,7 @@ from scripts.build_cherry_pick_skill import (
     _copy,
     _current_revision,
     _packaged_source_changes,
+    _packaged_source_revision,
     build_skill,
     main,
 )
@@ -66,7 +67,10 @@ def test_skill_bundle_is_deterministic_self_contained_and_read_only(tmp_path):
 
     manifest = json.loads((first / "bundle-manifest.json").read_text())
     assert manifest["schema_version"] == "rocm-cherry-pick-bundle.v2"
-    assert manifest["source_provenance"]["base_revision"] == _current_revision(ROOT)
+    assert (
+        manifest["source_provenance"]["base_revision"]
+        == _packaged_source_revision(ROOT)
+    )
     expected_state = (
         "dirty_worktree_review" if _packaged_source_changes(ROOT) else "clean_commit"
     )
@@ -318,6 +322,26 @@ def test_revision_resolution_rejects_invalid_git_output(monkeypatch):
         )
         with pytest.raises(ValueError, match="revision"):
             _current_revision(ROOT)
+
+
+def test_clean_provenance_ignores_manifest_only_commit(tmp_path):
+    """Bind clean provenance to source bytes, not a later manifest-only commit."""
+
+    root = fake_root(tmp_path)
+    source_revision = _packaged_source_revision(root)
+    manifest = root / "skills/rocm-cherry-pick/bundle-manifest.json"
+    manifest.write_text("{}\n")
+    subprocess.run(["git", "add", str(manifest)], cwd=root, check=True)
+    subprocess.run(
+        ["git", "commit", "-qm", "record bundle manifest"], cwd=root, check=True
+    )
+    assert _current_revision(root) != source_revision
+
+    output = tmp_path / "rebuilt"
+    build_skill(root, output)
+    result = json.loads((output / "bundle-manifest.json").read_text())
+    assert result["source_provenance"]["base_revision"] == source_revision
+    assert result["source_provenance"]["state"] == "clean_commit"
 
 
 def test_builder_cli_emits_clean_commit_provenance(tmp_path, monkeypatch, capsys):

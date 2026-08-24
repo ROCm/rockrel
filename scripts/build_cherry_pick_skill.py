@@ -191,6 +191,24 @@ def _current_revision(root: Path) -> str:
     return revision
 
 
+def _packaged_source_revision(root: Path) -> str:
+    """Return the newest commit that changed any packaged source input."""
+
+    completed = subprocess.run(
+        ["git", "log", "-1", "--format=%H", "--", *_packaged_source_paths()],
+        cwd=root,
+        check=False,
+        text=True,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.DEVNULL,
+        stdin=subprocess.DEVNULL,
+    )
+    revision = completed.stdout.strip()
+    if completed.returncode != 0 or REVISION_RE.fullmatch(revision) is None:
+        raise ValueError("packaged source revision could not be resolved")
+    return revision
+
+
 def main() -> int:
     """Build a provenance-bound skill bundle and print its output path."""
 
@@ -264,7 +282,7 @@ def _resolve_source_provenance(
 ) -> dict[str, str]:
     """Resolve an honest base revision and fail closed on unapproved dirty bytes."""
 
-    revision = _current_revision(root)
+    head_revision = _current_revision(root)
     changes = _packaged_source_changes(root)
     if changes and not allow_dirty_review:
         raise ValueError(
@@ -272,7 +290,9 @@ def _resolve_source_provenance(
             "only for a local review bundle"
         )
     return {
-        "base_revision": revision,
+        "base_revision": (
+            head_revision if changes else _packaged_source_revision(root)
+        ),
         "state": "dirty_worktree_review" if changes else "clean_commit",
     }
 
