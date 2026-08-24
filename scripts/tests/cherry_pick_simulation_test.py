@@ -3,14 +3,15 @@
 
 import importlib
 import subprocess
+from dataclasses import replace
 
 import pytest
 
 from scripts.cherry_pick.config import (
+    AuthorizationPolicy,
     RepositoryConfig,
     TrainCatalog,
     TrainConfig,
-    TrainRequirements,
 )
 from scripts.cherry_pick.models import Status
 
@@ -45,10 +46,6 @@ def train():
                 label="cherry-pick:candidate-1",
                 state="active",
                 mode="create-draft",
-                requirements=TrainRequirements(
-                    jira_fix_version="10.1.0a20260811",
-                    block_on_dependencies=True,
-                ),
                 repositories={
                     "ROCm/TheRock": RepositoryConfig(
                         source_branches=("main",),
@@ -56,7 +53,8 @@ def train():
                     )
                 },
             )
-        }
+        },
+        authorization=AuthorizationPolicy(executor_app_id=654321),
     )
 
 
@@ -100,9 +98,11 @@ def frozen_pull(module, source_head, source_merge):
         merge_commit_sha=source_merge,
         commits=(source_head,),
         labels=("cherry-pick:candidate-1",),
+        label_event_id=1,
+        label_actor_id=7,
         label_actor="operator",
         label_actor_permission="write",
-        jira_fix_versions=("10.1.0a20260811",),
+        label_app_id=None,
     )
 
 
@@ -167,6 +167,45 @@ def test_local_pipeline_conflict_creates_no_branch_or_draft(tmp_path):
     )
 
 
+def test_local_pipeline_exact_ready_manual_pull_suppresses_duplicate_branch(tmp_path):
+    module = simulation_module()
+    repo, remote, source_head, source_merge, destination = repository_fixture(tmp_path)
+    simulator = module.LocalPipelineSimulator(
+        repo=repo,
+        catalog=train(),
+        pull=frozen_pull(module, source_head, source_merge),
+        scratch_root=tmp_path / "disk-scratch",
+    )
+    git(repo, "checkout", "--detach", destination)
+    git(repo, "cherry-pick", "-x", source_merge)
+    manual_head = git(repo, "rev-parse", "HEAD")
+    git(repo, "push", "origin", f"{manual_head}:refs/pull/200/head")
+    simulator.github.add_open_pull(
+        number=200,
+        head_sha=manual_head,
+        head_branch="manual/backport-100",
+        base_branch="staging/candidate-1",
+        draft=False,
+    )
+
+    result = simulator.run("candidate-1")
+
+    assert result.result.status is Status.COVERED_BY_EXISTING_PR
+    assert result.result.reason_code == "covered_by_existing_pr"
+    assert result.result.pull_request_url.endswith("/200")
+    assert result.drafts == ()
+    assert (
+        git(
+            remote,
+            "show-ref",
+            "--verify",
+            "refs/heads/shared/cherry-pick/candidate-1/100",
+            check=False,
+        )
+        == ""
+    )
+
+
 def test_local_pipeline_refuses_a_network_origin_before_planning(tmp_path):
     module = simulation_module()
     repo, _remote, source_head, source_merge, _destination = repository_fixture(
@@ -181,3 +220,109 @@ def test_local_pipeline_refuses_a_network_origin_before_planning(tmp_path):
             pull=frozen_pull(module, source_head, source_merge),
             scratch_root=tmp_path / "disk-scratch",
         )
+
+
+def test_frozen_pull_validates_identity_number_commits_and_full_shas(tmp_path):
+    module = simulation_module()
+    _repo, _remote, source_head, source_merge, _destination = repository_fixture(
+        tmp_path
+    )
+    valid = frozen_pull(module, source_head, source_merge)
+
+    for changes, message in (
+        ({"repository": "not-a-slug"}, "OWNER/REPO"),
+        ({"number": 0}, "positive number"),
+        ({"commits": ()}, "positive number"),
+        ({"head_sha": "short"}, "full SHAs"),
+    ):
+        with pytest.raises(ValueError, match=message):
+            replace(valid, **changes)
+
+
+def test_filesystem_github_rejects_wrong_identity_ready_pr_and_missing_head(tmp_path):
+    module = simulation_module()
+    repo, _remote, source_head, source_merge, _destination = repository_fixture(
+        tmp_path
+    )
+    pull = frozen_pull(module, source_head, source_merge)
+    github = module._FilesystemGitHub(repo, pull)
+
+    with pytest.raises(ValueError, match="identity mismatch"):
+        github.pull("ROCm", "wrong", pull.number)
+    with pytest.raises(ValueError, match="drafts only"):
+        github.create_pull(
+            "ROCm",
+            "TheRock",
+            title="title",
+            body="body",
+            head="missing",
+            base="staging/candidate-1",
+            draft=False,
+        )
+    with pytest.raises(ValueError, match="head is unavailable"):
+        github.create_pull(
+            "ROCm",
+            "TheRock",
+            title="title",
+            body="body",
+            head="missing",
+            base="staging/candidate-1",
+            draft=True,
+        )
+
+
+def test_local_pipeline_accepts_relative_existing_filesystem_origin(tmp_path):
+    module = simulation_module()
+    repo, _remote, source_head, source_merge, _destination = repository_fixture(
+        tmp_path
+    )
+    git(repo, "remote", "set-url", "origin", "../local-remote.git")
+
+    simulator = module.LocalPipelineSimulator(
+        repo=repo,
+        catalog=train(),
+        pull=frozen_pull(module, source_head, source_merge),
+        scratch_root=tmp_path / "disk-scratch",
+    )
+
+    assert simulator.repo == repo.resolve()
+
+
+def test_local_pipeline_rejects_missing_filesystem_origin(tmp_path):
+    module = simulation_module()
+    repo, _remote, source_head, source_merge, _destination = repository_fixture(
+        tmp_path
+    )
+    git(repo, "remote", "set-url", "origin", "../missing.git")
+
+    with pytest.raises(PermissionError, match="filesystem remote is missing"):
+        module.LocalPipelineSimulator(
+            repo=repo,
+            catalog=train(),
+            pull=frozen_pull(module, source_head, source_merge),
+            scratch_root=tmp_path / "disk-scratch",
+        )
+
+
+def test_local_pipeline_returns_planner_rejection_without_constructing_draft(
+    tmp_path,
+):
+    module = simulation_module()
+    repo, _remote, source_head, source_merge, _destination = repository_fixture(
+        tmp_path
+    )
+    unauthorized = replace(
+        frozen_pull(module, source_head, source_merge),
+        label_actor_permission="read",
+    )
+    simulator = module.LocalPipelineSimulator(
+        repo=repo,
+        catalog=train(),
+        pull=unauthorized,
+        scratch_root=tmp_path / "disk-scratch",
+    )
+
+    result = simulator.run("candidate-1")
+
+    assert result.result.reason_code == "label_actor_unauthorized"
+    assert result.drafts == ()

@@ -1,0 +1,104 @@
+{
+  "schema_version": 3,
+  "dependency_mode": "gate",
+  "train_id": "10.1-20260811",
+  "source": {
+    "kind": "pull_request",
+    "url": "https://github.com/ROCm/rocm-systems/pull/9716",
+    "repository": "ROCm/rocm-systems",
+    "number": 9716,
+    "base_branch": "develop",
+    "head_sha": "af1cb4be411021fdcb20ec56fe0ba8ec27f60d11",
+    "merge_sha": "b3252f064cedf9d03ad764af5310a15324b7ff51",
+    "ordered_commits": [
+      "e7e0ea8add4805e46f668a5cbce411eda6929c27",
+      "af1cb4be411021fdcb20ec56fe0ba8ec27f60d11"
+    ],
+    "body_sha256": "fb1886948759675c0e2d6e8a670fd5f0b8d97d2f5a334f622e98fa8300ab1bd8",
+    "destination": {
+      "repository": "ROCm/rocm-systems",
+      "branch": "release/bkc/therock-10.1-20260811",
+      "head_sha": "800045c8ab865991f4cec1549de2bb44e76b9904"
+    }
+  },
+  "prerequisites": [
+    {
+      "kind": "pull_request",
+      "url": "https://github.com/ROCm/rocm-systems/pull/9480",
+      "repository": "ROCm/rocm-systems",
+      "number": 9480,
+      "base_branch": "develop",
+      "head_sha": "aa8110e8f6f5e114efdfb8e44abf8df2a62ca237",
+      "merge_sha": "d20c94b28cbfd6589418feb99213ecc67eb6b76f",
+      "ordered_commits": [
+        "aa8110e8f6f5e114efdfb8e44abf8df2a62ca237"
+      ],
+      "body_sha256": "32638ce5239b92064a0c6709195240420abff3d9572e68b52a17cd07910258ec",
+      "destination": {
+        "repository": "ROCm/rocm-systems",
+        "branch": "release/bkc/therock-10.1-20260811",
+        "head_sha": "800045c8ab865991f4cec1549de2bb44e76b9904"
+      }
+    },
+    {
+      "kind": "pull_request",
+      "url": "https://github.com/ROCm/rocm-systems/pull/8221",
+      "repository": "ROCm/rocm-systems",
+      "number": 8221,
+      "base_branch": "develop",
+      "head_sha": "4404ecd4f7e1eb05e5aca0b903d00b1ad3a20d47",
+      "merge_sha": "1cdc606fbe7584129cf30c583055fc236a0fe014",
+      "ordered_commits": [
+        "b043be9844501e64c6a9181dc2cf767507941b17",
+        "2b99a43591289e8423a621fe463dade6098755a7",
+        "4400225b9df1471cb82f0a514c04c03733772c5f",
+        "97edbaa8aa72d3f5532e0ac9029dda757b02083a",
+        "4404ecd4f7e1eb05e5aca0b903d00b1ad3a20d47"
+      ],
+      "body_sha256": "07f1b3120c7aee5ecdf7bb0b738112f61d5ef2a2a67fa590da3560da6cdd918f",
+      "destination": {
+        "repository": "ROCm/rocm-systems",
+        "branch": "release/bkc/therock-10.1-20260811",
+        "head_sha": "800045c8ab865991f4cec1549de2bb44e76b9904"
+      }
+    },
+    {
+      "kind": "commit",
+      "url": "https://github.com/ROCm/rocm-systems/commit/3a3fb3206000a3b47e953fd6613571ae6ca0edb4",
+      "repository": "ROCm/rocm-systems",
+      "commit_sha": "3a3fb3206000a3b47e953fd6613571ae6ca0edb4",
+      "destination": {
+        "repository": "ROCm/rocm-systems",
+        "branch": "release/bkc/therock-10.1-20260811",
+        "head_sha": "800045c8ab865991f4cec1549de2bb44e76b9904"
+      }
+    }
+  ],
+  "prerequisite_edges": [
+    {
+      "from": "https://github.com/ROCm/rocm-systems/pull/9716",
+      "to": "https://github.com/ROCm/rocm-systems/pull/9480"
+    },
+    {
+      "from": "https://github.com/ROCm/rocm-systems/pull/9480",
+      "to": "https://github.com/ROCm/rocm-systems/pull/8221"
+    },
+    {
+      "from": "https://github.com/ROCm/rocm-systems/pull/8221",
+      "to": "https://github.com/ROCm/rocm-systems/commit/3a3fb3206000a3b47e953fd6613571ae6ca0edb4"
+    }
+  ],
+  "coverage_candidates": [
+    {
+      "url": "https://github.com/ROCm/rocm-systems/pull/10153",
+      "repository": "ROCm/rocm-systems",
+      "number": 10153,
+      "state": "open",
+      "draft": false,
+      "base_branch": "release/bkc/therock-10.1-20260811",
+      "base_sha": "800045c8ab865991f4cec1549de2bb44e76b9904",
+      "head_repository": "ROCm/rocm-systems",
+      "head_sha": "411a04e98648ef442751e8e219ab9fa1cfb228bf"
+    }
+  ]
+}

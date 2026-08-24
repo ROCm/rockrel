@@ -1,0 +1,132 @@
+{
+  "production_repository_ids": [
+    765605091,
+    962090208,
+    971570345,
+    1071689640
+  ],
+  "repository_allowlist": {
+    "ROCm/cherry-pick-private-sandbox": 900000001
+  },
+  "repository_sentinel": {
+    "name": "ROCM_CHERRY_PICK_PRIVATE_SANDBOX",
+    "value": "REVIEWED_REMOTE_WRITES_ONLY"
+  },
+  "requires_private_repository": true,
+  "required_repository_visibility": "PRIVATE",
+  "sandbox_branch_prefix": "sandbox/cherry-pick/",
+  "scenarios": [
+    {
+      "cleanup": "Delete the sandbox automation branch and close the draft pull request after evidence capture.",
+      "description": "Exchange the workflow OIDC token for reviewed Release Hub configuration and prove the exact reusable-workflow identity.",
+      "id": "oidc_config",
+      "required_assertions": [
+        "oidc_token_requested",
+        "configuration_authorized",
+        "exact_workflow_sha_verified"
+      ],
+      "writes_remote": true
+    },
+    {
+      "cleanup": "Revoke the short-lived installation token and verify it cannot be reused.",
+      "description": "Exchange App credentials for a repository-scoped installation token with only the permissions required by the writer.",
+      "id": "installation_token_exchange",
+      "required_assertions": [
+        "installation_token_narrowed",
+        "repository_scope_proven",
+        "token_expiry_recorded"
+      ],
+      "writes_remote": true
+    },
+    {
+      "cleanup": "Delete only the generated automation branch; never alter the protected target branch.",
+      "description": "Materialize on a deterministic automation branch while proving the protected destination branch is unchanged.",
+      "id": "protected_branches",
+      "required_assertions": [
+        "target_branch_not_mutated",
+        "automation_branch_used",
+        "target_protection_observed"
+      ],
+      "writes_remote": true
+    },
+    {
+      "cleanup": "Close the draft without merging and delete its automation branch.",
+      "description": "Create a draft-only pull request whose body records every planning and Git materialization command.",
+      "id": "draft_only",
+      "required_assertions": [
+        "pull_request_created",
+        "pull_request_is_draft",
+        "commands_recorded_in_body"
+      ],
+      "writes_remote": true
+    },
+    {
+      "cleanup": "Close the recovered draft and delete the reused automation branch.",
+      "description": "Recover after a successful branch push followed by an injected pull-request creation failure.",
+      "id": "partial_recovery",
+      "required_assertions": [
+        "existing_branch_reused",
+        "draft_pull_request_created_once",
+        "recovery_evidence_preserved"
+      ],
+      "writes_remote": true
+    },
+    {
+      "cleanup": "Close the single resulting draft and delete the single resulting automation branch.",
+      "description": "Deliver the same label event twice and prove the transaction remains idempotent.",
+      "id": "duplicate_delivery",
+      "required_assertions": [
+        "one_logical_result",
+        "no_duplicate_branch_or_pull_request",
+        "authorization_identity_unchanged"
+      ],
+      "writes_remote": true
+    },
+    {
+      "cleanup": "Confirm no destination ref was created or updated after the denied write.",
+      "description": "Attempt a write forbidden by branch protection and prove the writer fails closed without fallback credentials.",
+      "id": "branch_protection_denial",
+      "required_assertions": [
+        "permission_denial_is_fail_closed",
+        "no_target_branch_write",
+        "no_credential_fallback"
+      ],
+      "writes_remote": true
+    },
+    {
+      "cleanup": "Confirm the stale plan created no branch, draft pull request, label, comment, or approval.",
+      "description": "Change authoritative evidence after planning and prove write-time revalidation rejects the stale plan before any remote mutation.",
+      "id": "stale_evidence_rejection",
+      "required_assertions": [
+        "stale_plan_rejected",
+        "fresh_evidence_required",
+        "no_remote_write"
+      ],
+      "writes_remote": true
+    },
+    {
+      "cleanup": "Remove disposable local conflict worktrees and confirm no sandbox branch or pull request exists.",
+      "description": "Exercise a deterministic cherry-pick conflict and prove conflicted paths are reported without creating remote artifacts.",
+      "id": "conflict_handling",
+      "required_assertions": [
+        "conflict_reported",
+        "conflicted_paths_preserved",
+        "no_remote_artifact_created"
+      ],
+      "writes_remote": true
+    },
+    {
+      "cleanup": "Close dependency drafts in reverse topological order and delete only their sandbox branches.",
+      "description": "Exercise a reviewed dependency graph and prove prerequisites are materialized before the root without skipping an incomplete edge.",
+      "id": "dependency_ordering",
+      "required_assertions": [
+        "dependencies_topologically_ordered",
+        "prerequisites_precede_source",
+        "dependency_gap_fails_closed"
+      ],
+      "writes_remote": true
+    }
+  ],
+  "schema_version": "cherry-pick-private-sandbox.v1",
+  "write_confirmation": "I_UNDERSTAND_THIS_WRITES_TO_A_PRIVATE_GITHUB_SANDBOX"
+}

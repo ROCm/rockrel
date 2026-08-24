@@ -13,9 +13,9 @@ from collections import Counter
 from collections.abc import Callable, Mapping, Sequence
 from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass, field
-from enum import StrEnum
 from pathlib import Path
 
+from .compat import StrEnum
 from .config import valid_branch_name
 from .git import (
     ChangesetError,
@@ -69,7 +69,7 @@ SUPPORTED_REPOSITORIES = {
 
 
 class ReplayClassification(StrEnum):
-    """Reviewed historical-case taxonomy."""
+    """Enumerate reviewed classifications assigned to historical replay cases."""
 
     STRICT_EXACT = "strict_exact"
     MULTI_SOURCE_BUNDLE = "multi_source_bundle"
@@ -99,6 +99,8 @@ class ReplayExecutionPhase(StrEnum):
 
 
 class ReplayTier(StrEnum):
+    """Represent replay tier in the replay contract."""
+
     FAST = "fast"
     DEEP = "deep"
 
@@ -195,18 +197,24 @@ def classify_change_size(changed_lines: int) -> str:
 
 
 def _object(value: object, context: str) -> dict[str, object]:
+    """Validate and return an object-shaped contract value."""
+
     if not isinstance(value, dict):
         raise ValueError(f"{context} must be an object")
     return value
 
 
 def _string(value: object, context: str) -> str:
+    """Validate and return a required string contract value."""
+
     if not isinstance(value, str) or not value:
         raise ValueError(f"{context} must be a non-empty string")
     return value
 
 
 def _sha(value: object, context: str, *, optional: bool = False) -> str | None:
+    """Validate and return a full lowercase Git commit SHA."""
+
     if value is None and optional:
         return None
     if not isinstance(value, str) or SHA_PATTERN.fullmatch(value) is None:
@@ -215,6 +223,8 @@ def _sha(value: object, context: str, *, optional: bool = False) -> str | None:
 
 
 def _integer_list(value: object, context: str) -> tuple[int, ...]:
+    """Validate and return an ordered list of integers."""
+
     if not isinstance(value, list) or any(
         not isinstance(item, int) or isinstance(item, bool) or item <= 0
         for item in value
@@ -224,6 +234,8 @@ def _integer_list(value: object, context: str) -> tuple[int, ...]:
 
 
 def _sha_list(value: object, context: str) -> tuple[str, ...]:
+    """Validate and return an ordered list of Git commit SHAs."""
+
     if not isinstance(value, list):
         raise ValueError(f"{context} must be a list of SHAs")
     return tuple(str(_sha(item, context)) for item in value)
@@ -250,6 +262,8 @@ class HistoricalReplayCase:
 
     @classmethod
     def from_dict(cls, raw: object) -> "HistoricalReplayCase":
+        """Parse and validate a historical replay case from its dictionary contract."""
+
         value = _object(raw, "historical replay case")
         repository = _string(value.get("repository"), "case repository")
         if repository not in SUPPORTED_REPOSITORIES:
@@ -309,6 +323,8 @@ class HistoricalReplayCase:
         )
 
     def as_dict(self) -> dict[str, object]:
+        """Serialize this historical replay case into its stable dictionary contract."""
+
         return {
             "id": self.id,
             "repository": self.repository,
@@ -337,6 +353,8 @@ class Snapshot:
 
     @classmethod
     def from_dict(cls, raw: object, *, repository: str) -> "Snapshot":
+        """Parse and validate a snapshot from its dictionary contract."""
+
         value = _object(raw, f"snapshot {repository}")
         source_branch = _string(
             value.get("source_branch"), f"snapshot {repository} source_branch"
@@ -364,6 +382,8 @@ class Snapshot:
         )
 
     def as_dict(self) -> dict[str, object]:
+        """Serialize this snapshot into its stable dictionary contract."""
+
         return {
             "source_branch": self.source_branch,
             "source_tip": self.source_tip,
@@ -381,6 +401,8 @@ class CorpusManifest:
 
     @classmethod
     def from_dict(cls, raw: object) -> "CorpusManifest":
+        """Parse and validate a corpus manifest from its dictionary contract."""
+
         value = _object(raw, "corpus manifest")
         if value.get("schema_version") != 1:
             raise ValueError("manifest schema_version must be 1")
@@ -409,6 +431,8 @@ class CorpusManifest:
         return cls(schema_version=1, snapshots=snapshots, cases=cases)
 
     def as_dict(self) -> dict[str, object]:
+        """Serialize this corpus manifest into its stable dictionary contract."""
+
         return {
             "schema_version": self.schema_version,
             "snapshots": {
@@ -420,12 +444,16 @@ class CorpusManifest:
 
 
 def _optional_string(value: object, context: str) -> str | None:
+    """Validate and return an optional string contract value."""
+
     if value is None:
         return None
     return _string(value, context)
 
 
 def _string_list(value: object, context: str) -> tuple[str, ...]:
+    """Validate and return an ordered list of strings."""
+
     if not isinstance(value, list) or any(
         not isinstance(item, str) or not item for item in value
     ):
@@ -442,6 +470,8 @@ class SyntheticCoverageEvidence:
 
     @classmethod
     def from_dict(cls, raw: object) -> "SyntheticCoverageEvidence":
+        """Parse and validate a synthetic coverage evidence from its dictionary contract."""
+
         value = _object(raw, "synthetic coverage evidence")
         if set(value) != {"test_id", "dimensions"}:
             raise ValueError("synthetic coverage evidence fields are invalid")
@@ -478,6 +508,8 @@ class SyntheticCoverageEvidence:
         return cls(test_id=test_id, dimensions=dimensions)
 
     def as_dict(self) -> dict[str, object]:
+        """Serialize this synthetic coverage evidence into its stable dictionary contract."""
+
         return {
             "test_id": self.test_id,
             "dimensions": {
@@ -496,6 +528,8 @@ class SyntheticCoverageSuite:
 
     @classmethod
     def from_dict(cls, raw: object) -> "SyntheticCoverageSuite":
+        """Parse and validate a synthetic coverage suite from its dictionary contract."""
+
         value = _object(raw, "synthetic coverage suite")
         if set(value) != {"schema_version", "evidence"}:
             raise ValueError("synthetic coverage suite fields are invalid")
@@ -514,9 +548,13 @@ class SyntheticCoverageSuite:
 
     @property
     def test_ids(self) -> tuple[str, ...]:
+        """Return synthetic pytest node identifiers in reviewed evidence order."""
+
         return tuple(item.test_id for item in self.evidence)
 
     def as_mapping(self) -> dict[str, dict[str, tuple[str, ...]]]:
+        """Serialize this synthetic coverage suite into its stable dictionary contract."""
+
         mapping: dict[str, dict[str, list[str]]] = {}
         for item in self.evidence:
             for dimension, values in item.dimensions.items():
@@ -532,6 +570,8 @@ class SyntheticCoverageSuite:
         }
 
     def as_dict(self) -> dict[str, object]:
+        """Serialize this synthetic coverage suite into its stable dictionary contract."""
+
         return {
             "schema_version": self.schema_version,
             "evidence": [item.as_dict() for item in self.evidence],
@@ -555,6 +595,8 @@ class ReplayExpectation:
 
     @classmethod
     def from_dict(cls, raw: object) -> "ReplayExpectation":
+        """Parse and validate a replay expectation from its dictionary contract."""
+
         value = _object(raw, "replay expectation")
         expected_keys = {
             "execution_phase",
@@ -625,6 +667,8 @@ class ReplayExpectation:
         )
 
     def as_dict(self) -> dict[str, object]:
+        """Serialize this replay expectation into its stable dictionary contract."""
+
         return {
             "execution_phase": self.execution_phase.value,
             "expected_status": self.expected_status,
@@ -639,6 +683,8 @@ class ReplayExpectation:
         }
 
     def included_in(self, tier: ReplayTier) -> bool:
+        """Return whether this expectation participates in the selected replay tier."""
+
         return tier is ReplayTier.DEEP or self.tier is ReplayTier.FAST
 
 
@@ -652,6 +698,8 @@ class ReviewedCorpus:
 
     @classmethod
     def from_dict(cls, raw: object) -> "ReviewedCorpus":
+        """Parse and validate a reviewed corpus from its dictionary contract."""
+
         value = _object(raw, "reviewed corpus")
         if value.get("schema_version") != 2:
             raise ValueError("reviewed corpus schema_version must be 2")
@@ -681,6 +729,8 @@ class ReviewedCorpus:
         return cls(schema_version=2, inventory=inventory, expectations=expectations)
 
     def as_dict(self) -> dict[str, object]:
+        """Serialize this reviewed corpus into its stable dictionary contract."""
+
         return {
             "schema_version": self.schema_version,
             "inventory": self.inventory.as_dict(),
@@ -693,6 +743,8 @@ class ReviewedCorpus:
 
 @dataclass(frozen=True)
 class ManifestComparison:
+    """Represent manifest comparison in the replay contract."""
+
     added_case_ids: tuple[str, ...]
     removed_case_ids: tuple[str, ...]
     changed_case_ids: tuple[str, ...]
@@ -700,6 +752,8 @@ class ManifestComparison:
     exit_code: int
 
     def as_dict(self) -> dict[str, object]:
+        """Serialize this manifest comparison into its stable dictionary contract."""
+
         return {
             "added_case_ids": list(self.added_case_ids),
             "removed_case_ids": list(self.removed_case_ids),
@@ -740,6 +794,8 @@ def compare_candidate_to_golden(
 
 @dataclass(frozen=True)
 class ManifestAudit:
+    """Represent manifest audit in the replay contract."""
+
     total_count: int
     strict_count: int
     diagnostic_count: int
@@ -769,12 +825,16 @@ def audit_manifest(manifest: CorpusManifest) -> ManifestAudit:
 
 @dataclass(frozen=True)
 class Provenance:
+    """Represent provenance in the replay contract."""
+
     source_prs: tuple[int, ...]
     source_commits: tuple[str, ...]
     method: str
 
 
 def _ordered_unique(values: Sequence[int | str]) -> tuple[int | str, ...]:
+    """Remove duplicates while preserving the original value order."""
+
     return tuple(dict.fromkeys(values))
 
 
@@ -815,6 +875,8 @@ def is_multi_source_claim(subject: str) -> bool:
 
 
 def _explicit_commits(body: str) -> tuple[str, ...]:
+    """Return explicitly requested commits in stable dependency order."""
+
     commits = list(EXPLICIT_COMMIT_PATTERN.findall(body))
     commits.extend(QUALIFIED_COMMIT_PATTERN.findall(body))
     in_commit_list = False
@@ -837,6 +899,8 @@ def _explicit_commits(body: str) -> tuple[str, ...]:
 
 
 def _qualified_source_prs(body: str) -> tuple[int, ...]:
+    """Return source pull requests admitted by reviewed qualification rules."""
+
     dependency_numbers = {
         int(value) for value in DEPENDENCY_PR_URL_PATTERN.findall(body)
     }
@@ -937,6 +1001,8 @@ def _git(
     *args: str,
     check: bool = True,
 ) -> subprocess.CompletedProcess[str]:
+    """Run Git without prompts or lazy fetches and capture deterministic output."""
+
     return subprocess.run(
         ["git", *args],
         cwd=repo,
@@ -1012,6 +1078,8 @@ def classify_replay_file_operations(
 
 @dataclass(frozen=True)
 class InventoryCommit:
+    """Represent inventory commit in the replay contract."""
+
     before: str
     after: str
     after_tree: str
@@ -1059,6 +1127,8 @@ def inventory_release_commits(
 
 
 def _has_commit(repo: Path, revision: str | None) -> bool:
+    """Return whether the local mirror contains the requested commit."""
+
     if revision is None:
         return False
     result = _git(repo, "cat-file", "-e", f"{revision}^{{commit}}", check=False)
@@ -1067,6 +1137,8 @@ def _has_commit(repo: Path, revision: str | None) -> bool:
 
 @dataclass(frozen=True)
 class ReplayOutcome:
+    """Represent replay outcome in the replay contract."""
+
     case_id: str
     repository: str
     target_branch: str
@@ -1091,6 +1163,8 @@ class ReplayOutcome:
     coverage_dimensions: dict[str, tuple[str, ...]] = field(default_factory=dict)
 
     def as_dict(self) -> dict[str, object]:
+        """Serialize this replay outcome into its stable dictionary contract."""
+
         return {
             "case_id": self.case_id,
             "repository": self.repository,
@@ -1161,6 +1235,8 @@ class ReplayCoverageAudit:
     gaps: tuple[str, ...]
 
     def as_dict(self) -> dict[str, object]:
+        """Serialize this replay coverage audit into its stable dictionary contract."""
+
         return {
             "historical": {
                 dimension: dict(sorted(values.items()))
@@ -1178,6 +1254,8 @@ class ReplayCoverageAudit:
 
 
 def _coverage_values(outcome: ReplayOutcome, dimension: str) -> tuple[str, ...]:
+    """Return normalized coverage cells, excluding inventory-only engine dimensions."""
+
     if dimension in ENGINE_COVERAGE_DIMENSIONS and (
         outcome.execution_phase == ReplayExecutionPhase.INVENTORY.value
     ):
@@ -1250,6 +1328,8 @@ def _outcome(
     expectation_mismatches: tuple[str, ...] = (),
     coverage_dimensions: Mapping[str, Sequence[str]] | None = None,
 ) -> ReplayOutcome:
+    """Build one replay outcome with normalized, deduplicated coverage dimensions."""
+
     dimensions: dict[str, tuple[str, ...]] = {
         "repository": (case.repository,),
         "destination_family": (destination_family(case.target_branch),),
@@ -1427,6 +1507,8 @@ def run_replay_case(
 
 
 def _source_identity(case: HistoricalReplayCase) -> SourceIdentity | None:
+    """Build the exact source identity recorded in replay evidence."""
+
     if len(case.source_prs) != 1 or case.source_merge_commit is None:
         return None
     return SourceIdentity(
@@ -1576,6 +1658,8 @@ def run_reviewed_cases(
     def execute_group(
         item: tuple[str, list[tuple[int, HistoricalReplayCase, ReplayExpectation]]],
     ) -> tuple[tuple[int, ReplayOutcome], ...]:
+        """Execute one replay group and return outcomes in deterministic order."""
+
         repository, cases = item
         slug = repository.split("/", 1)[1]
         repo = root / f"{slug}.git"
@@ -1629,6 +1713,8 @@ def run_replay_cases(
     def execute_group(
         item: tuple[str, list[tuple[int, HistoricalReplayCase]]],
     ) -> tuple[tuple[int, ReplayOutcome], ...]:
+        """Execute one replay group and return outcomes in deterministic order."""
+
         repository, indexed_cases = item
         slug = repository.split("/", 1)[1]
         repo = root / f"{slug}.git"
@@ -1681,6 +1767,8 @@ def rollback_replay_worktrees(data_root: str | Path) -> dict[str, str]:
 
 @dataclass(frozen=True)
 class ReplayReport:
+    """Represent replay report in the replay contract."""
+
     outcomes: tuple[ReplayOutcome, ...]
     counts: dict[str, int]
     exit_code: int
@@ -1693,6 +1781,8 @@ class ReplayReport:
         *,
         coverage: ReplayCoverageAudit | None = None,
     ) -> "ReplayReport":
+        """Build a replay report from ordered deterministic outcomes."""
+
         values = tuple(outcomes)
         counts = Counter(outcome.disposition.value for outcome in values)
         if counts[ReplayDisposition.EVIDENCE_GAP.value] or (
@@ -1706,6 +1796,8 @@ class ReplayReport:
         return cls(values, dict(sorted(counts.items())), exit_code, coverage)
 
     def as_dict(self) -> dict[str, object]:
+        """Serialize this replay report into its stable dictionary contract."""
+
         execution_counts = Counter(outcome.execution_phase for outcome in self.outcomes)
         return {
             "schema_version": 3,
@@ -1788,13 +1880,15 @@ def render_markdown_report(report: ReplayReport) -> str:
 
 @dataclass(frozen=True)
 class MirrorSpec:
-    """Allowlisted official mirror input."""
+    """Describe an allowlisted official mirror and its reviewed branch scope."""
 
     repository: str
     source_branch: str
     target_branches: tuple[str, ...]
 
     def __post_init__(self) -> None:
+        """Validate mirror spec invariants after dataclass initialization."""
+
         if self.repository not in SUPPORTED_REPOSITORIES:
             raise ValueError(f"repository {self.repository!r} is not supported")
         expected_source = SUPPORTED_REPOSITORIES[self.repository][0]
@@ -1812,6 +1906,8 @@ class MirrorSpec:
 
     @property
     def url(self) -> str:
+        """Return the canonical URL represented by this value."""
+
         return SUPPORTED_REPOSITORIES[self.repository][1]
 
 
@@ -1847,14 +1943,20 @@ DEFAULT_MIRROR_SPECS = (
 
 
 def _mirror_path(data_root: str | Path, repository: str) -> Path:
+    """Return the deterministic disk path for one repository mirror."""
+
     return Path(data_root) / f"{repository.split('/', 1)[1]}.git"
 
 
 def _remote_ref(branch: str) -> str:
+    """Build the deterministic remote-tracking ref for a replay input."""
+
     return f"refs/remotes/origin/{branch}"
 
 
 def _resolve_required(repo: Path, revision: str) -> str:
+    """Resolve a required Git revision or fail closed."""
+
     result = _git(repo, "rev-parse", "--verify", f"{revision}^{{commit}}", check=False)
     if result.returncode != 0 or not result.stdout.strip():
         raise ValueError(f"required replay revision is unavailable: {revision}")
@@ -1862,6 +1964,8 @@ def _resolve_required(repo: Path, revision: str) -> str:
 
 
 def _resolve_optional(repo: Path, revision: str) -> str | None:
+    """Resolve an optional Git revision without network access."""
+
     result = _git(
         repo,
         "rev-parse",
@@ -1873,6 +1977,8 @@ def _resolve_optional(repo: Path, revision: str) -> str | None:
 
 
 def _source_merge_for_pr(repo: Path, source_tip: str, number: int) -> str | None:
+    """Resolve the known merge representation for a source pull request."""
+
     log = _git(
         repo,
         "log",
@@ -1896,6 +2002,8 @@ def _source_merge_for_pr(repo: Path, source_tip: str, number: int) -> str | None
 def _source_inputs_for_pr(
     repo: Path, source_tip: str, number: int
 ) -> tuple[str, str, tuple[str, ...]] | None:
+    """Resolve exact replay inputs for a source pull request."""
+
     source_merge = _source_merge_for_pr(repo, source_tip, number)
     source_head_result = _git(
         repo,
@@ -1929,6 +2037,8 @@ def _source_inputs_for_pr(
 def _source_inputs_for_commit(
     repo: Path, commit: str
 ) -> tuple[str, str, tuple[str, ...]] | None:
+    """Resolve exact replay inputs for a standalone source commit."""
+
     if not _has_commit(repo, commit):
         return None
     parents = _git(repo, "show", "-s", "--format=%P", commit).stdout.split()
@@ -1947,6 +2057,8 @@ def _source_inputs_for_commit(
 
 
 def _has_gitlink_delta(repo: Path, before: str, after: str) -> bool:
+    """Return whether a changeset contains at least one gitlink update."""
+
     result = _git(
         repo,
         "diff-tree",
@@ -1963,6 +2075,8 @@ def _has_gitlink_delta(repo: Path, before: str, after: str) -> bool:
 
 
 def _case_id(repository: str, branch: str, after: str) -> str:
+    """Derive a filesystem-safe case identifier from repository transition identity."""
+
     identity = f"{repository}-{branch}-{after[:12]}"
     return re.sub(r"[^A-Za-z0-9._-]", "-", identity)
 
@@ -1976,6 +2090,8 @@ def _classify_inventory_record(
     *,
     worktree_path: Path | None = None,
 ) -> HistoricalReplayCase:
+    """Classify one release transition using the strongest available provenance evidence."""
+
     provenance = extract_provenance(
         record.subject, record.body, repository=spec.repository
     )
@@ -2224,10 +2340,14 @@ def audit_manifest_inventory(
 
 @dataclass(frozen=True)
 class GitCommand:
+    """Represent git command in the replay contract."""
+
     args: tuple[str, ...]
 
 
 def _fetch_refspecs(spec: MirrorSpec, pull_requests: Sequence[int]) -> tuple[str, ...]:
+    """Build the exact refspecs required by one replay case."""
+
     refs = [
         f"+refs/heads/{spec.source_branch}:refs/remotes/origin/{spec.source_branch}"
     ]

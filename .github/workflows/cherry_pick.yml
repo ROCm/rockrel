@@ -35,10 +35,6 @@ on:
         required: true
       ROCM_CHERRYPICK_APP_PRIVATE_KEY:
         required: true
-      ROCM_CHERRYPICK_JIRA_URL:
-        required: false
-      ROCM_CHERRYPICK_JIRA_TOKEN:
-        required: false
   workflow_dispatch:
     inputs:
       source_pr:
@@ -72,9 +68,32 @@ permissions:
   contents: read
 
 jobs:
+  preflight:
+    name: Validate immutable automation revision
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Validate revision before checkout or App authentication
+        env:
+          AUTOMATION_REF: ${{ inputs.automation_ref }}
+          EVENT_NAME: ${{ github.event_name }}
+          EVENT_SHA: ${{ github.sha }}
+        run: |
+          if [[ ! "$AUTOMATION_REF" =~ ^[0-9a-f]{40}$ ]]; then
+            echo "automation_ref must be a full lowercase commit SHA" >&2
+            exit 1
+          fi
+          if [[ "$EVENT_NAME" == "workflow_dispatch" && "$AUTOMATION_REF" != "$EVENT_SHA" ]]; then
+            echo "manual dispatch must use the workflow commit" >&2
+            exit 1
+          fi
+
   discover:
     name: Resolve configured destination trains
+    needs: preflight
     runs-on: ubuntu-24.04
+    permissions:
+      contents: read
+      id-token: write
     outputs:
       trains: ${{ steps.discover.outputs.trains }}
     steps:
@@ -88,6 +107,18 @@ jobs:
         uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405
         with:
           python-version: "3.12"
+      - name: Fetch immutable cherry-pick configuration
+        id: config
+        run: |
+          # GitHub supplies ACTIONS_ID_TOKEN_REQUEST_URL and ACTIONS_ID_TOKEN_REQUEST_TOKEN.
+          # Audience: api://developer-central.amd.com/rocm-cherry-pick-config
+          # Endpoint: https://developer-central.amd.com/api/v1/cherry-pick/config
+          python3 -m scripts.cherry_pick.control_plane_cli action-fetch-config \
+            --api https://developer-central.amd.com \
+            --output "$RUNNER_TEMP/cherry-pick-config.json" \
+            | tee "$RUNNER_TEMP/cherry-pick-config-metadata.json"
+          python3 -c 'import json,os; value=json.load(open(os.path.join(os.environ["RUNNER_TEMP"], "cherry-pick-config-metadata.json"))); print("sha256=" + value["configuration_sha256"])' \
+            >> "$GITHUB_OUTPUT"
       - name: Discover trains centrally
         id: discover
         env:
@@ -95,11 +126,16 @@ jobs:
           EVENT_ACTION: ${{ inputs.event_action }}
           EVENT_LABEL: ${{ inputs.event_label }}
           MANUAL_TRAIN: ${{ inputs.train_id }}
+          CONFIG_SHA: ${{ steps.config.outputs.sha256 }}
         run: |
           if [[ -n "$MANUAL_TRAIN" ]]; then
-            python3 -c 'import json,os; print("trains=" + json.dumps([os.environ["MANUAL_TRAIN"]]))' >> "$GITHUB_OUTPUT"
+            python3 -c 'import json,os; from scripts.cherry_pick.control_plane import load_config_snapshot; value=load_config_snapshot(os.path.join(os.environ["RUNNER_TEMP"], "cherry-pick-config.json"), expected_sha256=os.environ["CONFIG_SHA"]); value.catalog.train(os.environ["MANUAL_TRAIN"]); print("trains=" + json.dumps([os.environ["MANUAL_TRAIN"]]))' \
+              >> "$GITHUB_OUTPUT"
           else
-            python3 -m scripts.cherry_pick discover \
+            python3 -m scripts.cherry_pick \
+              --config-snapshot "$RUNNER_TEMP/cherry-pick-config.json" \
+              --expected-config-sha256 "$CONFIG_SHA" \
+              discover \
               --labels-json "$LABELS_JSON" \
               --event-action "$EVENT_ACTION" \
               --event-label "$EVENT_LABEL" \
@@ -119,6 +155,12 @@ jobs:
       group: cherry-pick-${{ inputs.source_pr }}-${{ matrix.train }}
       cancel-in-progress: false
     runs-on: ubuntu-24.04
+    permissions:
+      contents: read
+      id-token: write
+    env:
+      GIT_NO_LAZY_FETCH: "1"
+      GIT_TERMINAL_PROMPT: "0"
     outputs:
       status: ${{ steps.result.outputs.status }}
       train_mode: ${{ steps.result.outputs.train_mode }}
@@ -128,19 +170,8 @@ jobs:
         env:
           SOURCE_PR: ${{ inputs.source_pr }}
         run: >-
-          python3 -c 'import os,re; m=re.fullmatch(r"https://github.com/([^/]+)/([^/]+)/pull/[1-9][0-9]*/?", os.environ["SOURCE_PR"]); assert m; print(f"repository={m.group(1)}/{m.group(2)}"); print(f"name={m.group(2)}")'
+          python3 -c 'import os,re; m=re.fullmatch(r"https://github.com/([^/]+)/([^/]+)/pull/([1-9][0-9]*)/?", os.environ["SOURCE_PR"]); assert m; print(f"repository={m.group(1)}/{m.group(2)}"); print(f"name={m.group(2)}"); print(f"number={m.group(3)}")'
           >> "$GITHUB_OUTPUT"
-      - name: Create scoped read token
-        id: read-token
-        uses: actions/create-github-app-token@bcd2ba49218906704ab6c1aa796996da409d3eb1
-        with:
-          client-id: ${{ secrets.ROCM_CHERRYPICK_APP_CLIENT_ID }}
-          private-key: ${{ secrets.ROCM_CHERRYPICK_APP_PRIVATE_KEY }}
-          owner: ROCm
-          repositories: ${{ steps.source.outputs.name }}
-          permission-contents: read
-          permission-issues: read
-          permission-pull-requests: read
       - name: Check out pinned automation
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
         with:
@@ -148,31 +179,81 @@ jobs:
           ref: ${{ inputs.automation_ref }}
           path: automation
           persist-credentials: false
-      - name: Check out canonical repository history
-        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
-        with:
-          repository: ${{ steps.source.outputs.repository }}
-          token: ${{ steps.read-token.outputs.token }}
-          fetch-depth: 0
-          path: source
-          persist-credentials: false
       - name: Set up Python
         uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405
         with:
           python-version: "3.12"
-      - name: Plan request
+      - name: Fetch immutable cherry-pick configuration
+        id: config
+        working-directory: automation
+        run: |
+          python3 -m scripts.cherry_pick.control_plane_cli action-fetch-config \
+            --api https://developer-central.amd.com \
+            --output "$RUNNER_TEMP/cherry-pick-config.json" \
+            | tee "$RUNNER_TEMP/cherry-pick-config-metadata.json"
+          python3 -c 'import json,os; value=json.load(open(os.path.join(os.environ["RUNNER_TEMP"], "cherry-pick-config-metadata.json"))); print("sha256=" + value["configuration_sha256"])' \
+            >> "$GITHUB_OUTPUT"
+      - name: Create scoped read token
+        id: read-token
+        uses: actions/create-github-app-token@bcd2ba49218906704ab6c1aa796996da409d3eb1
+        with:
+          client-id: ${{ secrets.ROCM_CHERRYPICK_APP_CLIENT_ID }}
+          private-key: ${{ secrets.ROCM_CHERRYPICK_APP_PRIVATE_KEY }}
+          owner: ROCm
+          repositories: |
+            TheRock
+            rocm-systems
+            rocm-libraries
+          permission-checks: read
+          permission-contents: read
+          permission-issues: read
+          permission-pull-requests: read
+      - name: Check out TheRock history
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
+        with:
+          repository: ROCm/TheRock
+          token: ${{ steps.read-token.outputs.token }}
+          fetch-depth: 0
+          path: repositories/TheRock
+          persist-credentials: false
+      - name: Check out rocm-systems history
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
+        with:
+          repository: ROCm/rocm-systems
+          token: ${{ steps.read-token.outputs.token }}
+          fetch-depth: 0
+          path: repositories/rocm-systems
+          persist-credentials: false
+      - name: Check out rocm-libraries history
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
+        with:
+          repository: ROCm/rocm-libraries
+          token: ${{ steps.read-token.outputs.token }}
+          fetch-depth: 0
+          path: repositories/rocm-libraries
+          persist-credentials: false
+      - name: Hydrate event pull head explicitly
+        working-directory: repositories/${{ steps.source.outputs.name }}
+        env:
+          PULL_NUMBER: ${{ steps.source.outputs.number }}
+        run: |
+          git -c core.hooksPath=/dev/null fetch --no-tags --force origin \
+            "+refs/pull/${PULL_NUMBER}/head:refs/cherry-pick/event/pull/${PULL_NUMBER}/head"
+      - name: Plan request and hydrate every immutable manifest ref
         env:
           GITHUB_TOKEN: ${{ steps.read-token.outputs.token }}
-          JIRA_URL: ${{ secrets.ROCM_CHERRYPICK_JIRA_URL }}
-          JIRA_TOKEN: ${{ secrets.ROCM_CHERRYPICK_JIRA_TOKEN }}
+          CONFIG_SHA: ${{ steps.config.outputs.sha256 }}
         working-directory: automation
         run: |
           python3 -m scripts.cherry_pick \
-            --config config/cherry-pick-trains.json \
+            --config-snapshot "$RUNNER_TEMP/cherry-pick-config.json" \
+            --expected-config-sha256 "$CONFIG_SHA" \
             plan \
             --source-pr "${{ inputs.source_pr }}" \
             --train "${{ matrix.train }}" \
-            --repo-dir "$GITHUB_WORKSPACE/source" \
+            --repo-dir "ROCm/TheRock=$GITHUB_WORKSPACE/repositories/TheRock" \
+            --repo-dir "ROCm/rocm-systems=$GITHUB_WORKSPACE/repositories/rocm-systems" \
+            --repo-dir "ROCm/rocm-libraries=$GITHUB_WORKSPACE/repositories/rocm-libraries" \
             --event-action "${{ inputs.event_action }}" \
             | tee "$RUNNER_TEMP/cherry-pick-plan.json"
       - name: Export decision
@@ -180,36 +261,220 @@ jobs:
         env:
           PLAN_FILE: ${{ runner.temp }}/cherry-pick-plan.json
         run: >-
-          python3 -c 'import json,os; value=json.load(open(os.environ["PLAN_FILE"])); print("status=" + value["status"]); print("train_mode=" + value["evidence"]["train_mode"])'
+          python3 -c 'import json,os; value=json.load(open(os.environ["PLAN_FILE"])); print("status=" + value["status"]); print("train_mode=" + value["evidence"]["train_mode"]); print("has_manifest=" + str("request_manifest" in value["evidence"]).lower())'
           >> "$GITHUB_OUTPUT"
-
+      - name: Replay immutable request through the standalone offline core
+        if: steps.result.outputs.has_manifest == 'true'
+        working-directory: automation
+        env:
+          PLAN_FILE: ${{ runner.temp }}/cherry-pick-plan.json
+        run: |
+          python3 -c 'import json,os; value=json.load(open(os.environ["PLAN_FILE"])); json.dump(value["evidence"]["request_manifest"], open(os.path.join(os.environ["RUNNER_TEMP"], "cherry-pick-manifest.json"), "w"), sort_keys=True)'
+          python3 -m scripts.cherry_pick.core_cli plan \
+            --manifest "$RUNNER_TEMP/cherry-pick-manifest.json" \
+            --repo "ROCm/TheRock=$GITHUB_WORKSPACE/repositories/TheRock" \
+            --repo "ROCm/rocm-systems=$GITHUB_WORKSPACE/repositories/rocm-systems" \
+            --repo "ROCm/rocm-libraries=$GITHUB_WORKSPACE/repositories/rocm-libraries" \
+            --scratch-root "$RUNNER_TEMP/cherry-pick-core" \
+            | tee "$RUNNER_TEMP/cherry-pick-core-result.json"
+          python3 -c 'import json,os; a=json.load(open(os.path.join(os.environ["RUNNER_TEMP"], "cherry-pick-plan.json"))); b=json.load(open(os.path.join(os.environ["RUNNER_TEMP"], "cherry-pick-core-result.json"))); assert (a["status"], a["reason_code"], a["evidence"].get("planned_tree")) == (b["status"], b["reason_code"], b["evidence"].get("planned_tree"))'
+      - name: Retain immutable plan for isolated write and feedback jobs
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: cherry-pick-plan-${{ matrix.train }}
+          path: ${{ runner.temp }}/cherry-pick-plan.json
+          if-no-files-found: error
+          retention-days: 7
   feedback:
-    name: Publish future event feedback
+    name: Publish future final feedback for ${{ matrix.train }}
     if: ${{ github.repository == 'LOCAL_REVIEW_REMOTE_WRITES_DISABLED' }}
-    needs: plan
+    needs: [discover, create-draft]
+    strategy:
+      fail-fast: false
+      matrix:
+        train: ${{ fromJSON(needs.discover.outputs.trains) }}
     runs-on: ubuntu-24.04
-    # Future gate also requires needs.plan.outputs.train_mode == 'create-draft'.
+    permissions:
+      contents: read
+      id-token: write
     steps:
+      - name: Download final typed result
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093
+        with:
+          name: cherry-pick-result-${{ matrix.train }}
+          path: ${{ runner.temp }}/feedback
+      - name: Check out pinned automation
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
+        with:
+          repository: ROCm/rockrel
+          ref: ${{ inputs.automation_ref }}
+          path: automation
+          persist-credentials: false
+      - name: Set up Python
+        uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405
+        with:
+          python-version: "3.12"
+      - name: Fetch immutable cherry-pick configuration
+        id: config
+        working-directory: automation
+        run: |
+          python3 -m scripts.cherry_pick.control_plane_cli action-fetch-config \
+            --api https://developer-central.amd.com \
+            --output "$RUNNER_TEMP/cherry-pick-config.json" \
+            | tee "$RUNNER_TEMP/cherry-pick-config-metadata.json"
+          python3 -c 'import json,os; value=json.load(open(os.path.join(os.environ["RUNNER_TEMP"], "cherry-pick-config-metadata.json"))); print("sha256=" + value["configuration_sha256"])' \
+            >> "$GITHUB_OUTPUT"
       - name: Create issue-only token
+        id: feedback-token
         uses: actions/create-github-app-token@bcd2ba49218906704ab6c1aa796996da409d3eb1
         with:
           client-id: ${{ secrets.ROCM_CHERRYPICK_APP_CLIENT_ID }}
           private-key: ${{ secrets.ROCM_CHERRYPICK_APP_PRIVATE_KEY }}
+          owner: ROCm
+          repositories: |
+            TheRock
+            rocm-systems
+            rocm-libraries
+          permission-checks: write
           permission-issues: write
+      - name: Publish result check and status comment
+        working-directory: automation
+        env:
+          GITHUB_TOKEN: ${{ steps.feedback-token.outputs.token }}
+          CONFIG_SHA: ${{ steps.config.outputs.sha256 }}
+        run: |
+          python3 -m scripts.cherry_pick \
+            --config-snapshot "$RUNNER_TEMP/cherry-pick-config.json" \
+            --expected-config-sha256 "$CONFIG_SHA" \
+            action-publish-result \
+            --result-file "$RUNNER_TEMP/feedback/cherry-pick-final-result.json"
 
   create-draft:
-    name: Create future draft
+    name: Revalidate and create future draft for ${{ matrix.train }}
     if: ${{ github.repository == 'LOCAL_REVIEW_REMOTE_WRITES_DISABLED' }}
-    needs: plan
+    needs: [discover, plan]
+    strategy:
+      fail-fast: false
+      matrix:
+        train: ${{ fromJSON(needs.discover.outputs.trains) }}
     runs-on: ubuntu-24.04
+    permissions:
+      contents: read
+      id-token: write
+    env:
+      GIT_NO_LAZY_FETCH: "1"
+      GIT_TERMINAL_PROMPT: "0"
     # Future gates require needs.plan.outputs.train_mode == 'create-draft' and
-    # needs.plan.outputs.status == 'draft_planned'.
+    # either a draft_planned root or an exact managed_dependency_frontier.
+    # The write job must revalidate authorization, refs, destination head, and
+    # planned tree before it can receive an authority bound to the plan.
     steps:
+      - name: Download immutable plan
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093
+        with:
+          name: cherry-pick-plan-${{ matrix.train }}
+          path: ${{ runner.temp }}/write
+      - name: Select writable plans without creating credentials
+        id: write-gate
+        env:
+          PLAN_FILE: ${{ runner.temp }}/write/cherry-pick-plan.json
+          MATRIX_TRAIN: ${{ matrix.train }}
+        run: >-
+          python3 -c 'import json,os; value=json.load(open(os.environ["PLAN_FILE"])); writable=value["status"] == "draft_planned" or (value["status"] == "awaiting_dependencies" and value["reason_code"] == "managed_dependency_frontier"); eligible=writable and value["evidence"].get("train_mode") == "create-draft" and value["train_id"] == os.environ["MATRIX_TRAIN"]; print("eligible=" + str(eligible).lower())'
+          >> "$GITHUB_OUTPUT"
+      - name: Preserve non-writing result
+        if: steps.write-gate.outputs.eligible != 'true'
+        run: cp "$RUNNER_TEMP/write/cherry-pick-plan.json" "$RUNNER_TEMP/cherry-pick-final-result.json"
+      - name: Check out pinned automation
+        if: steps.write-gate.outputs.eligible == 'true'
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
+        with:
+          repository: ROCm/rockrel
+          ref: ${{ inputs.automation_ref }}
+          path: automation
+          persist-credentials: false
+      - name: Set up Python
+        if: steps.write-gate.outputs.eligible == 'true'
+        uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405
+        with:
+          python-version: "3.12"
+      - name: Fetch immutable cherry-pick configuration
+        if: steps.write-gate.outputs.eligible == 'true'
+        id: config
+        working-directory: automation
+        run: |
+          python3 -m scripts.cherry_pick.control_plane_cli action-fetch-config \
+            --api https://developer-central.amd.com \
+            --output "$RUNNER_TEMP/cherry-pick-config.json" \
+            | tee "$RUNNER_TEMP/cherry-pick-config-metadata.json"
+          python3 -c 'import json,os; value=json.load(open(os.path.join(os.environ["RUNNER_TEMP"], "cherry-pick-config-metadata.json"))); print("sha256=" + value["configuration_sha256"])' \
+            >> "$GITHUB_OUTPUT"
       - name: Create draft-only App token
+        if: steps.write-gate.outputs.eligible == 'true'
+        id: write-token
         uses: actions/create-github-app-token@bcd2ba49218906704ab6c1aa796996da409d3eb1
         with:
           client-id: ${{ secrets.ROCM_CHERRYPICK_APP_CLIENT_ID }}
           private-key: ${{ secrets.ROCM_CHERRYPICK_APP_PRIVATE_KEY }}
+          owner: ROCm
+          repositories: |
+            TheRock
+            rocm-systems
+            rocm-libraries
+          permission-checks: read
           permission-contents: write
-          permission-issues: write
+          permission-issues: read
           permission-pull-requests: write
+      - name: Check out TheRock history with the write installation
+        if: steps.write-gate.outputs.eligible == 'true'
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
+        with:
+          repository: ROCm/TheRock
+          token: ${{ steps.write-token.outputs.token }}
+          fetch-depth: 0
+          path: repositories/TheRock
+          persist-credentials: false
+      - name: Check out rocm-systems history with the write installation
+        if: steps.write-gate.outputs.eligible == 'true'
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
+        with:
+          repository: ROCm/rocm-systems
+          token: ${{ steps.write-token.outputs.token }}
+          fetch-depth: 0
+          path: repositories/rocm-systems
+          persist-credentials: false
+      - name: Check out rocm-libraries history with the write installation
+        if: steps.write-gate.outputs.eligible == 'true'
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
+        with:
+          repository: ROCm/rocm-libraries
+          token: ${{ steps.write-token.outputs.token }}
+          fetch-depth: 0
+          path: repositories/rocm-libraries
+          persist-credentials: false
+      - name: Revalidate and create one draft-only pull request
+        if: steps.write-gate.outputs.eligible == 'true'
+        working-directory: automation
+        env:
+          GITHUB_TOKEN: ${{ steps.write-token.outputs.token }}
+          CONFIG_SHA: ${{ steps.config.outputs.sha256 }}
+        run: |
+          python3 -m scripts.cherry_pick \
+            --config-snapshot "$RUNNER_TEMP/cherry-pick-config.json" \
+            --expected-config-sha256 "$CONFIG_SHA" \
+            action-create-draft \
+            --source-pr "${{ inputs.source_pr }}" \
+            --train "${{ matrix.train }}" \
+            --repo-dir "ROCm/TheRock=$GITHUB_WORKSPACE/repositories/TheRock" \
+            --repo-dir "ROCm/rocm-systems=$GITHUB_WORKSPACE/repositories/rocm-systems" \
+            --repo-dir "ROCm/rocm-libraries=$GITHUB_WORKSPACE/repositories/rocm-libraries" \
+            --expected-result-file "$RUNNER_TEMP/write/cherry-pick-plan.json" \
+            --scratch-root "$GITHUB_WORKSPACE/.cherry-pick-scratch/${{ matrix.train }}" \
+            | tee "$RUNNER_TEMP/cherry-pick-final-result.json"
+      - name: Retain final result for feedback
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: cherry-pick-result-${{ matrix.train }}
+          path: ${{ runner.temp }}/cherry-pick-final-result.json
+          if-no-files-found: error
+          retention-days: 7

@@ -14,8 +14,10 @@ _The name of this repo has been shortened to workaround this [known Windows path
 
 ## Label-driven cherry-pick automation
 
-The label-triggered, draft-only destination-train workflow is documented
-in the [product requirements](docs/cherry-pick-automation/product-requirements.md),
+Start with the [ROCm cherry-pick user guide](docs/cherry-pick-automation/README.md)
+for local CLI and agent-skill quick starts. The complete workflow is documented
+in the [user manual](docs/cherry-pick-automation/user-manual.md),
+[product requirements](docs/cherry-pick-automation/product-requirements.md),
 [technical design](docs/cherry-pick-automation/technical-design.md), and
 [operator runbook](docs/cherry-pick-automation/runbook.md). The current local
 review status and red/green record are in the
@@ -23,14 +25,41 @@ review status and red/green record are in the
 and [TDD evidence](docs/cherry-pick-automation/tdd-evidence.md). The reviewed
 historical results and remaining gaps are in the
 [replay analysis](docs/cherry-pick-automation/historical-replay-analysis.md).
+The project-local [ROCm cherry-pick skill](skills/rocm-cherry-pick/SKILL.md)
+documents the guarded CLI workflow for read-only planning and push-disabled
+local materialization using local `gh` credentials only for GitHub reads.
+The SLAI Marketplace surface is deliberately limited to `auth`, `plan`, and
+`materialize`; it is separate from the disabled GitHub Actions mutation path
+and cannot create a branch or draft pull request.
+After a clean reviewed-commit bundle and the separately reviewed Developer
+Central read-only endpoint are deployed, a fresh engineer can use the
+standard-library CLI plus Git and an existing `gh` login to create a verified
+local-only cherry-pick checkout in one `materialize` invocation. The source checkout is not mutated, the output checkout has
+pushing disabled, and no branch or PR is created remotely. See the
+[operator runbook](docs/cherry-pick-automation/runbook.md#local-only-materialization-from-a-fresh-checkout)
+for the complete bootstrap and command.
+
 Public GitHub work is held in the local-only
 [operator TODO](docs/cherry-pick-automation/REMOTE_ACTIONS_TODO.md).
-Train-to-branch and optional Jira policy are version controlled in
-[`config/cherry-pick-trains.json`](config/cherry-pick-trains.json).
+ROCm Release Hub `config/release-trains.json` is the Git-reviewed train source
+projected by Developer Central through `GET /api/v1/cherry-pick/config`. That
+complete authenticated response is the only runtime train authority; Jira,
+bundled catalogs, string-derived branches, and last-known-good fallbacks are
+excluded. This repository's
+[`config/cherry-pick-trains.json`](config/cherry-pick-trains.json) is a
+fixture-only parser and local-review artifact, never runtime authority.
 
 The checked-in automation is not deployed. Its remote-write jobs are
 deliberately impossible to enter during local review, and no committed train is
-in `create-draft` mode.
+in `create-draft` mode. The final local matrix passes 1,036 tests with no
+deselections on Python 3.10.20, 3.11.15, and 3.12.13. All three measure
+5,470/5,703 lines (95.9144%), 1,818/1,982 branches (91.7255%), and all 25
+critical modules at or above 90% in both dimensions. The rebuilt review bundle
+passes equality and structural validation but is deliberately nonpublishable
+`dirty_worktree_review` provenance. A clean reviewed-commit rebuild, immutable
+OIDC-subject opt-in verification, and all private-sandbox, hosted-CI,
+human-review, provisioning, and deployment gates remain outstanding; this is
+not a production-readiness claim.
 
 The offline historical regression runner is
 [`scripts/replay_cherry_pick_history.py`](scripts/replay_cherry_pick_history.py).

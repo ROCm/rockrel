@@ -1,15 +1,44 @@
 {
-  "schema_version": 3,
+  "schema_version": 5,
+  "authorization": {
+    "minimum_human_permission": "write",
+    "trusted_app_ids": [],
+    "executor_app_id": null
+  },
+  "dependency_policy": {
+    "max_nodes": 64,
+    "max_depth": 16
+  },
+  "coverage_policy": {
+    "max_open_pull_requests": 128
+  },
   "trains": [
     {
       "id": "10.1-20260811",
       "label": "cherry-pick:10.1-20260811",
       "state": "active",
       "mode": "validate",
-      "requirements": {
-        "jira_fix_version": "10.1.0a20260811",
-        "block_on_dependencies": true
-      },
+      "dependency_mode": "gate",
+      "prerequisite_overrides": [
+        {
+          "source_pr": "https://github.com/ROCm/rocm-systems/pull/9716",
+          "rationale": "Maintainer-reviewed prerequisite sequence captured during the local dry run for pull request 10153.",
+          "edges": [
+            {
+              "from": "https://github.com/ROCm/rocm-systems/pull/9716",
+              "to": "https://github.com/ROCm/rocm-systems/pull/9480"
+            },
+            {
+              "from": "https://github.com/ROCm/rocm-systems/pull/9480",
+              "to": "https://github.com/ROCm/rocm-systems/pull/8221"
+            },
+            {
+              "from": "https://github.com/ROCm/rocm-systems/pull/8221",
+              "to": "https://github.com/ROCm/rocm-systems/commit/3a3fb3206000a3b47e953fd6613571ae6ca0edb4"
+            }
+          ]
+        }
+      ],
       "repositories": {
         "ROCm/TheRock": {
           "source_branches": ["main"],

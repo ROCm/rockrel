@@ -1,0 +1,61 @@
+{
+  "contracts": {
+    "core_request": "3",
+    "credential_store": "rrh-auth.v1",
+    "release_hub_config": "cherry-pick-config.v1",
+    "release_train_source": "release-trains.v5",
+    "train_catalog": "5"
+  },
+  "files": {
+    "DESCRIPTION.md": "ea4adb5bd9d3751488dc134d0a61f6c2067256ae7344326a231f1dc8fd0cd6f0",
+    "LICENSE": "1e5be522225110643d7febc8319b78a78e7f838f3e2c79de7f5047ee2013ab6e",
+    "SKILL.md": "b178563b69e13e1175c7c31b628adc1e304e1175ae5d8f66d4bbea1f4c17b931",
+    "agents/openai.yaml": "2b716acf1e24d6371a17bfcc349f82a7f0e206c2ed985dfad560f4fb482ed08d",
+    "references/operator-guide.md": "bc34935da8ba00974ecdb94ac80c145d0b37fa773ca8b7cd8b0300e53522d5ff",
+    "references/threat-model.md": "eb28a2a79c0704f643697e56740c2cf8749bc6551ac79a5a06064b0a5f02a657",
+    "scripts/cherry_pick/__init__.py": "7890da950cc829a773011b3bb069a63d66decf7251c237653ed031e5ea9d9093",
+    "scripts/cherry_pick/authorization.py": "b27d838ee51738f5afd19e4d2f352d85afe130cebe7be4f68ee8072d427d0bd1",
+    "scripts/cherry_pick/compat.py": "3902177cccfb955c6bd9d71eb655f1037ebf6e3317a36d59d08eb02f6fcb6c8f",
+    "scripts/cherry_pick/config.py": "e2b67f4e400d215211f65fcc890a68215e5ea2655ebac774cbecf2116e5288cb",
+    "scripts/cherry_pick/core.py": "fd5eed81f75861558eb3ab650bdb736daf5d5dc6fde952a89483de6f699ee64d",
+    "scripts/cherry_pick/core_cli.py": "3d043190731a44dda3fe8d3849f1ed9d68eb24f014b6e534532314a866b7f6d6",
+    "scripts/cherry_pick/dependencies.py": "f5d63acd74fd4401ee30f1e0746ca8621b4f361ee7071aff546e1884f95dd660",
+    "scripts/cherry_pick/git.py": "24e3c2a9b244f99eaf583760e036825390acf6558d86938894f7a7e79d6a04b6",
+    "scripts/cherry_pick/git_auth.py": "3658b5ecbbfbc13e73e1af57e7525087a03b071709c28c77f5cd90e0703dc137",
+    "scripts/cherry_pick/github_read.py": "34bfc5fab8ad8a078b1632df175b7aa22a6f1b3f0a97709e03b281f52212a763",
+    "scripts/cherry_pick/managed_stack.py": "a38323699d7cb371605712c2f6b6f314a1b0d0e927614f34bf92cf9d760ca5db",
+    "scripts/cherry_pick/marketplace_cli.py": "8ed96f92b1e7b71e702c92c8a24d7cd1ef1702a1526cbf0f0d9fa98470bbc7c4",
+    "scripts/cherry_pick/models.py": "77ad677afa578bfa8f0907c4a8a8571cc6da2cf770b6aa3f05e2500a7b0e1ac5",
+    "scripts/cherry_pick/orchestrator.py": "c9a28fb2e55eda28a34a907dd628cc6870143460783cbf078f6678ed68fc6dfb",
+    "scripts/cherry_pick/refs.py": "5da915799a14641a231bc58a5e115b43923e86612333ed44282bc8c8a8c9440d",
+    "scripts/cherry_pick/release_hub.py": "dd4d5329b4163e1a3093c6aaf5087288f6bcd52d1eb5a58e0cb7e42e4deec100",
+    "scripts/cherry_pick/release_hub_auth.py": "6ea302a6fa4eafd171e502cab429adaf339abc94c31c3b0ea07605f492d717d2",
+    "scripts/rocm_cherry_pick.py": "73aa6b17a2f0a4b20b154321126bb99ef204e513413ac40fe4b6592a429c2af4"
+  },
+  "runtime_allowlist": [
+    "scripts/cherry_pick/__init__.py",
+    "scripts/cherry_pick/authorization.py",
+    "scripts/cherry_pick/compat.py",
+    "scripts/cherry_pick/config.py",
+    "scripts/cherry_pick/core.py",
+    "scripts/cherry_pick/core_cli.py",
+    "scripts/cherry_pick/dependencies.py",
+    "scripts/cherry_pick/git.py",
+    "scripts/cherry_pick/git_auth.py",
+    "scripts/cherry_pick/github_read.py",
+    "scripts/cherry_pick/managed_stack.py",
+    "scripts/cherry_pick/marketplace_cli.py",
+    "scripts/cherry_pick/models.py",
+    "scripts/cherry_pick/orchestrator.py",
+    "scripts/cherry_pick/refs.py",
+    "scripts/cherry_pick/release_hub.py",
+    "scripts/cherry_pick/release_hub_auth.py"
+  ],
+  "schema_version": "rocm-cherry-pick-bundle.v2",
+  "skill_version": "1.0.0",
+  "source_provenance": {
+    "base_revision": "8432a05b8c081df871d426525728de39569ff3cb",
+    "source_content_sha256": "975ad31d8c8ce402e937d3f4e15f44b5cbbad7be16d531794cfb4a633cccd3aa",
+    "state": "dirty_worktree_review"
+  }
+}

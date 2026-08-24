@@ -1,0 +1,4 @@
+interface:
+  display_name: "ROCm Cherry-Pick"
+  short_description: "Plan and materialize ROCm cherry-picks locally"
+  default_prompt: "Use $rocm-cherry-pick to plan a merged ROCm pull request for one exact Release Hub train. Show the exact CLI command and evidence, stop for human review, and materialize a push-disabled local checkout only after explicit confirmation. Perform no remote writes."

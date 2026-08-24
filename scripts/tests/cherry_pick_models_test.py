@@ -5,12 +5,12 @@ import pytest
 
 from scripts.cherry_pick.models import Result, Status
 
-
 EXPECTED_STATUSES = {
     "awaiting_merge",
+    "awaiting_dependencies",
     "ineligible_source",
     "blocked_evidence",
-    "blocked_policy",
+    "blocked_authorization",
     "blocked_dependency",
     "blocked_ambiguous_changeset",
     "blocked_conflict",
@@ -63,4 +63,23 @@ def test_result_rejects_missing_or_malformed_required_fields(field, value):
     payload = result().as_dict()
     payload[field] = value
     with pytest.raises(ValueError, match=field):
+        Result.from_dict(payload)
+
+
+def test_result_rejects_non_object_unknown_status_and_invalid_optional_url():
+    with pytest.raises(ValueError, match="result must be an object"):
+        Result.from_dict([])
+
+    payload = result().as_dict()
+    payload["status"] = "not-a-status"
+    with pytest.raises(ValueError, match="status is unknown"):
+        Result.from_dict(payload)
+
+    payload = result().as_dict()
+    payload["pull_request_url"] = 7
+    with pytest.raises(ValueError, match="pull_request_url"):
+        Result.from_dict(payload)
+
+    payload = {**result().as_dict(), "unexpected": True}
+    with pytest.raises(ValueError, match="unsupported"):
         Result.from_dict(payload)

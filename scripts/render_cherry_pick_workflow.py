@@ -20,6 +20,8 @@ class RenderError(ValueError):
 
 
 def render_workflow(template: str | Path, sha: str) -> str:
+    """Replace the sole workflow placeholder with one pinned lowercase commit SHA."""
+
     if FULL_SHA_RE.fullmatch(sha) is None:
         raise RenderError("automation SHA must be a full lowercase 40-character SHA")
     text = Path(template).read_text()
@@ -32,6 +34,8 @@ def render_workflow(template: str | Path, sha: str) -> str:
 
 
 def main() -> int:
+    """Render a pinned caller template and write the requested workflow file."""
+
     parser = argparse.ArgumentParser()
     parser.add_argument(
         "--template",

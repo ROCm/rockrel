@@ -4,10 +4,11 @@
 
 ## Verdict
 
-The current core engine reproduces every reviewed, strictly eligible historical
-cherry-pick in the pinned corpus. It also returns the expected non-writing
-result for every reviewed negative or non-applicable row. This is strong local
-evidence for the Git changeset/application layer; it is not evidence that the
+The current Git changeset/application layer reproduces every reviewed, strictly
+eligible historical cherry-pick in the pinned corpus. It also returns the
+expected non-writing result for every reviewed negative or non-applicable row.
+This is strong local evidence for that layer; it is not an end-to-end replay of
+historical GitHub authorization/workflow facts and is not evidence that the
 automation is ready for public activation.
 
 The deep run contains 77 first-parent release transitions across TheRock,
@@ -32,10 +33,25 @@ through complete changeset patch identity and 11 through a reachable,
 source-identified destination application whose first-parent replay exactly
 matched its commit tree.
 
+Those 20 patch-identity reruns are useful historical oracle evidence, but they
+do not weaken the production decision policy. `CorePlanner` converts an empty
+application without exact ancestry or strongly attributed destination
+provenance to `blocked_ambiguous_changeset / patch_equivalent_review_required`. Newly generated drafts retain `-x` identity;
+unattributed historical equivalents require human semantic review.
+
 There were zero reviewed-expectation mismatches and zero combined coverage
 gaps. The report therefore exits zero. It separately retains 21
 historical-only gaps; named deterministic tests cover those cells without
 pretending that they occurred in the historical corpus.
+
+The independently enforced post-rebuild matrix passes all 1,036 tests with no
+deselections on Python 3.10.20, 3.11.15, and 3.12.13. All three reports are
+identical: 5,470/5,703 lines (95.9144%) and 1,818/1,982 branches (91.7255%)
+across `scripts/cherry_pick`, the skill builder, and the integration checker.
+The exact gate also passes all 25 named critical modules at or above 90% in both
+dimensions without relying on pytest-cov's whole-number rounding. Hosted matrix
+evidence from the eventual clean reviewed revision remains pending and does not
+alter the historical replay classification above.
 
 ## Expected negative behavior
 
@@ -63,7 +79,7 @@ similarity.
 
 ## Coverage findings
 
-Historical core evidence covers:
+Historical Git-application evidence covers:
 
 - all three supported repositories;
 - single and squash changesets;
@@ -93,12 +109,11 @@ registration alone is not a substitute for running the tests.
 The fast gate contains 17 reviewed rows: all five adaptations, all three
 historical conflicts, and representative strict/inventory rows spanning every
 repository, release line, classification, historical changeset kind, file
-shape, and change-size bucket. A warm parallel run completed in 67.45 seconds
-with 17/17 expected results and zero combined coverage gaps.
+shape, and change-size bucket. The current warm parallel rerun produced 17/17
+expected results and zero combined coverage gaps.
 
-The deep gate contains all 77 rows. The final parallel and serial reports must
-be byte-identical. The final schema-v3 parallel run completed in 71.62 seconds;
-the serial run completed in 116.12 seconds. Both JSON files have SHA-256
+The deep gate contains all 77 rows. The current schema-v3 parallel and serial
+runs both passed and their reports are byte-identical. Both JSON files have SHA-256
 `c35e36ed21cc4ff7843a1303ada3c89b7903e7cd513cff912a401af8733848e5`,
 and both Markdown files have SHA-256
 `ab0341982950ab45daed29751e6aa96cdad8ea957bf1f05ed192596f3c2f2017`.
@@ -106,20 +121,23 @@ These are evidence for the current local draft, not permanent corpus goldens.
 
 ## Remaining activation blockers
 
-- The configured 90% line and branch coverage gate cannot be measured locally
-  because `coverage.py`/`pytest-cov` is unavailable and the no-network boundary
-  forbids installing it.
 - Historical Git data does not exercise merge-commit or rebase-range source
   representations, non-TheRock destination families, several file modes, or
   recovery paths; those remain synthetic evidence.
 - Historical rows exercise inventory, core application, and post-merge
   containment. Planner/writer behavior is covered by the filesystem-only local
-  pipeline simulator, not replayed from historical GitHub/Jira events.
+  pipeline simulator, not replayed from historical GitHub authorization and
+  workflow events.
 - Multi-source bundles and historical multi-component gitlink rollups remain
   unsupported/non-writing. A separately proven single-source PR with a gitlink
   is covered by the production classifier tests.
 - No public workflow, App installation, label, branch, draft PR, or CI run has
   been exercised or authorized.
+- Bundle equality and the final three-version local matrix are green. The rebuilt
+  review bundle remains nonpublishable `dirty_worktree_review`; a clean
+  reviewed-commit build and hosted validation remain outstanding.
+- No real private-sandbox adapter/run or immutable-OIDC repository opt-in has
+  been completed.
 
 These blockers do not invalidate the local core-engine result. They do prevent
 claiming production readiness or enabling remote writes.

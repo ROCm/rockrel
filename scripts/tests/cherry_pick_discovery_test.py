@@ -6,7 +6,6 @@ from scripts.cherry_pick.config import (
     RepositoryConfig,
     TrainCatalog,
     TrainConfig,
-    TrainRequirements,
 )
 
 
@@ -16,7 +15,6 @@ def train(train_id, *, mode="shadow", state="active"):
         label=f"cherry-pick:{train_id}",
         state=state,
         mode=mode,
-        requirements=TrainRequirements(block_on_dependencies=True),
         repositories={
             "ROCm/TheRock": RepositoryConfig(
                 source_branches=("main",), destination_branch=f"release/{train_id}"

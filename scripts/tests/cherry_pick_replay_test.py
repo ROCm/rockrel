@@ -153,6 +153,181 @@ def test_reviewed_corpus_requires_one_immutable_expectation_per_case():
         reviewed_type.from_dict(value)
 
 
+def test_replay_primitive_validators_reject_malformed_values():
+    with pytest.raises(ValueError, match="must be an object"):
+        replay._object([], "value")
+    with pytest.raises(ValueError, match="non-empty string"):
+        replay._string("", "value")
+    with pytest.raises(ValueError, match="positive integers"):
+        replay._integer_list([True], "values")
+    with pytest.raises(ValueError, match="list of SHAs"):
+        replay._sha_list("not-a-list", "values")
+    with pytest.raises(ValueError, match="cannot be negative"):
+        replay.classify_change_size(-1)
+
+
+@pytest.mark.parametrize(
+    "changes,match",
+    [
+        ({"repository": "ROCm/unsupported"}, "not supported"),
+        ({"source_branch": "develop"}, "source_branch"),
+        ({"classification": "imaginary"}, "classification is unknown"),
+    ],
+)
+def test_historical_case_rejects_unsupported_identity_fields(changes, match):
+    value = valid_case(**changes)
+    with pytest.raises(ValueError, match=match):
+        replay.HistoricalReplayCase.from_dict(value)
+
+
+def test_snapshot_rejects_wrong_source_branch_and_empty_targets():
+    snapshot = {
+        "source_branch": "main",
+        "source_tip": SHA_A,
+        "targets": {"release/test": SHA_B},
+    }
+    with pytest.raises(ValueError, match="source_branch"):
+        replay.Snapshot.from_dict(
+            {**snapshot, "source_branch": "develop"}, repository="ROCm/TheRock"
+        )
+    with pytest.raises(ValueError, match="must not be empty"):
+        replay.Snapshot.from_dict(
+            {**snapshot, "targets": {}}, repository="ROCm/TheRock"
+        )
+
+
+def test_manifest_rejects_unknown_snapshots_non_list_cases_and_unmapped_cases():
+    unknown_snapshot = valid_manifest()
+    unknown_snapshot["snapshots"] = {
+        "ROCm/unsupported": next(iter(unknown_snapshot["snapshots"].values()))
+    }
+    with pytest.raises(ValueError, match="snapshot repository"):
+        replay.CorpusManifest.from_dict(unknown_snapshot)
+
+    non_list = valid_manifest()
+    non_list["cases"] = {}
+    with pytest.raises(ValueError, match="cases must be a list"):
+        replay.CorpusManifest.from_dict(non_list)
+
+    unmapped = valid_manifest([valid_case(target_branch="release/missing")])
+    with pytest.raises(ValueError, match="pinned snapshot target"):
+        replay.CorpusManifest.from_dict(unmapped)
+
+
+def test_manifest_rejects_duplicate_historical_destination_commit():
+    first = valid_case(id="first")
+    second = valid_case(id="second")
+    with pytest.raises(ValueError, match="duplicate target_after"):
+        replay.CorpusManifest.from_dict(valid_manifest([first, second]))
+
+
+def valid_synthetic_evidence(**overrides):
+    value = {
+        "test_id": "scripts/tests/cherry_pick_git_test.py::test_example",
+        "dimensions": {"changeset_kind": ["single"]},
+    }
+    value.update(overrides)
+    return value
+
+
+@pytest.mark.parametrize(
+    "value,match",
+    [
+        (
+            {
+                **valid_synthetic_evidence(),
+                "extra": True,
+            },
+            "fields are invalid",
+        ),
+        (
+            valid_synthetic_evidence(test_id="not-a-pytest-node"),
+            "pytest node id",
+        ),
+        (valid_synthetic_evidence(dimensions={}), "must not be empty"),
+        (
+            valid_synthetic_evidence(dimensions={"unknown": ["value"]}),
+            "unknown coverage dimension",
+        ),
+        (
+            valid_synthetic_evidence(dimensions={"changeset_kind": []}),
+            "non-empty and unique",
+        ),
+        (
+            valid_synthetic_evidence(
+                dimensions={"changeset_kind": ["single", "single"]}
+            ),
+            "non-empty and unique",
+        ),
+    ],
+)
+def test_synthetic_coverage_evidence_rejects_unreviewable_claims(value, match):
+    with pytest.raises(ValueError, match=match):
+        replay.SyntheticCoverageEvidence.from_dict(value)
+
+
+@pytest.mark.parametrize(
+    "value,match",
+    [
+        (
+            {"schema_version": 1, "evidence": [valid_synthetic_evidence()], "x": 1},
+            "fields are invalid",
+        ),
+        (
+            {"schema_version": 2, "evidence": [valid_synthetic_evidence()]},
+            "schema_version",
+        ),
+        ({"schema_version": 1, "evidence": []}, "non-empty list"),
+    ],
+)
+def test_synthetic_coverage_suite_rejects_invalid_envelopes(value, match):
+    with pytest.raises(ValueError, match=match):
+        replay.SyntheticCoverageSuite.from_dict(value)
+
+
+def test_synthetic_coverage_round_trip_serializes_sorted_dimensions():
+    suite = replay.SyntheticCoverageSuite.from_dict(
+        {"schema_version": 1, "evidence": [valid_synthetic_evidence()]}
+    )
+    assert suite.as_dict() == {
+        "schema_version": 1,
+        "evidence": [valid_synthetic_evidence()],
+    }
+
+
+@pytest.mark.parametrize(
+    "changes,match",
+    [
+        ({"unsupported": True}, "unsupported fields"),
+        ({"execution_phase": "unknown"}, "phase or tier is unknown"),
+        ({"execution_phase": "inventory"}, "inventory expectation status"),
+        (
+            {"execution_phase": "core", "expected_status": None},
+            "executed expectation status",
+        ),
+        ({"expected_after_reason": None}, "after status and reason"),
+        ({"expected_tip_status": None}, "tip status and reason"),
+    ],
+)
+def test_replay_expectation_rejects_inconsistent_or_unknown_fields(changes, match):
+    value = valid_expectation()
+    value.update(changes)
+    with pytest.raises(ValueError, match=match):
+        replay.ReplayExpectation.from_dict(value)
+
+
+def test_reviewed_corpus_rejects_schema_and_unexpected_expectation_ids():
+    wrong_schema = valid_reviewed_corpus()
+    wrong_schema["schema_version"] = 1
+    with pytest.raises(ValueError, match="schema_version"):
+        replay.ReviewedCorpus.from_dict(wrong_schema)
+
+    extra = valid_reviewed_corpus()
+    extra["expectations"]["unexpected"] = valid_expectation()
+    with pytest.raises(ValueError, match="unexpected unexpected"):
+        replay.ReviewedCorpus.from_dict(extra)
+
+
 def test_candidate_comparison_blocks_silent_classification_downgrade():
     manifest_type = required("CorpusManifest")
     reviewed_type = required("ReviewedCorpus")
@@ -168,6 +343,7 @@ def test_candidate_comparison_blocks_silent_classification_downgrade():
     assert result.added_case_ids == ()
     assert result.removed_case_ids == ()
     assert result.changed_case_ids == (valid_case()["id"],)
+    assert result.as_dict()["changed_case_ids"] == [valid_case()["id"]]
 
 
 @pytest.mark.parametrize(

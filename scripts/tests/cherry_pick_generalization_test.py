@@ -3,7 +3,6 @@
 
 from pathlib import Path
 
-
 ROOT = Path(__file__).parents[2]
 
 
@@ -55,3 +54,43 @@ def test_production_files_do_not_use_legacy_express_train_identity():
                 if token in text:
                     matches.append(f"{file.relative_to(ROOT)}:{token}")
     assert matches == []
+
+
+def test_release_hub_is_documented_and_implemented_as_read_only_observer():
+    documents = [
+        ROOT / "docs/cherry-pick-automation/product-requirements.md",
+        ROOT / "docs/cherry-pick-automation/technical-design.md",
+        ROOT / "docs/cherry-pick-automation/REMOTE_ACTIONS_TODO.md",
+    ]
+    text = "\n".join(path.read_text() for path in documents)
+    assert "Release Hub remains a read-only observer" in text
+    for obsolete_writer_contract in (
+        "Release Hub policy App",
+        "Release Hub policy-label adapter",
+        "CHERRY_PICK_LABEL_WRITES_ENABLED",
+    ):
+        assert obsolete_writer_contract not in text
+
+    for module in (
+        "core.py",
+        "dependencies.py",
+        "git.py",
+        "models.py",
+        "refs.py",
+        "action_runtime.py",
+        "feedback.py",
+        "write_authority.py",
+        "writer.py",
+    ):
+        path = ROOT / "scripts/cherry_pick" / module
+        assert "release_hub" not in path.read_text().lower(), path
+
+    adapter = (ROOT / "scripts/cherry_pick/release_hub.py").read_text()
+    assert 'method="GET"' in adapter
+    for write_method in (
+        'method="POST"',
+        'method="PUT"',
+        'method="PATCH"',
+        'method="DELETE"',
+    ):
+        assert write_method not in adapter

@@ -10,17 +10,21 @@ import subprocess
 from dataclasses import dataclass
 from pathlib import Path
 
-from .clients import BranchInfo, DestinationPolicy, JiraIssueEvidence
+from .authorization import LabelTransition
+from .clients import BranchInfo, DestinationPolicy
 from .config import TrainCatalog
+from .core import CorePlanner
 from .git import evaluate_changeset
 from .models import Result, Status
 from .orchestrator import Planner
-from .writer import DraftWriter, test_write_capability
+from .writer import DraftWriter, test_draft_write_authority
 
 
 def _git(repo: Path, *args: str) -> subprocess.CompletedProcess[str]:
+    """Run local Git with hooks and stdin disabled while capturing all output."""
+
     return subprocess.run(
-        ["git", *args],
+        ["git", "-c", "core.hooksPath=/dev/null", *args],
         cwd=repo,
         check=False,
         text=True,
@@ -32,6 +36,8 @@ def _git(repo: Path, *args: str) -> subprocess.CompletedProcess[str]:
 
 @dataclass(frozen=True)
 class FrozenPullRequest:
+    """Represent frozen pull request in the simulation contract."""
+
     repository: str
     number: int
     title: str
@@ -41,52 +47,56 @@ class FrozenPullRequest:
     merge_commit_sha: str
     commits: tuple[str, ...]
     labels: tuple[str, ...]
+    label_event_id: int
+    label_actor_id: int
     label_actor: str
     label_actor_permission: str
-    jira_fix_versions: tuple[str, ...]
-    jira_dependencies: tuple[str, ...] = ()
-    jira_ordering_notes: tuple[str, ...] = ()
+    label_app_id: int | None = None
 
     def __post_init__(self) -> None:
+        """Validate frozen pull request invariants after dataclass initialization."""
+
         if re.fullmatch(r"[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+", self.repository) is None:
             raise ValueError("frozen pull repository must be OWNER/REPO")
         if self.number < 1 or not self.commits:
             raise ValueError("frozen pull requires a positive number and commits")
+        if self.label_event_id < 1 or self.label_actor_id < 1:
+            raise ValueError("frozen pull requires positive event and actor identities")
+        if not self.label_actor:
+            raise ValueError("frozen pull requires a label actor")
         for value in (self.head_sha, self.merge_commit_sha, *self.commits):
             if re.fullmatch(r"[0-9a-f]{40}", value) is None:
                 raise ValueError("frozen pull commit evidence must use full SHAs")
 
     @property
     def url(self) -> str:
+        """Return the canonical URL represented by this value."""
+
         return f"https://github.com/{self.repository}/pull/{self.number}"
 
 
 @dataclass(frozen=True)
 class SimulationResult:
+    """Represent simulation result in the simulation contract."""
+
     result: Result
     drafts: tuple[dict[str, object], ...]
 
 
-class _FrozenJira:
-    def __init__(self, pull: FrozenPullRequest) -> None:
-        self.pull = pull
-
-    def issue_evidence(self, _key: str) -> JiraIssueEvidence:
-        return JiraIssueEvidence(
-            fix_versions=frozenset(self.pull.jira_fix_versions),
-            dependencies=self.pull.jira_dependencies,
-            ordering_notes=self.pull.jira_ordering_notes,
-        )
-
-
 class _FilesystemGitHub:
+    """Provide a filesystem-backed GitHub test double for local simulation."""
+
     def __init__(self, repo: Path, pull: FrozenPullRequest) -> None:
+        """Initialize the filesystem-backed GitHub simulator over frozen pull requests."""
+
         self.repo = repo
         self.source = pull
         self.drafts: list[dict[str, object]] = []
         self.created_payloads: list[dict[str, object]] = []
 
     def _remote_head(self, branch: str) -> str | None:
+        """Resolve the exact remote head for an automation branch."""
+
         result = _git(
             self.repo,
             "ls-remote",
@@ -98,6 +108,8 @@ class _FilesystemGitHub:
         return line.split()[0] if result.returncode == 0 and line else None
 
     def pull(self, owner: str, repo: str, number: int) -> dict[str, object]:
+        """Fetch and validate one GitHub pull request response."""
+
         if f"{owner}/{repo}" != self.source.repository or number != self.source.number:
             raise ValueError("frozen pull request identity mismatch")
         return {
@@ -107,28 +119,69 @@ class _FilesystemGitHub:
             "body": self.source.body,
             "state": "closed",
             "merged": True,
+            "merged_at": "2026-08-16T10:00:00Z",
             "merge_commit_sha": self.source.merge_commit_sha,
-            "head": {"sha": self.source.head_sha},
-            "base": {"ref": self.source.base_branch},
+            "commits": len(self.source.commits),
+            "head": {
+                "sha": self.source.head_sha,
+                "ref": f"source/{self.source.number}",
+                "repo": {"full_name": self.source.repository},
+            },
+            "base": {
+                "ref": self.source.base_branch,
+                "sha": self._remote_head(self.source.base_branch),
+            },
             "labels": [{"name": label} for label in self.source.labels],
         }
 
-    def pull_commits(self, _owner: str, _repo: str, _number: int) -> tuple[str, ...]:
+    def pull_commits(self, owner: str, repo: str, number: int) -> tuple[str, ...]:
+        """Fetch the complete ordered commit list for one pull request."""
+
+        if f"{owner}/{repo}" != self.source.repository or number != self.source.number:
+            raise ValueError("frozen pull request identity mismatch")
         return self.source.commits
 
-    def label_actor(self, _owner: str, _repo: str, _number: int, _label: str) -> str:
-        return self.source.label_actor
+    def label_transitions(
+        self, owner: str, repo: str, number: int, label: str
+    ) -> tuple[LabelTransition, ...]:
+        """Return the frozen label-transition evidence for a simulated pull request."""
 
-    def permission(self, _owner: str, _repo: str, _login: str) -> str:
+        if f"{owner}/{repo}" != self.source.repository or number != self.source.number:
+            raise ValueError("frozen pull request identity mismatch")
+        return (
+            LabelTransition(
+                event_id=self.source.label_event_id,
+                node_id=f"LOCAL_LABEL_EVENT_{self.source.label_event_id}",
+                label=label,
+                action="labeled",
+                created_at="2026-08-16T09:00:00Z",
+                actor_id=self.source.label_actor_id,
+                actor_login=self.source.label_actor,
+                performed_via_app_id=self.source.label_app_id,
+            ),
+        )
+
+    def permission(self, owner: str, repo: str, login: str) -> str:
+        """Fetch and validate the actor permission for one repository."""
+
+        if (
+            f"{owner}/{repo}" != self.source.repository
+            or login != self.source.label_actor
+        ):
+            return "none"
         return self.source.label_actor_permission
 
     def branch(self, _owner: str, _repo: str, branch: str) -> BranchInfo:
+        """Fetch and validate one repository branch response."""
+
         sha = self._remote_head(branch)
         return BranchInfo(exists=sha is not None, sha=sha)
 
     def destination_policy(
         self, _owner: str, _repo: str, _branch: str
     ) -> DestinationPolicy:
+        """Fetch the destination branch protection and write policy."""
+
         return DestinationPolicy(
             pull_request_required=True,
             rule_ids=(1,),
@@ -140,12 +193,58 @@ class _FilesystemGitHub:
     def pulls(
         self, _owner: str, _repo: str, *, base: str, state: str
     ) -> list[dict[str, object]]:
-        del state
-        return [item for item in self.drafts if item.get("base", {}).get("ref") == base]
+        """List destination pull requests relevant to idempotency checks."""
+
+        return [
+            item
+            for item in self.drafts
+            if item.get("base", {}).get("ref") == base
+            and (state == "all" or item.get("state") == state)
+        ]
+
+    def add_open_pull(
+        self,
+        *,
+        number: int,
+        head_sha: str,
+        head_branch: str,
+        base_branch: str,
+        draft: bool,
+    ) -> str:
+        """Install one canonical local open-PR record for coverage tests."""
+
+        if self._remote_head(base_branch) is None:
+            raise ValueError("local simulation pull base is unavailable")
+        if _git(self.repo, "cat-file", "-e", f"{head_sha}^{{commit}}").returncode != 0:
+            raise ValueError("local simulation pull head is unavailable")
+        url = f"https://github.com/{self.source.repository}/pull/{number}"
+        self.drafts.append(
+            {
+                "number": number,
+                "html_url": url,
+                "title": "Local manual cherry-pick",
+                "body": "Local manual coverage fixture",
+                "state": "open",
+                "merged_at": None,
+                "draft": draft,
+                "head": {
+                    "ref": head_branch,
+                    "sha": head_sha,
+                    "repo": {"full_name": self.source.repository},
+                },
+                "base": {
+                    "ref": base_branch,
+                    "sha": self._remote_head(base_branch),
+                },
+            }
+        )
+        return url
 
     def pull_for_head(
         self, owner: str, repo: str, *, head: str, base: str
     ) -> dict[str, object] | None:
+        """Find an existing pull request for the exact automation head branch."""
+
         return next(
             (
                 item
@@ -157,8 +256,8 @@ class _FilesystemGitHub:
 
     def create_pull(
         self,
-        _owner: str,
-        _repo: str,
+        owner: str,
+        repo: str,
         *,
         title: str,
         body: str,
@@ -166,39 +265,53 @@ class _FilesystemGitHub:
         base: str,
         draft: bool,
     ) -> str:
+        """Create one pull request with the caller-provided draft state."""
+
         if not draft:
             raise ValueError("local simulation creates drafts only")
         sha = self._remote_head(head)
         if sha is None:
             raise ValueError("local simulation draft head is unavailable")
-        url = f"local://draft/{len(self.drafts) + 1}"
-        self.created_payloads.append(
-            {
-                "title": title,
-                "body": body,
-                "head": head,
-                "base": base,
-                "draft": True,
-            }
+        number = (
+            max((int(item.get("number", 0)) for item in self.drafts), default=0) + 1
         )
+        url = f"https://github.com/{owner}/{repo}/pull/{number}"
+        payload = {
+            "title": title,
+            "body": body,
+            "head": head,
+            "base": base,
+            "draft": True,
+        }
+        self.created_payloads.append(payload)
         self.drafts.append(
             {
-                "number": len(self.drafts) + 1,
+                "number": number,
                 "html_url": url,
-                "title": title,
-                "body": body,
+                **payload,
                 "state": "open",
-                "draft": True,
                 "merged_at": None,
-                "head": {"ref": head, "sha": sha},
-                "base": {"ref": base},
+                "head": {
+                    "ref": head,
+                    "sha": sha,
+                    "repo": {"full_name": f"{owner}/{repo}"},
+                },
+                "base": {"ref": base, "sha": self._remote_head(base)},
             }
         )
+        pull_ref = _git(
+            self.repo,
+            "push",
+            "origin",
+            f"{sha}:refs/pull/{number}/head",
+        )
+        if pull_ref.returncode != 0:
+            raise ValueError("local simulation pull ref could not be installed")
         return url
 
 
 class LocalPipelineSimulator:
-    """Run real planner/writer logic against a local bare Git remote only."""
+    """Run the real planner/core/writer against one local bare Git remote."""
 
     def __init__(
         self,
@@ -208,6 +321,8 @@ class LocalPipelineSimulator:
         pull: FrozenPullRequest,
         scratch_root: str | Path,
     ) -> None:
+        """Initialize local pipeline simulation with its catalog and frozen pull requests."""
+
         self.repo = Path(repo).resolve()
         self.catalog = catalog
         self.pull = pull
@@ -230,13 +345,20 @@ class LocalPipelineSimulator:
             raise PermissionError(
                 "local pipeline simulation filesystem remote is missing"
             )
+        pull_ref = f"refs/pull/{pull.number}/head"
+        push = _git(self.repo, "push", "origin", f"{pull.head_sha}:{pull_ref}")
+        if push.returncode != 0:
+            raise ValueError("frozen pull head could not be installed in local remote")
         self.github = _FilesystemGitHub(self.repo, pull)
-        self.jira = _FrozenJira(pull)
 
     def run(self, train_id: str) -> SimulationResult:
+        """Run the local simulation and return its deterministic evidence."""
+
         planner_worktree = self.scratch_root / "planner-worktree"
 
-        def evaluator(repo, changeset, target, *, source_identity=None):
+        def evaluator(repo, changeset, target, source_identity, _scratch_root):
+            """Evaluate the proven changeset inside the simulator's isolated worktree."""
+
             return evaluate_changeset(
                 repo,
                 changeset,
@@ -248,20 +370,22 @@ class LocalPipelineSimulator:
         planner = Planner(
             self.catalog,
             self.github,
-            self.jira,
-            evaluator=evaluator,
+            core_planner=CorePlanner(evaluator=evaluator),
         )
         planned = planner.plan(
             self.pull.url,
             train_id,
-            self.repo,
+            {self.pull.repository: self.repo},
             event_action="labeled",
         )
         if planned.status is not Status.DRAFT_PLANNED:
             return SimulationResult(planned, tuple(self.github.created_payloads))
+        fingerprint = planned.evidence.get("plan_fingerprint")
+        if not isinstance(fingerprint, str):
+            raise ValueError("planner omitted the plan fingerprint")
         writer = DraftWriter(
             self.github,
-            capability=test_write_capability(),
+            capability=test_draft_write_authority(fingerprint),
             scratch_root=self.scratch_root / "writer",
         )
         result = writer.create(self.repo, self.catalog.train(train_id), planned)

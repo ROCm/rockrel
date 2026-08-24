@@ -6,7 +6,7 @@ name: Cherry-pick request
 
 on:
   pull_request_target:
-    types: [labeled, unlabeled, closed]
+    types: [labeled, unlabeled, edited, synchronize, closed]
 
 permissions:
   contents: read
@@ -23,5 +23,3 @@ jobs:
     secrets:
       ROCM_CHERRYPICK_APP_CLIENT_ID: ${{ secrets.ROCM_CHERRYPICK_APP_CLIENT_ID }}
       ROCM_CHERRYPICK_APP_PRIVATE_KEY: ${{ secrets.ROCM_CHERRYPICK_APP_PRIVATE_KEY }}
-      ROCM_CHERRYPICK_JIRA_URL: ${{ secrets.ROCM_CHERRYPICK_JIRA_URL }}
-      ROCM_CHERRYPICK_JIRA_TOKEN: ${{ secrets.ROCM_CHERRYPICK_JIRA_TOKEN }}

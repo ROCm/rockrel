@@ -1,0 +1,92 @@
+{
+  "schema_version": "rocm-cherry-pick-integration.v2",
+  "config_endpoint": "https://developer-central.amd.com/api/v1/cherry-pick/config",
+  "oidc_issuer": "https://token.actions.githubusercontent.com",
+  "oidc_audience": "api://developer-central.amd.com/rocm-cherry-pick-config",
+  "repository_owner": "ROCm",
+  "reusable_workflow": "ROCm/rockrel/.github/workflows/cherry_pick.yml",
+  "rockrel_revision": "c53e703568fe41129abf7139f018ac920bca9c59",
+  "callers": [
+    {
+      "repository": "ROCm/TheRock",
+      "repository_owner_id": "21157610",
+      "repository_id": "765605091",
+      "refs": [
+        "refs/heads/main"
+      ],
+      "events": [
+        "pull_request_target"
+      ],
+      "workflow": {
+        "kind": "reusable",
+        "ref": "ROCm/rockrel/.github/workflows/cherry_pick.yml@c53e703568fe41129abf7139f018ac920bca9c59",
+        "sha": "c53e703568fe41129abf7139f018ac920bca9c59"
+      }
+    },
+    {
+      "repository": "ROCm/rocm-systems",
+      "repository_owner_id": "21157610",
+      "repository_id": "962090208",
+      "refs": [
+        "refs/heads/develop"
+      ],
+      "events": [
+        "pull_request_target"
+      ],
+      "workflow": {
+        "kind": "reusable",
+        "ref": "ROCm/rockrel/.github/workflows/cherry_pick.yml@c53e703568fe41129abf7139f018ac920bca9c59",
+        "sha": "c53e703568fe41129abf7139f018ac920bca9c59"
+      }
+    },
+    {
+      "repository": "ROCm/rocm-libraries",
+      "repository_owner_id": "21157610",
+      "repository_id": "971570345",
+      "refs": [
+        "refs/heads/develop"
+      ],
+      "events": [
+        "pull_request_target"
+      ],
+      "workflow": {
+        "kind": "reusable",
+        "ref": "ROCm/rockrel/.github/workflows/cherry_pick.yml@c53e703568fe41129abf7139f018ac920bca9c59",
+        "sha": "c53e703568fe41129abf7139f018ac920bca9c59"
+      }
+    },
+    {
+      "repository": "ROCm/rockrel",
+      "repository_owner_id": "21157610",
+      "repository_id": "1071689640",
+      "refs": [
+        "refs/heads/main"
+      ],
+      "events": [
+        "schedule",
+        "workflow_dispatch"
+      ],
+      "workflow": {
+        "kind": "direct",
+        "ref": "ROCm/rockrel/.github/workflows/cherry_pick_reconcile.yml@refs/heads/main",
+        "sha": "c53e703568fe41129abf7139f018ac920bca9c59"
+      }
+    },
+    {
+      "repository": "ROCm/rockrel",
+      "repository_owner_id": "21157610",
+      "repository_id": "1071689640",
+      "refs": [
+        "refs/heads/main"
+      ],
+      "events": [
+        "workflow_dispatch"
+      ],
+      "workflow": {
+        "kind": "direct",
+        "ref": "ROCm/rockrel/.github/workflows/cherry_pick.yml@refs/heads/main",
+        "sha": "c53e703568fe41129abf7139f018ac920bca9c59"
+      }
+    }
+  ]
+}

@@ -37,9 +37,24 @@
     {
       "source_pr": "https://github.com/ROCm/rocm-systems/pull/9716",
       "covering_pr": "https://github.com/ROCm/rocm-systems/pull/10153",
-      "expected_reason": "empty_trial_application",
+      "expected_reason": "covered_by_existing_pr",
       "source_commit_count": 2,
-      "merge_representation": "merge_commit"
+      "merge_representation": "merge_commit",
+      "destination_head": "800045c8ab865991f4cec1549de2bb44e76b9904",
+      "destination_tree": "b4fe91c8cbc9d4f2c4f348a7634cc2fbb1b78009",
+      "source_merge_commit": "b3252f064cedf9d03ad764af5310a15324b7ff51",
+      "source_head": "af1cb4be411021fdcb20ec56fe0ba8ec27f60d11",
+      "source_commits": [
+        "e7e0ea8add4805e46f668a5cbce411eda6929c27",
+        "af1cb4be411021fdcb20ec56fe0ba8ec27f60d11"
+      ],
+      "covering_head": "411a04e98648ef442751e8e219ab9fa1cfb228bf",
+      "planned_tree": "2b7467c293ea312349db32372bdc51a495fd419d",
+      "prerequisite_sequence": [
+        "https://github.com/ROCm/rocm-systems/commit/3a3fb3206000a3b47e953fd6613571ae6ca0edb4",
+        "https://github.com/ROCm/rocm-systems/pull/8221",
+        "https://github.com/ROCm/rocm-systems/pull/9480"
+      ]
     },
     {
       "source_pr": "https://github.com/ROCm/rocm-libraries/pull/10498",

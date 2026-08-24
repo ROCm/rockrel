@@ -11,8 +11,12 @@ permissions:
 
 jobs:
   unit-tests:
-    name: Unit Tests
+    name: Unit Tests (Python ${{ matrix.python-version }})
     runs-on: ubuntu-24.04
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ["3.10", "3.11", "3.12"]
     steps:
       - name: Check out repository
         uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8
@@ -21,14 +25,52 @@ jobs:
       - name: Set up Python
         uses: actions/setup-python@83679a892e2d95755f2dac6acb0bfd1e9ac5d548
         with:
-          python-version: "3.12"
+          python-version: "${{ matrix.python-version }}"
           cache: pip
       - name: Install test dependencies
         run: python -m pip install -r requirements-test.txt
+      - name: Render Mermaid architecture diagrams
+        if: matrix.python-version == '3.12'
+        run: python scripts/render_cherry_pick_mermaid.py
       - name: Run unit tests
         run: >-
           python -m pytest -q scripts/tests
           --cov=scripts.cherry_pick
+          --cov=scripts.build_cherry_pick_skill
+          --cov=scripts.check_cherry_pick_integration
           --cov-branch
           --cov-report=term-missing
+          --cov-report=json:coverage.json
           --cov-fail-under=90
+      - name: Enforce independent line and branch coverage
+        run: >-
+          python scripts/check_cherry_pick_coverage.py coverage.json
+          --minimum-lines 95
+          --minimum-branches 90
+          --minimum-module-lines 90
+          --minimum-module-branches 90
+          --critical-module scripts/cherry_pick/__main__.py
+          --critical-module scripts/cherry_pick/action_runtime.py
+          --critical-module scripts/cherry_pick/authorization.py
+          --critical-module scripts/cherry_pick/clients.py
+          --critical-module scripts/cherry_pick/config.py
+          --critical-module scripts/cherry_pick/control_plane.py
+          --critical-module scripts/cherry_pick/control_plane_cli.py
+          --critical-module scripts/cherry_pick/core.py
+          --critical-module scripts/cherry_pick/core_cli.py
+          --critical-module scripts/cherry_pick/dependencies.py
+          --critical-module scripts/cherry_pick/feedback.py
+          --critical-module scripts/cherry_pick/git.py
+          --critical-module scripts/cherry_pick/git_auth.py
+          --critical-module scripts/cherry_pick/github_read.py
+          --critical-module scripts/cherry_pick/local_runtime.py
+          --critical-module scripts/cherry_pick/managed_stack.py
+          --critical-module scripts/cherry_pick/marketplace_cli.py
+          --critical-module scripts/cherry_pick/orchestrator.py
+          --critical-module scripts/cherry_pick/refs.py
+          --critical-module scripts/cherry_pick/release_hub.py
+          --critical-module scripts/cherry_pick/release_hub_auth.py
+          --critical-module scripts/cherry_pick/write_authority.py
+          --critical-module scripts/cherry_pick/writer.py
+          --critical-module scripts/build_cherry_pick_skill.py
+          --critical-module scripts/check_cherry_pick_integration.py

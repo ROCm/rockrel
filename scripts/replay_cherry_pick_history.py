@@ -40,6 +40,8 @@ SYNTHETIC_COVERAGE = ROOT / "scripts/tests/fixtures/replay_synthetic_coverage.js
 
 
 def build_parser() -> argparse.ArgumentParser:
+    """Define refresh, inventory, compare, run, and rollback replay commands."""
+
     parser = argparse.ArgumentParser(
         description="Refresh or run offline historical cherry-pick replays."
     )
@@ -98,6 +100,8 @@ def build_parser() -> argparse.ArgumentParser:
 
 
 def _refresh(args: argparse.Namespace, stdout: TextIO) -> int:
+    """Refresh allowlisted mirrors and pull refs only under explicit network permission."""
+
     for spec in DEFAULT_MIRROR_SPECS:
         refresh_mirror(
             spec,
@@ -116,6 +120,8 @@ def _refresh(args: argparse.Namespace, stdout: TextIO) -> int:
 
 
 def _candidate_path_is_tracked(path: Path) -> bool:
+    """Return whether the candidate resolves to a Git-tracked repository file."""
+
     try:
         relative = path.resolve().relative_to(ROOT)
     except ValueError:
@@ -138,6 +144,8 @@ def _inventory(
     *,
     status: str = "candidate_inventory_written",
 ) -> int:
+    """Build the deterministic historical cherry-pick inventory."""
+
     if (
         args.candidate_out.resolve() == REVIEWED_GOLDEN.resolve()
         or _candidate_path_is_tracked(args.candidate_out)
@@ -169,6 +177,8 @@ def _inventory(
 
 
 def _compare(args: argparse.Namespace, stdout: TextIO) -> int:
+    """Compare replay outcomes with the reviewed historical expectations."""
+
     result = compare_candidate_to_golden(
         load_manifest(args.candidate),
         load_reviewed_corpus(args.golden),
@@ -178,6 +188,8 @@ def _compare(args: argparse.Namespace, stdout: TextIO) -> int:
 
 
 def _run(args: argparse.Namespace, stdout: TextIO) -> int:
+    """Run one subprocess command with deterministic captured output."""
+
     corpus = load_reviewed_corpus(args.manifest)
     inventory_audit = audit_manifest_inventory(corpus.inventory, args.data_root)
     outcomes = run_reviewed_cases(
@@ -212,6 +224,8 @@ def _run(args: argparse.Namespace, stdout: TextIO) -> int:
 
 
 def _rollback(args: argparse.Namespace, stdout: TextIO) -> int:
+    """Restore the replay index from its latest disk checkpoint."""
+
     worktrees = rollback_replay_worktrees(args.data_root)
     print(
         json.dumps(
@@ -232,6 +246,8 @@ def main(
     stdout: TextIO = sys.stdout,
     stderr: TextIO = sys.stderr,
 ) -> int:
+    """Dispatch replay commands and translate expected failures to exit code two."""
+
     args = build_parser().parse_args(argv)
     try:
         if args.command == "refresh":
