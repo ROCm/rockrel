@@ -223,6 +223,13 @@ class TestFetchLightweightPlan:
 
         assert "hip" in result
 
+    def test_therock_excluded_when_in_exclude_list(self):
+        mock_resp = _make_gitmodules_response([])
+        with patch("urllib.request.urlopen", return_value=mock_resp):
+            result = fetch_lightweight_plan("token", _FAKE_COMMIT, {"TheRock"})
+
+        assert "TheRock" not in result
+
 
 # ---------------------------------------------------------------------------
 # check_permissions
@@ -452,6 +459,15 @@ class TestBuildPlanSubmoduleParsing:
         )
         assert "TheRock" in plan
         assert plan["TheRock"].commit == _FAKE_COMMIT
+
+    def test_therock_excluded_from_plan(self, tmp_path):
+        plan = self._run_build_plan(
+            tmp_path,
+            submodule_status=[],
+            url_map={},
+            exclude_list=["TheRock"],
+        )
+        assert "TheRock" not in plan
 
     def test_sha_prefix_chars_stripped(self, tmp_path):
         """Leading -, + in git submodule status output are stripped from the SHA."""

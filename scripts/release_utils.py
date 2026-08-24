@@ -105,8 +105,8 @@ def fetch_lightweight_plan(
 
     Fetches GET /repos/ROCm/TheRock/contents/.gitmodules?ref=<commitid> so the
     caller can build a repo list without cloning anything locally. Filters out
-    repos outside the ROCm org and repos in exclude_list. Always includes
-    TheRock itself.
+    repos outside the ROCm org and repos in exclude_list. TheRock itself is
+    included unless it appears in exclude_list.
     """
     api_url = (
         f"https://api.github.com/repos/ROCm/TheRock/contents/.gitmodules"
@@ -168,7 +168,8 @@ def fetch_lightweight_plan(
 
     _flush(current_path, current_url)
 
-    repo_map["TheRock"] = ROCK_URL
+    if "TheRock" not in exclude_list:
+        repo_map["TheRock"] = ROCK_URL
     return repo_map
 
 
@@ -597,9 +598,12 @@ class RockBase:
 
             plan[repo_name] = RepoInfo(url=repo_url, commit=sha, path=clone_dir / path)
 
-        plan["TheRock"] = RepoInfo(
-            url=self.rock_url,
-            commit=self.commitid,
-            path=clone_dir,
-        )
+        if "TheRock" not in self.exclude_list:
+            plan["TheRock"] = RepoInfo(
+                url=self.rock_url,
+                commit=self.commitid,
+                path=clone_dir,
+            )
+        else:
+            self.log("Skipping TheRock (in exclude list)")
         return plan
