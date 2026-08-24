@@ -54,8 +54,8 @@
   "schema_version": "rocm-cherry-pick-bundle.v2",
   "skill_version": "1.0.0",
   "source_provenance": {
-    "base_revision": "8432a05b8c081df871d426525728de39569ff3cb",
+    "base_revision": "cac800a291cf8d816b8fcbc393546f175496386a",
     "source_content_sha256": "975ad31d8c8ce402e937d3f4e15f44b5cbbad7be16d531794cfb4a633cccd3aa",
-    "state": "dirty_worktree_review"
+    "state": "clean_commit"
   }
 }

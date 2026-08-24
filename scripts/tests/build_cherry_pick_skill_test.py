@@ -17,6 +17,7 @@ from scripts.build_cherry_pick_skill import (
     STATIC_FILES,
     _copy,
     _current_revision,
+    _packaged_source_changes,
     build_skill,
     main,
 )
@@ -66,7 +67,10 @@ def test_skill_bundle_is_deterministic_self_contained_and_read_only(tmp_path):
     manifest = json.loads((first / "bundle-manifest.json").read_text())
     assert manifest["schema_version"] == "rocm-cherry-pick-bundle.v2"
     assert manifest["source_provenance"]["base_revision"] == _current_revision(ROOT)
-    assert manifest["source_provenance"]["state"] == "dirty_worktree_review"
+    expected_state = (
+        "dirty_worktree_review" if _packaged_source_changes(ROOT) else "clean_commit"
+    )
+    assert manifest["source_provenance"]["state"] == expected_state
     assert re.fullmatch(
         r"[0-9a-f]{64}", manifest["source_provenance"]["source_content_sha256"]
     )
