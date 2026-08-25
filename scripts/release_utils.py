@@ -281,7 +281,14 @@ class RockBase:
         self.release_branch: str = cli_args.branch_name
         self.dry_run: bool = cli_args.dry_run
         self.commitid: str = cli_args.commitid
-        self.exclude_list: set[str] = set(cli_args.exclude_list or [])
+        # Accept both space-separated (--exclude-list a b c) and
+        # comma-separated (--exclude-list a,b,c) values.
+        self.exclude_list: set[str] = {
+            item.strip()
+            for val in (cli_args.exclude_list or [])
+            for item in val.split(",")
+            if item.strip()
+        }
         self.force_clone: bool = cli_args.force_clone
         self.cache_dir: Path | None = (
             Path(cli_args.cache_dir) if cli_args.cache_dir else None
