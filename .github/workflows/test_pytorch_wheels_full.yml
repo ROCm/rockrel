@@ -82,7 +82,7 @@ jobs:
           gh_app_private_key: ${{ secrets.GH_APP_HAULY_PRIVATE_KEY }}
 
   test:
-    uses: ROCm/TheRock/.github/workflows/test_pytorch_wheels_full.yml@main
+    uses: ROCm/TheRock/.github/workflows/test_pytorch_wheels_full.yml@release/bkc/therock-10.1-20260811
     secrets: inherit
     with:
       amdgpu_family: ${{ inputs.amdgpu_family }}
