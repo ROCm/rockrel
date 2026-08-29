@@ -762,10 +762,11 @@ deterministic frontier containing only nodes whose own prerequisites are
 already exactly contained; one exact existing draft is reused and multiple
 exact candidates block. Reconciliation waits for exact containment before
 advancing the next topological wave. A cycle, unsupported mapping, ambiguous
-changeset, missing object, or required synthesized gitlink bump produces
-`blocked_dependency`. The product never updates, readies, merges, closes, or
-deletes a prerequisite draft and does not promise atomic cross-repository
-writes.
+changeset, or required synthesized gitlink bump produces `blocked_dependency`.
+A missing promisor object preserves `blocked_evidence /
+local_objects_incomplete` at the top level. The product never updates, readies,
+merges, closes, or deletes a prerequisite draft and does not promise atomic
+cross-repository writes.
 
 ## Git proof and materialization
 

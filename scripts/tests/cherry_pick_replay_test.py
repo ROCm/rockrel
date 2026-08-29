@@ -1091,6 +1091,58 @@ def test_batch_replay_is_bounded_parallel_and_preserves_case_order(
         run_cases(tmp_path, cases, jobs=0)
 
 
+def test_replay_classifies_incomplete_local_objects_as_evidence_gap(
+    monkeypatch, repo
+):
+    case = exact_case(repo)
+    diagnostic = "fatal: could not fetch " + "a" * 40 + " from promisor remote"
+
+    def fail(*args, **kwargs):
+        raise git_engine.GitEvidenceError(
+            "local_objects_incomplete",
+            "Required Git objects are missing locally.",
+            diagnostic,
+        )
+
+    monkeypatch.setattr(replay, "prove_changeset", fail)
+
+    outcome = required("run_replay_case")(repo, case)
+
+    assert outcome.disposition.value == "evidence_gap"
+    assert outcome.root_cause == "local_objects_incomplete"
+
+
+def test_reviewed_replay_preserves_incomplete_local_object_reason(monkeypatch, repo):
+    run_case = required("run_replay_case")
+    run_reviewed = required("run_reviewed_case")
+    expectation_type = required("ReplayExpectation")
+    case = exact_case(repo)
+    base = run_case(repo, case)
+    expectation = expectation_type.from_dict(valid_expectation(case.as_dict()))
+
+    monkeypatch.setattr(replay, "run_replay_case", lambda *args, **kwargs: base)
+
+    def fail(*args, **kwargs):
+        raise git_engine.GitEvidenceError(
+            "local_objects_incomplete",
+            "Required Git objects are missing locally.",
+        )
+
+    monkeypatch.setattr(replay, "prove_changeset", fail)
+
+    outcome = run_reviewed(
+        repo,
+        case,
+        expectation,
+        target_tip=case.target_after,
+    )
+
+    assert outcome.postmerge_status == "blocked_evidence"
+    assert outcome.postmerge_reason == "local_objects_incomplete"
+    assert outcome.tip_status == "blocked_evidence"
+    assert outcome.tip_reason == "local_objects_incomplete"
+
+
 def test_missing_source_object_is_an_evidence_gap(repo):
     run_case = required("run_replay_case")
     case = exact_case(repo)

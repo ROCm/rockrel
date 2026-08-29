@@ -690,7 +690,6 @@ def test_planner_forwards_explicit_scratch_root_to_git_evaluator(tmp_path):
 @pytest.mark.parametrize(
     "dependency_status",
     [
-        Status.BLOCKED_EVIDENCE,
         Status.BLOCKED_AMBIGUOUS_CHANGESET,
         Status.BLOCKED_CONFLICT,
     ],
@@ -722,6 +721,42 @@ def test_planner_converts_unreliable_prerequisite_evaluation_to_block(
     )
     assert actual.status is Status.BLOCKED_DEPENDENCY
     assert actual.reason_code == "dependency_evaluation_blocked"
+
+
+def test_planner_preserves_incomplete_local_object_prerequisite_evidence(tmp_path):
+    dep = node(
+        DEP_URL,
+        "ROCm/rocm-systems",
+        20,
+        seed="f",
+        destination_branch="release/systems",
+    )
+    request = CoreRequest.from_dict(
+        manifest(prerequisites=[dep], edges=[{"from": ROOT_URL, "to": DEP_URL}])
+    )
+    diagnostic = "fatal: could not fetch " + "a" * 40 + " from promisor remote"
+    planner = CorePlanner(
+        changeset_builder=lambda repo, change: change,
+        evaluator=lambda *args: Result(
+            status=Status.BLOCKED_EVIDENCE,
+            reason_code="local_objects_incomplete",
+            message="Required Git objects are missing locally.",
+            evidence={"git_stderr": diagnostic},
+        ),
+    )
+
+    actual = planner.plan(
+        request,
+        {
+            "ROCm/TheRock": tmp_path / "root",
+            "ROCm/rocm-systems": tmp_path / "systems",
+        },
+    )
+
+    assert actual.status is Status.BLOCKED_EVIDENCE
+    assert actual.reason_code == "local_objects_incomplete"
+    assert actual.evidence["git_stderr"] == diagnostic
+    assert actual.evidence["prerequisite_results"][0]["status"] == "blocked_evidence"
 
 
 def test_planner_fails_closed_for_missing_repository_mapping(tmp_path):

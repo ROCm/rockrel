@@ -19,6 +19,7 @@ from .compat import StrEnum
 from .config import valid_branch_name
 from .git import (
     ChangesetError,
+    GitEvidenceError,
     SourceIdentity,
     WorktreeStateError,
     evaluate_changeset,
@@ -1408,6 +1409,16 @@ def run_replay_case(
             case.source_head,
             case.source_commits,
         )
+    except GitEvidenceError as exc:
+        return _outcome(
+            case,
+            (
+                ReplayDisposition.EVIDENCE_GAP
+                if strict
+                else ReplayDisposition.DIAGNOSTIC
+            ),
+            exc.reason_code,
+        )
     except ChangesetError:
         return _outcome(
             case,
@@ -1576,6 +1587,11 @@ def run_reviewed_case(
             )
             tip_status = tip.status.value
             tip_reason = tip.reason_code
+        except GitEvidenceError as exc:
+            postmerge_status = "blocked_evidence"
+            postmerge_reason = exc.reason_code
+            tip_status = postmerge_status
+            tip_reason = postmerge_reason
         except (ChangesetError, OSError, WorktreeStateError):
             postmerge_status = "blocked_evidence"
             postmerge_reason = "reviewed_containment_evidence_unavailable"
