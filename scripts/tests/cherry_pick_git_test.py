@@ -1021,6 +1021,31 @@ def test_patch_and_merge_base_proof_helpers_reject_git_failures(monkeypatch, tmp
         git_module._commit_patch_id(tmp_path, "merge")
 
 
+def test_diff_patch_id_reports_missing_promisor_objects_as_local_evidence(
+    monkeypatch, tmp_path
+):
+    error_type = getattr(git_module, "GitEvidenceError", None)
+    assert error_type is not None, (
+        "missing promisor objects require a typed local Git evidence failure"
+    )
+    diagnostic = (
+        "warning: lazy fetching disabled; some objects may not be available\n"
+        "fatal: could not fetch " + "a" * 40 + " from promisor remote\n"
+    )
+    monkeypatch.setattr(
+        git_module,
+        "_run",
+        Mock(return_value=completed(returncode=128, stderr=diagnostic)),
+    )
+
+    with pytest.raises(error_type) as caught:
+        git_module._diff_patch_id(tmp_path, "base", "head")
+
+    assert caught.value.reason_code == "local_objects_incomplete"
+    assert str(caught.value) == "Required Git objects are missing locally."
+    assert caught.value.stderr == diagnostic.strip()
+
+
 def test_prove_changeset_rejects_missing_objects_and_mismatched_source_head(
     monkeypatch, tmp_path
 ):

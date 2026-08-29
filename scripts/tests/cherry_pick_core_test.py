@@ -8,7 +8,7 @@ from pathlib import Path
 import pytest
 
 from scripts.cherry_pick.core import CommitNode, CorePlanner, CoreRequest, ManifestError
-from scripts.cherry_pick.git import ChangesetError
+from scripts.cherry_pick.git import ChangesetError, GitEvidenceError
 from scripts.cherry_pick.models import Result, Status
 
 
@@ -749,6 +749,30 @@ def test_core_requires_manual_review_for_unattributed_patch_equivalence(tmp_path
     assert actual.status is Status.BLOCKED_AMBIGUOUS_CHANGESET
     assert actual.reason_code == "patch_equivalent_review_required"
     assert actual.evidence["patch_equivalent"] is True
+
+
+def test_planner_reports_incomplete_local_objects_as_blocked_evidence(tmp_path):
+    request = CoreRequest.from_dict(manifest())
+    diagnostic = (
+        "warning: lazy fetching disabled; some objects may not be available\n"
+        "fatal: could not fetch " + "a" * 40 + " from promisor remote"
+    )
+
+    def fail(_repo, _change):
+        raise GitEvidenceError(
+            "local_objects_incomplete",
+            "Required Git objects are missing locally.",
+            diagnostic,
+        )
+
+    actual = CorePlanner(changeset_builder=fail).plan(
+        request, {"ROCm/TheRock": tmp_path}
+    )
+
+    assert actual.status is Status.BLOCKED_EVIDENCE
+    assert actual.reason_code == "local_objects_incomplete"
+    assert actual.message == "Required Git objects are missing locally."
+    assert actual.evidence["git_stderr"] == diagnostic
 
 
 @pytest.mark.parametrize(

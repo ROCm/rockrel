@@ -455,6 +455,7 @@ resume from an in-memory assumption.
 | Source PR is valid but not merged                                         | `awaiting_merge`              | Never                      | Reconciliation may retry after merge                               |
 | Label actor/App is not authorized or snapshot is stale                    | `blocked_authorization`       | Never                      | Correct authority or remove/reapply the label                      |
 | API/ref/config evidence is missing, capped, malformed, or changed         | `blocked_evidence`            | Never                      | Restore trustworthy evidence; do not infer                         |
+| A promisor checkout lacks an object required for proof                    | `blocked_evidence / local_objects_incomplete` | Never          | Hydrate the checkout; retain Git stderr and rerun                   |
 | Prerequisite graph is invalid or ambiguous                                | `blocked_dependency`          | Never                      | Correct trailers/override or obtain manual review                  |
 | Prerequisites are valid but not all contained                             | `awaiting_dependencies`       | Never                      | Land prerequisites in topological order; reconciliation will retry |
 | Changeset representation or equivalence is ambiguous                      | `blocked_ambiguous_changeset` | Never                      | Component owner performs semantic review                           |
@@ -787,8 +788,11 @@ data; no submodule initialization, filter driver, or hook is run.
   patch identities and aggregate tree delta, and apply oldest to newest.
 - **Standalone commit prerequisite:** require exactly one parent and apply the
   exact full commit with `git cherry-pick -x`.
-- **Unknown:** octopus merges, missing/intervening objects, tree/patch mismatch,
-  or uncertain bases return `blocked_ambiguous_changeset`.
+- **Unknown:** octopus merges, intervening-history ambiguity, tree/patch
+  mismatch, or uncertain bases return `blocked_ambiguous_changeset`. Missing
+  promisor objects return `blocked_evidence / local_objects_incomplete` with
+  bounded Git stderr because the local checkout, not the source representation,
+  is incomplete.
 
 Containment permits only positive complete-change proof:
 

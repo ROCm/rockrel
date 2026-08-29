@@ -264,7 +264,7 @@ Planner results that intentionally create no output include:
 | `blocked_conflict`            | Trial application produced conflicts                                                          | Review `conflict_paths` and `conflict_stages`; resolve manually outside automation            |
 | `blocked_ambiguous_changeset` | The engine cannot prove one safe interpretation or exact coverage                             | Investigate; do not guess                                                                     |
 | `blocked_dependency`          | The dependency graph is invalid, incomplete, cyclic, or blocked                               | Correct reviewed dependency evidence                                                          |
-| `blocked_evidence`            | Required API or Git evidence is missing, stale, truncated, or inconsistent                    | Correct the checkout/origin or retry after evidence is available                              |
+| `blocked_evidence`            | Required API or Git evidence is missing, stale, truncated, or inconsistent                    | Correct the checkout/origin or retry after evidence is available; `local_objects_incomplete` means hydrate the partial checkout and rerun |
 | `blocked_authorization`       | The ordinary label-authorized path lacks valid authority                                      | Correct the request label or permission; local-only evidence cannot authorize a remote writer |
 | `ineligible_source`           | Repository, train, source branch, or source state is not eligible                             | Correct configuration or request                                                              |
 

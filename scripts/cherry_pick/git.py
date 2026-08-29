@@ -31,6 +31,17 @@ class ChangesetError(RuntimeError):
     """The complete merged PR changeset could not be proven."""
 
 
+class GitEvidenceError(RuntimeError):
+    """Required local Git evidence is unavailable for a stable reason."""
+
+    def __init__(self, reason_code: str, message: str, stderr: str = "") -> None:
+        """Record a stable reason and a bounded Git diagnostic."""
+
+        super().__init__(message)
+        self.reason_code = reason_code
+        self.stderr = stderr.strip()[:4096]
+
+
 class WorktreeStateError(RuntimeError):
     """A replay-owned worktree could not be proven clean and reusable."""
 
@@ -585,6 +596,16 @@ def _diff_patch_id(repo: Path, base: str, head: str) -> str | None:
 
     result = _run(repo, "diff", "--binary", "--full-index", base, head)
     if result.returncode != 0:
+        if re.search(
+            r"could not fetch [0-9a-f]{40} from promisor remote",
+            result.stderr,
+            flags=re.IGNORECASE,
+        ):
+            raise GitEvidenceError(
+                "local_objects_incomplete",
+                "Required Git objects are missing locally.",
+                result.stderr,
+            )
         raise ChangesetError("could not prove aggregate tree delta")
     return _patch_id(repo, result.stdout)
 

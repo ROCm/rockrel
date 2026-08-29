@@ -19,7 +19,9 @@ created. Review `status`, `reason_code`, `destination_branch`, and `evidence`.
 - `blocked_dependency`: the prerequisite graph is incomplete, ambiguous,
   cyclic, too large, or not proven contained/applied in order.
 - `blocked_evidence`: current refs, merge identity, branch protection, covering
-  PR state, or Release Hub train facts could not be proven.
+  PR state, local Git objects, or Release Hub train facts could not be proven.
+  `local_objects_incomplete` preserves the bounded Git diagnostic so a partial
+  checkout can be hydrated and retried without implying changeset ambiguity.
 - `ineligible_source`: the source is unmerged, unsupported, or was merged into
   a branch outside the reviewed source-branch policy.
 
