@@ -911,6 +911,14 @@ class CorePlanner:
                 if direct_targets <= satisfied:
                     frontier.append(dict(record))
                 continue
+            if result.status is Status.BLOCKED_EVIDENCE:
+                terminal = self._context(result, request, evidence)
+                return _PrerequisiteEvaluation(
+                    tuple(records),
+                    frozenset(satisfied),
+                    tuple(frontier),
+                    terminal,
+                )
             terminal = self._context(
                 Result(
                     status=Status.BLOCKED_DEPENDENCY,
