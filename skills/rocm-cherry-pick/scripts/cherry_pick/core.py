@@ -17,6 +17,7 @@ from .dependencies import DependencyError, build_dependency_graph, parse_depende
 from .git import (
     ChangesetError,
     CommitIdentity,
+    GitEvidenceError,
     SourceIdentity,
     evaluate_changeset,
     evaluate_existing_pull_coverage,
@@ -778,6 +779,20 @@ class CorePlanner:
                     evidence=dict(evaluated.evidence),
                 )
             return evaluated, changeset, identity
+        except GitEvidenceError as exc:
+            return (
+                Result(
+                    status=Status.BLOCKED_EVIDENCE,
+                    reason_code=exc.reason_code,
+                    message=str(exc),
+                    evidence={
+                        "source_prerequisite": node.url,
+                        "git_stderr": exc.stderr,
+                    },
+                ),
+                None,
+                None,
+            )
         except ChangesetError as exc:
             return (
                 Result(
