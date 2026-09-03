@@ -1,22 +1,14 @@
 # Copyright Advanced Micro Devices, Inc.
 # SPDX-License-Identifier: MIT
 
-name: Release Unit Tests
+name: Unit Tests
 
 on:
   push:
     branches:
       - main
       - release/therock-*
-    paths:
-      - "scripts/**"
-      - "requirements.txt"
-      - ".github/workflows/release_unit_tests.yml"
   pull_request:
-    paths:
-      - "scripts/**"
-      - "requirements.txt"
-      - ".github/workflows/release_unit_tests.yml"
   workflow_dispatch:
 
 permissions:
@@ -24,8 +16,15 @@ permissions:
 
 jobs:
   unit_tests:
-    name: Release Unit Tests
-    runs-on: ubuntu-24.04
+    name: "Unit Tests :: ${{ matrix.runs-on }}"
+    strategy:
+      fail-fast: false
+      matrix:
+        runs-on: [ubuntu-24.04, windows-2022]
+    runs-on: ${{ matrix.runs-on }}
+    defaults:
+      run:
+        shell: bash
     env:
       GITHUB_TOKEN: ${{ github.token }}
 
@@ -36,10 +35,9 @@ jobs:
           python-version: "3.12"
 
       - name: Install python deps
-        run: pip install -r requirements.txt
+        run: pip install -r requirements-test.txt
 
       - name: Test scripts
-        working-directory: scripts
         run: |
           python -m pytest -vv --durations=20 \
             --cov --cov-report=term-missing --cov-report=html
@@ -48,11 +46,11 @@ jobs:
         if: always()
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v4.6.2
         with:
-          name: coverage-report
+          name: coverage-report-${{ matrix.runs-on }}
           path: scripts/htmlcov/
 
   unit_tests_summary:
-    name: Release Unit Tests Summary
+    name: Unit Tests Summary
     if: always()
     needs:
       - unit_tests
