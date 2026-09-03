@@ -1,7 +1,7 @@
 # Copyright Advanced Micro Devices, Inc.
 # SPDX-License-Identifier: MIT
 
-name: Unit Tests
+name: Release Unit Tests
 
 on:
   push:
@@ -24,7 +24,7 @@ permissions:
 
 jobs:
   unit_tests:
-    name: Unit Tests
+    name: Release Unit Tests
     runs-on: ubuntu-24.04
     env:
       GITHUB_TOKEN: ${{ github.token }}
@@ -52,7 +52,7 @@ jobs:
           path: scripts/htmlcov/
 
   unit_tests_summary:
-    name: Unit Tests Summary
+    name: Release Unit Tests Summary
     if: always()
     needs:
       - unit_tests
