@@ -23,7 +23,8 @@ import sys
 from pathlib import Path
 from pprint import pformat
 
-from release_utils import RepoInfo, build_plan, run_command, run_command_output, setup_remote, TIMEOUT_SHORT
+from release_utils import run_command, run_command_output, setup_remote, TIMEOUT_SHORT
+from repo_plan import RepoInfo, build_plan
 
 log = logging.getLogger("rock_release")
 

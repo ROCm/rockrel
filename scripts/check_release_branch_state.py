@@ -19,7 +19,8 @@ import subprocess
 import sys
 from pathlib import Path
 
-from release_utils import build_plan, convert_to_ssh, run_command_output, TIMEOUT_SHORT
+from release_utils import convert_to_ssh, run_command_output, TIMEOUT_SHORT
+from repo_plan import build_plan
 from check_github_permissions import get_gh_token, fetch_repo_map, check_permissions
 
 
