@@ -1,0 +1,62 @@
+# Copyright Advanced Micro Devices, Inc.
+# SPDX-License-Identifier: MIT
+
+name: Unit Tests
+
+on:
+  push:
+    branches:
+      - main
+      - release/rockrel-*
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  unit_tests:
+    name: Unit Tests
+    runs-on: ubuntu-24.04
+    env:
+      GITHUB_TOKEN: ${{ github.token }}
+
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v4.1.7
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v5.5.0
+        with:
+          python-version: "3.12"
+
+      - name: Install python deps
+        run: pip install -r requirements.txt
+
+      - name: Test scripts
+        working-directory: scripts
+        run: |
+          python -m pytest -vv --durations=20 \
+            --cov --cov-report=term-missing --cov-report=html
+
+      - name: Upload coverage report
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v4.6.2
+        with:
+          name: coverage-report
+          path: scripts/htmlcov/
+
+  unit_tests_summary:
+    name: Unit Tests Summary
+    if: always()
+    needs:
+      - unit_tests
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Evaluate workflow results
+        env:
+          UNIT_TESTS_RESULT: ${{ needs.unit_tests.result }}
+        run: |
+          echo "unit_tests result: $UNIT_TESTS_RESULT"
+          if [[ "$UNIT_TESTS_RESULT" != "success" ]]; then
+            echo "Unit tests failed or were cancelled."
+            exit 1
+          fi
+          echo "All unit tests passed."
