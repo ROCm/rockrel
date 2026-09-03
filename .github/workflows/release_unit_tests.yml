@@ -8,7 +8,15 @@ on:
     branches:
       - main
       - release/therock-*
+    paths:
+      - "scripts/**"
+      - "requirements.txt"
+      - ".github/workflows/unit_tests.yml"
   pull_request:
+    paths:
+      - "scripts/**"
+      - "requirements.txt"
+      - ".github/workflows/unit_tests.yml"
   workflow_dispatch:
 
 permissions:
