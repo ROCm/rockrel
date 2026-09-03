@@ -7,7 +7,7 @@ on:
   push:
     branches:
       - main
-      - release/rockrel-*
+      - release/therock-*
   pull_request:
   workflow_dispatch:
 
