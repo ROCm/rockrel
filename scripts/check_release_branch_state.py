@@ -23,7 +23,6 @@ from release_utils import convert_to_ssh, run_command_output, TIMEOUT_SHORT
 from repo_plan import build_plan
 from check_github_permissions import get_gh_token, fetch_repo_map, check_permissions
 
-
 def check_ssh_auth() -> bool:
     try:
         result = subprocess.run(
@@ -138,7 +137,6 @@ def main(argv: list[str]) -> int:
 
     cache_dir = Path(args.cache_dir) if args.cache_dir else None
     return run_checks(args.branch_name, args.commitid, cache_dir, args.force_clone, args.exclude_list)
-
 
 if __name__ == "__main__":
     sys.exit(main(sys.argv[1:]))

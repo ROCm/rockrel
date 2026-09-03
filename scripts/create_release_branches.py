@@ -28,7 +28,6 @@ from repo_plan import RepoInfo, build_plan
 
 log = logging.getLogger("rock_release")
 
-
 def remote_branch_exists(repo_dir: Path, branch_name: str) -> bool:
     output = run_command_output(
         ["git", "ls-remote", "--heads", "rocm-github", branch_name],
@@ -36,7 +35,6 @@ def remote_branch_exists(repo_dir: Path, branch_name: str) -> bool:
         timeout=TIMEOUT_SHORT,
     )
     return bool(output)
-
 
 def execute_plan(plan: dict[str, RepoInfo], branch_name: str, dry_run: bool) -> int:
     successful, skipped, failed = {}, {}, {}
@@ -93,7 +91,6 @@ def execute_plan(plan: dict[str, RepoInfo], branch_name: str, dry_run: bool) -> 
 
     return 1 if failed else 0
 
-
 def main(argv: list[str]) -> int:
     parser = argparse.ArgumentParser(description="Create ROCm release branches")
     parser.add_argument("-B", "--branch-name", required=True, help="Release branch name")
@@ -125,7 +122,6 @@ def main(argv: list[str]) -> int:
         return 1
 
     return execute_plan(plan, args.branch_name, args.dry_run)
-
 
 if __name__ == "__main__":
     sys.exit(main(sys.argv[1:]))

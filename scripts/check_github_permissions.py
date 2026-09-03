@@ -32,7 +32,6 @@ GITHUB_API = "https://api.github.com"
 
 log = logging.getLogger("rock_release")
 
-
 def get_gh_token() -> str:
     """Return the GitHub token from the active gh CLI session."""
     try:
@@ -55,7 +54,6 @@ def get_gh_token() -> str:
         raise SystemExit("ERROR: gh auth token returned an empty token. Run: gh auth login")
     return token
 
-
 def extract_owner_repo(url: str) -> tuple[str, str]:
     """Return (owner, repo) from a GitHub HTTPS or SSH URL."""
     m = re.match(r"https://github\.com/([^/]+)/([^/]+?)(?:\.git)?$", url)
@@ -65,7 +63,6 @@ def extract_owner_repo(url: str) -> tuple[str, str]:
     if m:
         return m.group(1), m.group(2)
     raise ValueError(f"Cannot extract owner/repo from URL: {url!r}")
-
 
 def _api_request(url: str, token: str) -> dict:
     req = urllib.request.Request(
@@ -78,7 +75,6 @@ def _api_request(url: str, token: str) -> dict:
     )
     with urllib.request.urlopen(req, timeout=15) as resp:
         return json.loads(resp.read())
-
 
 def fetch_repo_map(token: str, commitid: str, exclude_list: set[str]) -> dict[str, str]:
     """Return repo-name → URL map by reading .gitmodules from the GitHub API.
@@ -127,7 +123,6 @@ def fetch_repo_map(token: str, commitid: str, exclude_list: set[str]) -> dict[st
     if "TheRock" not in exclude_list:
         repo_map["TheRock"] = ROCK_URL
     return repo_map
-
 
 def check_permissions(token: str, repo_map: dict[str, str], action: str = "branches") -> int:
     """Check push/admin access for every repo in repo_map.
@@ -190,7 +185,6 @@ def check_permissions(token: str, repo_map: dict[str, str], action: str = "branc
     print(f"\nAll permission checks passed for {action}.")
     return 0
 
-
 def main(argv: list[str]) -> int:
     parser = argparse.ArgumentParser(description="Check GitHub push/admin permissions for a release plan")
     parser.add_argument("-C", "--commitid", required=True, help="TheRock commit SHA")
@@ -212,7 +206,6 @@ def main(argv: list[str]) -> int:
     token = get_gh_token()
     repo_map = fetch_repo_map(token, args.commitid, set(args.exclude_list))
     return check_permissions(token, repo_map, action=args.action)
-
 
 if __name__ == "__main__":
     sys.exit(main(sys.argv[1:]))
