@@ -15,7 +15,6 @@ TIMEOUT_SHORT = 60
 
 log = logging.getLogger("rock_release")
 
-
 def run_command(
     args: list,
     cwd: Path,
@@ -58,7 +57,6 @@ def run_command(
         log.info((exc.stderr or b"").decode(errors="ignore"))
         raise
 
-
 def run_command_output(args: list, cwd: Path, timeout: int | None = TIMEOUT_SHORT) -> str:
     """Run a command and return its stdout as a stripped string."""
     cmd = [str(a) for a in args]
@@ -69,12 +67,10 @@ def run_command_output(args: list, cwd: Path, timeout: int | None = TIMEOUT_SHOR
     )
     return result.stdout.strip()
 
-
 def convert_to_ssh(url: str) -> str:
     if url.startswith("https://github.com/"):
         return "git@github.com:" + url.replace("https://github.com/", "")
     return url
-
 
 def setup_remote(url: str, repo_dir: Path) -> None:
     ssh_url = convert_to_ssh(url)

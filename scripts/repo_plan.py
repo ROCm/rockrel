@@ -11,13 +11,11 @@ from pprint import pformat
 
 from release_utils import ROCK_URL, TIMEOUT_LONG, log, run_command, run_command_output
 
-
 @dataclass
 class RepoInfo:
     url: str
     commit: str
     path: Path
-
 
 def get_submodule_url_map(repo_dir: Path) -> dict[str, str]:
     gitmodules = repo_dir / ".gitmodules"
@@ -47,7 +45,6 @@ def get_submodule_url_map(repo_dir: Path) -> dict[str, str]:
         except Exception:
             log.info("No URL entry for %s; skipping", section)
     return url_map
-
 
 def _ensure_clone(clone_dir: Path, cache_root: Path, force_clone: bool) -> None:
     """Clone TheRock if needed, or fetch latest changes."""
@@ -81,7 +78,6 @@ def _ensure_clone(clone_dir: Path, cache_root: Path, force_clone: bool) -> None:
             cwd=clone_dir, stream=True, timeout=TIMEOUT_LONG,
         )
 
-
 def _update_submodules(clone_dir: Path) -> None:
     """Populate submodules via fetch_sources.py or git submodule update."""
     fetch_script = clone_dir / "build_tools" / "fetch_sources.py"
@@ -97,7 +93,6 @@ def _update_submodules(clone_dir: Path) -> None:
             ["git", "submodule", "update", "--init", "--recursive"],
             cwd=clone_dir, stream=True, timeout=TIMEOUT_LONG,
         )
-
 
 def _collect_repos(clone_dir: Path, commitid: str, exclude: set[str]) -> dict[str, RepoInfo]:
     """Parse submodule status and .gitmodules into a repo plan."""
@@ -130,7 +125,6 @@ def _collect_repos(clone_dir: Path, commitid: str, exclude: set[str]) -> dict[st
 
     plan["TheRock"] = RepoInfo(url=ROCK_URL, commit=commitid, path=clone_dir)
     return plan
-
 
 def build_plan(
     commitid: str,
