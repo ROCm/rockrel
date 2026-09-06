@@ -20,6 +20,7 @@ import pytest
 
 import sys
 sys.path.insert(0, str(Path(__file__).parent.parent.parent))
+sys.path.insert(0, str(Path(__file__).parent.parent))
 from scripts.release_utils import convert_to_ssh
 from scripts.repo_plan import RepoInfo, get_submodule_url_map
 from scripts.create_release_branches import execute_plan
