@@ -81,7 +81,9 @@ jobs:
           gh_app_private_key: ${{ secrets.GH_APP_HAULY_PRIVATE_KEY }}
 
   test:
-    uses: ROCm/TheRock/.github/workflows/test_artifacts.yml@main
+    # TEMP(safaizal-asan-testing): point at TheRock testing branch to validate
+    # the asan-debug sanity-check fix (timeout removal + LD_PRELOAD ordering).
+    uses: ROCm/TheRock/.github/workflows/test_artifacts.yml@users/safaizal/asan-testing
     secrets: inherit
     with:
       artifact_group: ${{ inputs.artifact_group }}
