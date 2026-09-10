@@ -40,13 +40,19 @@ The bar for "ready" is context-dependent but usually involves:
 This provides a brief overview on how to install prereleases triggered with the workflows in this repository.
 For general and more detailed information on releases, see [`RELEASES.md` in TheRock](https://github.com/ROCm/TheRock/blob/main/RELEASES.md).
 
+> [!NOTE]
+> ROCm 10.0.0 release candidates were published to the legacy prerelease
+> locations. See
+> [Legacy multi-arch releases](https://github.com/ROCm/TheRock/blob/main/docs/packaging/legacy_multi_arch_releases.md)
+> for those indexes. The instructions below describe current prereleases.
+
 #### Installing ROCm Python packages
 
 Multi-arch releases use a single index URL for all GPU architectures. Use
 `device-all` for all supported GPUs, or one family with a `[device-*]` extra:
 
 ```bash
-pip install --index-url https://rocm.prereleases.amd.com/whl-multi-arch/ --pre \
+pip install --index-url https://rc.repo.amd.com/rocm/whl-next/ --pre \
   "rocm[libraries,devel,device-all]"
 # For a specific GPU family instead, e.g.:
 # "rocm[libraries,devel,device-gfx942]"
@@ -58,8 +64,8 @@ for the device extras table and full install instructions.
 
 #### Installing from tarballs
 
-Prerelease tarballs can be downloaded from
-<https://rocm.prereleases.amd.com/tarball-multi-arch/>.
+Prerelease tarballs can be downloaded from the ROCm Core tarball index:
+<https://rc.repo.amd.com/rocm/core/tarball/>.
 
 After downloading, extract the release tarball into place:
 
@@ -67,10 +73,10 @@ After downloading, extract the release tarball into place:
 mkdir therock-tarball && cd therock-tarball
 
 # Multiarch (all GPUs):
-wget https://rocm.prereleases.amd.com/tarball-multi-arch/therock-dist-linux-multiarch-7.14.0rc1.tar.gz
+wget https://rc.repo.amd.com/rocm/core/tarball/therock-dist-linux-multiarch-10.1.0rc1.tar.gz
 
 # Per-family (one GPU family):
-# wget https://rocm.prereleases.amd.com/tarball-multi-arch/therock-dist-linux-gfx94X-dcgpu-7.14.0rc1.tar.gz
+# wget https://rc.repo.amd.com/rocm/core/tarball/therock-dist-linux-gfx94X-dcgpu-10.1.0rc1.tar.gz
 
 mkdir install
 tar -xf *.tar.gz -C install
@@ -87,7 +93,7 @@ AMD provides prerelease ROCm packages for both Debian-based and RPM-based Linux 
 Repository base URL:
 
 ```
-https://rocm.prereleases.amd.com/packages-multi-arch/
+https://rc.repo.amd.com/rocm/core/packages/
 ```
 
 ---
@@ -111,7 +117,7 @@ distribution (e.g. `debian12`, `ubuntu2204`, `ubuntu2604`).
 
 ```bash
 sudo tee /etc/apt/sources.list.d/rocm.list << EOF
-deb [arch=amd64 signed-by=/etc/apt/keyrings/amdrocm.gpg] https://rocm.prereleases.amd.com/packages-multi-arch/ubuntu2404/ stable main
+deb [arch=amd64 signed-by=/etc/apt/keyrings/amdrocm.gpg] https://rc.repo.amd.com/rocm/core/packages/ubuntu2404/ stable main
 EOF
 sudo apt update
 ```
@@ -140,7 +146,7 @@ distribution (e.g. `rhel8`, `rhel9`, `sles15`, `sles16`).
 sudo tee /etc/yum.repos.d/rocm.repo << EOF
 [rocm]
 name=ROCm Prerelease Repository
-baseurl=https://rocm.prereleases.amd.com/packages-multi-arch/rhel10/x86_64/
+baseurl=https://rc.repo.amd.com/rocm/core/packages/rhel10/x86_64/
 enabled=1
 gpgcheck=1
 gpgkey=https://rocm.prereleases.amd.com/packages/gpg/rocm.gpg
