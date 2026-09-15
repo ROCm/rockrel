@@ -1,4 +1,4 @@
-# rockrel (TheRock Releases)
+# rockrel (ROCm Core SDK Releases)
 
 This repository contains code and actions workflow runs for stable [TheRock](https://github.com/ROCm/TheRock) releases:
 
