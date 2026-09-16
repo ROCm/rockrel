@@ -14,7 +14,6 @@ has the necessary permissions before performing release activities.
 Usage:
     python check_github_permissions.py \\
         --commitid <rock-git-ref> \\
-        [--action branches|tags] \\
         [--exclude-list repo1 repo2]
 """
 import argparse
