@@ -1,4 +1,3 @@
-#!/usr/bin/env python3
 # Copyright Advanced Micro Devices, Inc.
 # SPDX-License-Identifier: MIT
 """
@@ -30,7 +29,6 @@ from scripts.release_utils import (
     get_gh_token,
 )
 
-
 # ---------------------------------------------------------------------------
 # extract_owner_repo
 # ---------------------------------------------------------------------------
@@ -51,7 +49,6 @@ class TestExtractOwnerRepo:
     def test_invalid_url_raises(self):
         with pytest.raises(ValueError, match="Cannot extract owner/repo"):
             extract_owner_repo("https://gitlab.com/someorg/repo.git")
-
 
 # ---------------------------------------------------------------------------
 # get_gh_token
@@ -82,7 +79,6 @@ class TestGetGhToken:
             with pytest.raises(SystemExit, match="empty token"):
                 get_gh_token()
 
-
 # ---------------------------------------------------------------------------
 # _api_request
 # ---------------------------------------------------------------------------
@@ -106,7 +102,6 @@ class TestApiRequest:
             with pytest.raises(urllib.error.HTTPError):
                 _api_request("https://api.github.com/repos/ROCm/hip", "token")
 
-
 # ---------------------------------------------------------------------------
 # fetch_repo_map
 # ---------------------------------------------------------------------------
@@ -123,10 +118,8 @@ _GITMODULES_CONTENT = """\
     url = https://github.com/llvm/llvm-project.git
 """
 
-
 def _make_api_response(content: str) -> dict:
     return {"content": base64.b64encode(content.encode()).decode()}
-
 
 class TestFetchRepoMap:
     def _patch_api(self, content: str):

@@ -1,4 +1,3 @@
-#!/usr/bin/env python3
 # Copyright Advanced Micro Devices, Inc.
 # SPDX-License-Identifier: MIT
 """
@@ -19,7 +18,6 @@ sys.path.insert(0, str(Path(__file__).parent.parent))
 
 from scripts.check_github_permissions import check_permissions
 
-
 # ---------------------------------------------------------------------------
 # check_permissions
 # ---------------------------------------------------------------------------
@@ -29,7 +27,6 @@ def _repo_map() -> dict[str, str]:
         "hip": "https://github.com/ROCm/hip.git",
         "clr": "https://github.com/ROCm/clr.git",
     }
-
 
 class TestCheckPermissions:
     def _api_response(self, push: bool, admin: bool = False) -> dict:
