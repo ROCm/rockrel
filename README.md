@@ -104,7 +104,7 @@ https://rc.repo.amd.com/rocm/core/packages/
 
 ```bash
 sudo mkdir --parents --mode=0755 /etc/apt/keyrings
-wget https://rocm.prereleases.amd.com/packages/gpg/rocm.gpg -O - \
+wget https://rc.repo.amd.com/rocm/gpg/packages.gpg -O - \
 | gpg --dearmor | sudo tee /etc/apt/keyrings/amdrocm.gpg > /dev/null
 ```
 
@@ -149,7 +149,7 @@ name=ROCm Prerelease Repository
 baseurl=https://rc.repo.amd.com/rocm/core/packages/rhel10/x86_64/
 enabled=1
 gpgcheck=1
-gpgkey=https://rocm.prereleases.amd.com/packages/gpg/rocm.gpg
+gpgkey=https://rc.repo.amd.com/rocm/gpg/packages.gpg
 EOF
 sudo dnf clean all
 ```
