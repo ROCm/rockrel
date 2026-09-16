@@ -13,7 +13,6 @@ from pathlib import Path
 ROCK_URL = "https://github.com/ROCm/TheRock.git"
 GITHUB_API = "https://api.github.com"
 
-
 def get_gh_token() -> str:
     """Return the GitHub token from the active gh CLI session."""
     try:
@@ -36,7 +35,6 @@ def get_gh_token() -> str:
         raise SystemExit("ERROR: gh auth token returned an empty token. Run: gh auth login")
     return token
 
-
 def extract_owner_repo(url: str) -> tuple[str, str]:
     """Return (owner, repo) from a GitHub HTTPS or SSH URL."""
     m = re.match(r"https://github\.com/([^/]+)/([^/]+?)(?:\.git)?$", url)
@@ -46,7 +44,6 @@ def extract_owner_repo(url: str) -> tuple[str, str]:
     if m:
         return m.group(1), m.group(2)
     raise ValueError(f"Cannot extract owner/repo from URL: {url!r}")
-
 
 def _api_request(url: str, token: str) -> dict:
     """Make an authenticated GitHub API GET request and return parsed JSON."""
@@ -60,7 +57,6 @@ def _api_request(url: str, token: str) -> dict:
     )
     with urllib.request.urlopen(req, timeout=15) as resp:
         return json.loads(resp.read())
-
 
 def fetch_repo_map(token: str, commitid: str, exclude_list: set[str]) -> dict[str, str]:
     """Return repo-name → URL map by reading .gitmodules from the GitHub API.
