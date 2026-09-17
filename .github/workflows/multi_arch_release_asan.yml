@@ -1,79 +1,44 @@
-name: Multi-Arch Release ASAN
+# Copyright Advanced Micro Devices, Inc.
+# SPDX-License-Identifier: MIT
 
-# Expected triggers:
-#
-# Release type | Trigger details
-# ------------ | --------------------------------------------------------------
-# dev          | "workflow_dispatch" for testing with any set of inputs
-# dev-bkc      | "workflow_dispatch" for BKC development builds
-# nightly      | "schedule", or "workflow_dispatch" as needed (default inputs)
-# nightly-bkc  | "workflow_dispatch" for BKC nightly builds
-# prerelease   | "workflow_dispatch" for stable releases (explicit GPU family lists?)
+# Temporary dispatcher used only to validate the TSAN workflow before its new
+# filename exists on rockrel's default branch. This branch is not the PR head.
+name: Multi-Arch Release Host TSAN Branch Validation
 
 on:
   workflow_dispatch:
     inputs:
       release_type:
-        description: 'Release type: "dev", "dev-bkc", "nightly", "nightly-bkc", or "prerelease".'
+        description: "Artifact release type."
         type: choice
-        options:
-          - dev
-          - dev-bkc
-          - nightly
-          - nightly-bkc
-          - prerelease
+        options: [dev]
         default: dev
-      prerelease_version:
-        description: "(Optional) Prerelease version number, e.g. '2' for 7.10.0rc2"
-        type: string
-        default: ""
       linux_amdgpu_families:
-        description: 'Linux GPU families. "all" = all, "none" = skip Linux.'
+        description: "Linux artifact families. Tests remain CPU-only."
         type: string
         default: "all"
       ref:
-        description: "TheRock branch, tag, or SHA. Empty = default branch."
+        description: "TheRock branch, tag, or SHA."
         type: string
-        default: ""
-      run_full_pytorch_tests:
-        description: "Run full PyTorch tests after scheduled nightly Linux PyTorch wheel builds complete."
-        type: boolean
-        default: false
-      build_pytorch:
-        description: "Build PyTorch wheels"
-        type: boolean
-        default: true
-      python_version:
-        description: "Single Python version for wheel builds (empty for full matrix)"
-        type: string
-        default: ""
-
-  # Trigger on a schedule to build nightly releases.
-  schedule:
-    # Runs at 12:00 AM UTC, which is 5:00 PM PDT (UTC-7)
-    - cron: '0 00 * * *'
+        default: "users/sa-faizal/tsan-multi-arch"
 
 permissions:
   contents: read
 
 run-name: >-
-  Multi-Arch Release ASAN (${{ inputs.release_type || 'nightly' }})
-  | Linux: ${{ inputs.linux_amdgpu_families || 'all' }}
+  Multi-Arch Release Host TSAN branch validation (${{ inputs.release_type }})
+  | Linux artifacts: ${{ inputs.linux_amdgpu_families }}
 
 jobs:
   release:
-    uses: ROCm/TheRock/.github/workflows/multi_arch_release_asan.yml@main
+    uses: ROCm/TheRock/.github/workflows/multi_arch_release_tsan.yml@users/sa-faizal/tsan-multi-arch
     secrets: inherit
     with:
-      release_type: ${{ inputs.release_type || 'nightly' }}
-      prerelease_version: ${{ inputs.prerelease_version || '' }}
-      linux_amdgpu_families: ${{ inputs.linux_amdgpu_families || 'all' }}
-      run_full_pytorch_tests: ${{ inputs.run_full_pytorch_tests || github.event_name == 'schedule' }}
-      build_pytorch: ${{ inputs.build_pytorch == '' && true || inputs.build_pytorch }}
-      python_version: ${{ inputs.python_version || '' }}
+      release_type: ${{ inputs.release_type }}
+      linux_amdgpu_families: ${{ inputs.linux_amdgpu_families }}
       repository: "ROCm/TheRock"
-      ref: ${{ inputs.ref || '' }}
+      ref: ${{ inputs.ref }}
     permissions:
       contents: read
-      actions: write
+      actions: read
       id-token: write
