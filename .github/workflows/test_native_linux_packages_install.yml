@@ -51,9 +51,9 @@ on:
         type: string
         default: ""
       run_uninstall:
-        description: "Enable uninstall verification: remove installed ROCm metapackages and assert clean teardown (sanity/full only). Disabled by default."
+        description: "Enable uninstall verification: remove installed ROCm metapackages and assert clean teardown (sanity/full only). Enabled by default."
         type: boolean
-        default: false
+        default: true
       quartz_tracking_id:
         description: >-
           Leave empty. Internal Quartz tracking id, set automatically to link
