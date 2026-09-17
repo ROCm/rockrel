@@ -28,6 +28,10 @@ on:
       sanity_check_only_for_family:
         type: boolean
         default: false
+      host_only:
+        description: "Run TheRock's explicitly admitted CPU-only host sanitizer matrix."
+        type: boolean
+        default: false
       test_type:
         type: string
       test_labels:
@@ -81,7 +85,7 @@ jobs:
           gh_app_private_key: ${{ secrets.GH_APP_HAULY_PRIVATE_KEY }}
 
   test:
-    uses: ROCm/TheRock/.github/workflows/test_artifacts.yml@main
+    uses: ROCm/TheRock/.github/workflows/test_artifacts.yml@users/sa-faizal/tsan-multi-arch
     secrets: inherit
     with:
       artifact_group: ${{ inputs.artifact_group }}
@@ -91,6 +95,7 @@ jobs:
       test_runs_on: ${{ inputs.test_runs_on }}
       benchmark_runs_on: ${{ inputs.benchmark_runs_on }}
       sanity_check_only_for_family: ${{ inputs.sanity_check_only_for_family }}
+      host_only: ${{ inputs.host_only }}
       test_type: ${{ inputs.test_type }}
       test_labels: ${{ inputs.test_labels }}
       run_extended_tests: ${{ inputs.run_extended_tests }}
