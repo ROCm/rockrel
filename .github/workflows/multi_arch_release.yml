@@ -39,6 +39,16 @@ on:
         description: "TheRock branch, tag, or SHA. Empty = default branch."
         type: string
         default: ""
+      resource_probe_targets:
+        description: >-
+          JSON array of exact Linux stage selectors to probe, for example
+          ["compiler-runtime", "math-libs:gfx94X-dcgpu"].
+        type: string
+        default: "[]"
+      resource_probe_interval_seconds:
+        description: "Resource probe sampling interval in seconds."
+        type: number
+        default: 5
       # Enable Quartz release-lineage tracking. When on, TheRock propagates this
       # run's id to every triggered workflow as quartz_tracking_id, formatted as
       # "<github.run_id>;<release_type>". Scheduled nightly runs always enable it.
@@ -88,6 +98,8 @@ jobs:
       repository: "ROCm/TheRock"
       ref: ${{ inputs.ref || '' }}
       enable_quartz_tracking: ${{ github.event_name == 'schedule' || inputs.enable_quartz_tracking }}
+      resource_probe_targets: ${{ inputs.resource_probe_targets || '[]' }}
+      resource_probe_interval_seconds: ${{ inputs.resource_probe_interval_seconds || 5 }}
     permissions:
       contents: write
       actions: write
