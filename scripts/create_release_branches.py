@@ -100,7 +100,8 @@ def main(argv: list[str]) -> int:
     parser = argparse.ArgumentParser(description="Create ROCm release branches")
     parser.add_argument("-B", "--branch-name", required=True, help="Release branch name")
     parser.add_argument("-C", "--commitid", required=True, help="TheRock git ref (branch, tag, or SHA)")
-    parser.add_argument("--dry-run", action=argparse.BooleanOptionalAction, default=True)
+    parser.add_argument("--dry-run", action=argparse.BooleanOptionalAction, default=True,
+                        help="Log planned actions without making any git changes (default: enabled)")
     parser.add_argument("--exclude-list", nargs="*", default=[])
     parser.add_argument("--force-clone", action="store_true", default=False)
     parser.add_argument("--cache-dir", default=None)

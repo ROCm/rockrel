@@ -1,15 +1,22 @@
-#!/usr/bin/env python3
 # Copyright Advanced Micro Devices, Inc.
 # SPDX-License-Identifier: MIT
 """Repo discovery and plan building for ROCm release scripts."""
 
 import shutil
+import subprocess
 import tempfile
 from dataclasses import dataclass
 from pathlib import Path
 from pprint import pformat
 
-from release_utils import ROCK_URL, TIMEOUT_LONG_SECONDS, log, resolve_git_ref, run_command, run_command_output
+from release_utils import (
+    ROCK_URL,
+    TIMEOUT_LONG_SECONDS,
+    log,
+    resolve_git_ref,
+    run_command,
+    run_command_output,
+)
 
 @dataclass
 class RepoInfo:
@@ -26,7 +33,7 @@ def get_submodule_url_map(repo_dir: Path) -> dict[str, str]:
             ["git", "config", "--file", str(gitmodules), "--get-regexp", r"submodule\..*\.path"],
             cwd=repo_dir,
         )
-    except Exception:
+    except subprocess.CalledProcessError:
         return {}
 
     url_map: dict[str, str] = {}
@@ -42,7 +49,7 @@ def get_submodule_url_map(repo_dir: Path) -> dict[str, str]:
                 cwd=repo_dir,
             )
             url_map[path_value] = url
-        except Exception:
+        except subprocess.CalledProcessError:
             log.info("No URL entry for %s; skipping", section)
     return url_map
 
@@ -98,7 +105,7 @@ def _collect_repos(clone_dir: Path, commitid: str, exclude: set[str]) -> dict[st
     """Parse submodule status and .gitmodules into a repo plan."""
     try:
         status_output = run_command_output(["git", "submodule", "status"], cwd=clone_dir)
-    except Exception as exc:
+    except subprocess.CalledProcessError as exc:
         raise RuntimeError(f"Failed to read submodule status: {exc}") from exc
 
     url_map = get_submodule_url_map(clone_dir)

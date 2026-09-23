@@ -31,7 +31,6 @@ Arguments:
     --exclude-list  Repo names to skip.
 """
 import argparse
-import logging
 import subprocess
 import sys
 from pathlib import Path
@@ -120,8 +119,6 @@ def main(argv: list[str]) -> int:
     parser.add_argument("-C", "--commitid", required=True, help="TheRock git ref (branch, tag, or SHA)")
     parser.add_argument("--exclude-list", nargs="*", default=[], help="Repo names to skip")
     args = parser.parse_args(argv)
-
-    logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
 
     return run_checks(args.branch_name, args.commitid, args.exclude_list)
 
