@@ -24,7 +24,6 @@ sys.path.insert(0, str(Path(__file__).parent.parent))
 from scripts.repo_plan import RepoInfo, get_submodule_url_map
 from scripts.create_release_branches import create_branch, execute_plan, push_branch
 
-
 def _make_plan(tmp_path: Path) -> dict[str, RepoInfo]:
     repo_dir = tmp_path / "hip"
     repo_dir.mkdir()
@@ -35,7 +34,6 @@ def _make_plan(tmp_path: Path) -> dict[str, RepoInfo]:
             path=repo_dir,
         )
     }
-
 
 # ---------------------------------------------------------------------------
 # ROCm org filter logic
@@ -58,7 +56,6 @@ class TestRocmOrgFilter:
             or "github.com:rocm/" in url_lower
         )
         assert result == is_rocm
-
 
 # ---------------------------------------------------------------------------
 # get_submodule_url_map
@@ -89,7 +86,6 @@ class TestGetSubmoduleUrlMap:
         url_map = get_submodule_url_map(tmp_path)
         assert "external/hip" not in url_map
 
-
 # ---------------------------------------------------------------------------
 # create_branch / push_branch helpers
 # ---------------------------------------------------------------------------
@@ -111,7 +107,6 @@ class TestCreateBranch:
             with pytest.raises(subprocess.CalledProcessError):
                 create_branch(tmp_path, "release/6.4", "abc123")
 
-
 class TestPushBranch:
     def test_calls_git_push(self, tmp_path):
         with patch("scripts.create_release_branches.run_command") as mock_run:
@@ -127,7 +122,6 @@ class TestPushBranch:
         ):
             with pytest.raises(subprocess.CalledProcessError):
                 push_branch(tmp_path, "release/6.4")
-
 
 # ---------------------------------------------------------------------------
 # execute_plan
@@ -197,7 +191,6 @@ class TestExecutePlan:
         assert rc == 0
         mock_create.assert_called_once()
         mock_push.assert_called_once()
-
 
 # ---------------------------------------------------------------------------
 # main() accepts any git ref
