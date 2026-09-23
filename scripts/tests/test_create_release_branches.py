@@ -2,10 +2,9 @@
 # Copyright Advanced Micro Devices, Inc.
 # SPDX-License-Identifier: MIT
 """
-Tests for create_release_branches.py and release_utils.py.
+Tests for create_release_branches.py.
 
 Covers:
-- convert_to_ssh URL conversion
 - ROCm org filtering logic
 - get_submodule_url_map parsing
 - create_branch / push_branch helpers
@@ -22,7 +21,6 @@ import pytest
 import sys
 sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 sys.path.insert(0, str(Path(__file__).parent.parent))
-from scripts.release_utils import convert_to_ssh
 from scripts.repo_plan import RepoInfo, get_submodule_url_map
 from scripts.create_release_branches import create_branch, execute_plan, push_branch
 
@@ -37,28 +35,6 @@ def _make_plan(tmp_path: Path) -> dict[str, RepoInfo]:
             path=repo_dir,
         )
     }
-
-
-# ---------------------------------------------------------------------------
-# convert_to_ssh
-# ---------------------------------------------------------------------------
-
-class TestConvertToSsh:
-    def test_https_converted(self):
-        assert convert_to_ssh("https://github.com/ROCm/hip.git") == \
-            "git@github.com:ROCm/hip.git"
-
-    def test_https_without_dot_git(self):
-        assert convert_to_ssh("https://github.com/ROCm/clr") == \
-            "git@github.com:ROCm/clr"
-
-    def test_ssh_url_passthrough(self):
-        url = "git@github.com:ROCm/hip.git"
-        assert convert_to_ssh(url) == url
-
-    def test_non_github_url_passthrough(self):
-        url = "https://gitlab.com/someorg/repo.git"
-        assert convert_to_ssh(url) == url
 
 
 # ---------------------------------------------------------------------------
