@@ -1,4 +1,3 @@
-#!/usr/bin/env python3
 # Copyright Advanced Micro Devices, Inc.
 # SPDX-License-Identifier: MIT
 """Shared constants and subprocess utilities for ROCm release scripts."""
@@ -6,12 +5,11 @@
 import logging
 import shlex
 import subprocess
-import sys
 from pathlib import Path
 
 ROCK_URL = "https://github.com/ROCm/TheRock.git"
-TIMEOUT_LONG = 1800
-TIMEOUT_SHORT = 60
+TIMEOUT_LONG_SECONDS = 1800
+TIMEOUT_SHORT_SECONDS = 60
 
 log = logging.getLogger("rock_release")
 
@@ -19,53 +17,40 @@ def run_command(
     args: list,
     cwd: Path,
     *,
-    stream: bool = False,
-    timeout: int | None = TIMEOUT_SHORT,
+    timeout: int | None = TIMEOUT_SHORT_SECONDS,
 ) -> None:
-    """Run a command, streaming output line-by-line when stream=True."""
+    """Run a command, raising CalledProcessError on failure."""
     cmd = [str(a) for a in args]
     log.info("++ Exec [%s]$ %s", cwd, shlex.join(cmd))
-    sys.stdout.flush()
+    subprocess.run(
+        cmd,
+        cwd=str(cwd),
+        stdin=subprocess.DEVNULL,
+        check=True,
+        timeout=timeout,
+    )
 
-    if stream:
-        process = subprocess.Popen(
-            cmd, cwd=str(cwd), stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True
-        )
-        try:
-            for line in process.stdout:
-                log.info(line.rstrip())
-            ret = process.wait(timeout=timeout)
-        except subprocess.TimeoutExpired:
-            process.kill()
-            process.wait()
-            raise subprocess.TimeoutExpired(cmd, timeout)
-        if ret != 0:
-            raise subprocess.CalledProcessError(ret, cmd)
-        return
-
-    try:
-        result = subprocess.run(
-            cmd, cwd=str(cwd), stdout=subprocess.PIPE, stderr=subprocess.PIPE,
-            stdin=subprocess.DEVNULL, check=True, timeout=timeout,
-        )
-        if result.stdout:
-            log.info(result.stdout.decode(errors="ignore"))
-        if result.stderr:
-            log.info(result.stderr.decode(errors="ignore"))
-    except subprocess.CalledProcessError as exc:
-        log.info((exc.stdout or b"").decode(errors="ignore"))
-        log.info((exc.stderr or b"").decode(errors="ignore"))
-        raise
-
-def run_command_output(args: list, cwd: Path, timeout: int | None = TIMEOUT_SHORT) -> str:
+def run_command_output(args: list, cwd: Path, timeout: int | None = TIMEOUT_SHORT_SECONDS) -> str:
     """Run a command and return its stdout as a stripped string."""
     cmd = [str(a) for a in args]
     log.info("++ Exec [%s]$ %s", cwd, shlex.join(cmd))
     result = subprocess.run(
-        cmd, cwd=str(cwd), stdout=subprocess.PIPE, stderr=subprocess.PIPE,
-        stdin=subprocess.DEVNULL, text=True, check=True, timeout=timeout,
+        cmd,
+        cwd=str(cwd),
+        stdout=subprocess.PIPE,
+        stdin=subprocess.DEVNULL,
+        text=True,
+        check=True,
+        timeout=timeout,
     )
     return result.stdout.strip()
+
+def resolve_git_ref(ref: str, repo_dir: Path) -> str:
+    """Resolve any git ref (branch, tag, SHA) to a full 40-char commit SHA."""
+    return run_command_output(
+        ["git", "rev-parse", "--verify", f"{ref}^{{commit}}"],
+        cwd=repo_dir,
+    )
 
 def convert_to_ssh(url: str) -> str:
     if url.startswith("https://github.com/"):

@@ -9,7 +9,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from pprint import pformat
 
-from release_utils import ROCK_URL, TIMEOUT_LONG, log, run_command, run_command_output
+from release_utils import ROCK_URL, TIMEOUT_LONG_SECONDS, log, resolve_git_ref, run_command, run_command_output
 
 @dataclass
 class RepoInfo:
@@ -61,7 +61,7 @@ def _ensure_clone(clone_dir: Path, cache_root: Path, force_clone: bool) -> None:
 
     if needs_clone:
         log.info("Cloning TheRock into %s", clone_dir)
-        run_command(["git", "clone", ROCK_URL, str(clone_dir)], cwd=cache_root, stream=True, timeout=TIMEOUT_LONG)
+        run_command(["git", "clone", ROCK_URL, str(clone_dir)], cwd=cache_root, timeout=TIMEOUT_LONG_SECONDS)
     else:
         log.info("Reusing existing TheRock clone at %s", clone_dir)
         try:
@@ -75,7 +75,7 @@ def _ensure_clone(clone_dir: Path, cache_root: Path, force_clone: bool) -> None:
         log.info("Fetching latest changes...")
         run_command(
             ["git", "fetch", "origin", "--prune", "--recurse-submodules=on-demand"],
-            cwd=clone_dir, stream=True, timeout=TIMEOUT_LONG,
+            cwd=clone_dir, timeout=TIMEOUT_LONG_SECONDS,
         )
 
 def _update_submodules(clone_dir: Path) -> None:
@@ -85,13 +85,13 @@ def _update_submodules(clone_dir: Path) -> None:
         log.info("Updating submodules via fetch_sources.py...")
         run_command(
             ["python3", str(fetch_script), "--jobs", "10", "--no-apply-patches"],
-            cwd=clone_dir, stream=True, timeout=TIMEOUT_LONG,
+            cwd=clone_dir, timeout=TIMEOUT_LONG_SECONDS,
         )
     else:
         log.info("fetch_sources.py not found; falling back to git submodule update")
         run_command(
             ["git", "submodule", "update", "--init", "--recursive"],
-            cwd=clone_dir, stream=True, timeout=TIMEOUT_LONG,
+            cwd=clone_dir, timeout=TIMEOUT_LONG_SECONDS,
         )
 
 def _collect_repos(clone_dir: Path, commitid: str, exclude: set[str]) -> dict[str, RepoInfo]:
@@ -142,10 +142,11 @@ def build_plan(
 
     log.info("Checking out TheRock at %s", commitid)
     run_command(["git", "checkout", commitid], cwd=clone_dir)
-    run_command(["git", "reset", "--hard", commitid], cwd=clone_dir)
+    canonical_sha = resolve_git_ref("HEAD", clone_dir)
+    run_command(["git", "reset", "--hard", canonical_sha], cwd=clone_dir)
 
     _update_submodules(clone_dir)
 
-    plan = _collect_repos(clone_dir, commitid, exclude)
+    plan = _collect_repos(clone_dir, canonical_sha, exclude)
     log.info("Execution plan:\n%s", pformat(plan))
     return plan
