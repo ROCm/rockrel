@@ -78,7 +78,7 @@ def _ensure_clone(clone_dir: Path, cache_root: Path, force_clone: bool) -> None:
             cwd=clone_dir, timeout=TIMEOUT_LONG_SECONDS,
         )
 
-def _update_submodules(clone_dir: Path) -> None:
+def update_submodules(clone_dir: Path) -> None:
     """Populate submodules via fetch_sources.py or git submodule update."""
     fetch_script = clone_dir / "build_tools" / "fetch_sources.py"
     if fetch_script.exists():
@@ -144,8 +144,6 @@ def build_plan(
     run_command(["git", "checkout", commitid], cwd=clone_dir)
     canonical_sha = resolve_git_ref("HEAD", clone_dir)
     run_command(["git", "reset", "--hard", canonical_sha], cwd=clone_dir)
-
-    _update_submodules(clone_dir)
 
     plan = _collect_repos(clone_dir, canonical_sha, exclude)
     log.info("Execution plan:\n%s", pformat(plan))

@@ -4,24 +4,40 @@
 """
 Read-only preflight check for release branching.
 
-Verifies SSH auth, remote reachability, and whether the release branch
-already exists for each repo in the plan. Mutates nothing.
+Run this BEFORE create_release_branches.py to verify that the current
+machine is ready to create a new release branch. Mutates nothing —
+no local clone needed.
+
+Checks (in order):
+  1. SSH authentication to github.com succeeds
+  2. GitHub token has push/admin access to all ROCm repos in the plan
+  3. For each repo, verifies the remote is reachable over SSH and
+     reports whether the release branch already exists:
+       [OK]   ready to branch (branch does not exist yet)
+       [SKIP] branch already exists on this repo (will be skipped by
+              create_release_branches.py)
+       [FAIL] remote unreachable or SSH error
 
 Usage:
     python check_release_branch_state.py \\
         --branch-name <release-branch> \\
-        --commitid <rock-commit-sha>
+        --commitid <rock-git-ref> \\
+        [--exclude-list repo1 repo2]
+
+Arguments:
+    --branch-name   The new release branch name to check.
+                    This branch should NOT exist yet — [OK] means it is safe to create.
+    --commitid      TheRock git ref (branch, tag, or SHA) to read the repo list from.
+    --exclude-list  Repo names to skip.
 """
 import argparse
 import logging
-import re
 import subprocess
 import sys
 from pathlib import Path
 
-from release_utils import convert_to_ssh, run_command_output, TIMEOUT_SHORT
-from repo_plan import build_plan
-from check_github_permissions import get_gh_token, fetch_repo_map, check_permissions
+from release_utils import convert_to_ssh, fetch_repo_map, get_gh_token, run_command_output, TIMEOUT_SHORT_SECONDS
+from check_github_permissions import check_permissions
 
 def check_ssh_auth() -> bool:
     try:
@@ -41,24 +57,14 @@ def check_ssh_auth() -> bool:
         print(f"[FAIL] SSH check error: {exc}")
         return False
 
-def check_repo(repo_name: str, url: str, repo_path: Path, branch_name: str) -> dict:
+def check_repo(repo_name: str, url: str, branch_name: str) -> dict:
     ssh_url = convert_to_ssh(url)
     result = {"repo": repo_name, "reachable": False, "branch_exists": False, "error": None}
-
-    try:
-        run_command_output(
-            ["git", "remote", "get-url", "rocm-github"],
-            cwd=repo_path,
-        )
-    except subprocess.CalledProcessError:
-        # Remote not set yet — check reachability via ls-remote directly
-        pass
-
     try:
         output = run_command_output(
             ["git", "ls-remote", "--heads", ssh_url, branch_name],
-            cwd=repo_path,
-            timeout=TIMEOUT_SHORT,
+            cwd=Path.cwd(),
+            timeout=TIMEOUT_SHORT_SECONDS,
         )
         result["reachable"] = True
         result["branch_exists"] = bool(output)
@@ -66,10 +72,9 @@ def check_repo(repo_name: str, url: str, repo_path: Path, branch_name: str) -> d
         result["error"] = "Timed out reaching remote"
     except subprocess.CalledProcessError as exc:
         result["error"] = f"Remote unreachable: {exc}"
-
     return result
 
-def run_checks(branch_name: str, commitid: str, cache_dir: Path | None, force_clone: bool, exclude_list: list[str]) -> int:
+def run_checks(branch_name: str, commitid: str, exclude_list: list[str]) -> int:
     print(f"Checking release branch state for: {branch_name} @ {commitid}\n")
 
     if not check_ssh_auth():
@@ -79,26 +84,15 @@ def run_checks(branch_name: str, commitid: str, cache_dir: Path | None, force_cl
     print()
     token = get_gh_token()
     repo_map = fetch_repo_map(token, commitid, set(exclude_list))
-    if check_permissions(token, repo_map, action="branches") != 0:
+    if check_permissions(token, repo_map) != 0:
         return 1
 
     print()
-    try:
-        plan = build_plan(
-            commitid=commitid,
-            cache_dir=cache_dir,
-            force_clone=force_clone,
-            exclude_list=set(exclude_list),
-        )
-    except RuntimeError as exc:
-        print(f"[FAIL] Could not build repo plan: {exc}")
-        return 1
-
     issues = []
     already_exist = []
 
-    for repo_name, info in plan.items():
-        result = check_repo(repo_name, info.url, info.path, branch_name)
+    for repo_name, url in repo_map.items():
+        result = check_repo(repo_name, url, branch_name)
         if result["error"]:
             issues.append(f"  {repo_name}: {result['error']}")
             print(f"[FAIL] {repo_name}: {result['error']}")
@@ -123,20 +117,13 @@ def run_checks(branch_name: str, commitid: str, cache_dir: Path | None, force_cl
 def main(argv: list[str]) -> int:
     parser = argparse.ArgumentParser(description="Check release branch state (read-only)")
     parser.add_argument("-B", "--branch-name", required=True, help="Release branch name")
-    parser.add_argument("-C", "--commitid", required=True, help="TheRock commit SHA")
-    parser.add_argument("--exclude-list", nargs="*", default=[], help="Submodule repo names to skip")
-    parser.add_argument("--force-clone", action="store_true", default=False)
-    parser.add_argument("--cache-dir", default=None)
+    parser.add_argument("-C", "--commitid", required=True, help="TheRock git ref (branch, tag, or SHA)")
+    parser.add_argument("--exclude-list", nargs="*", default=[], help="Repo names to skip")
     args = parser.parse_args(argv)
-
-    if not re.fullmatch(r"[0-9a-f]{40}", args.commitid):
-        print(f"ERROR: --commitid must be a full 40-char lowercase SHA-1, got: {args.commitid!r}")
-        return 1
 
     logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
 
-    cache_dir = Path(args.cache_dir) if args.cache_dir else None
-    return run_checks(args.branch_name, args.commitid, cache_dir, args.force_clone, args.exclude_list)
+    return run_checks(args.branch_name, args.commitid, args.exclude_list)
 
 if __name__ == "__main__":
     sys.exit(main(sys.argv[1:]))

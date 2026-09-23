@@ -21,7 +21,7 @@ from pathlib import Path
 from pprint import pformat
 
 from release_utils import run_command, run_command_output, setup_remote, TIMEOUT_SHORT_SECONDS
-from repo_plan import RepoInfo, build_plan
+from repo_plan import RepoInfo, build_plan, update_submodules
 
 log = logging.getLogger("rock_release")
 
@@ -118,6 +118,7 @@ def main(argv: list[str]) -> int:
             force_clone=args.force_clone,
             exclude_list=set(args.exclude_list),
         )
+        update_submodules(plan["TheRock"].path)
     except RuntimeError as exc:
         log.error("%s", exc)
         return 1

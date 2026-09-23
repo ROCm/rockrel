@@ -196,21 +196,32 @@ class TestExecutePlan:
 # main() accepts any git ref
 # ---------------------------------------------------------------------------
 
+def _make_full_plan(tmp_path: Path) -> dict[str, RepoInfo]:
+    rock_dir = tmp_path / "TheRock"
+    rock_dir.mkdir()
+    return {"TheRock": RepoInfo(url="https://github.com/ROCm/TheRock.git", commit="a" * 40, path=rock_dir)}
+
 class TestMainAcceptsAnyRef:
-    def test_full_sha_accepted(self):
+    def test_full_sha_accepted(self, tmp_path):
         from scripts.create_release_branches import main
-        with patch("scripts.create_release_branches.build_plan", return_value={}):
+        with patch("scripts.create_release_branches.build_plan", return_value=_make_full_plan(tmp_path)), \
+             patch("scripts.create_release_branches.update_submodules"), \
+             patch("scripts.create_release_branches.execute_plan", return_value=0):
             rc = main(["-B", "release/6.4", "-C", "a" * 40])
         assert rc == 0
 
-    def test_branch_name_accepted(self):
+    def test_branch_name_accepted(self, tmp_path):
         from scripts.create_release_branches import main
-        with patch("scripts.create_release_branches.build_plan", return_value={}):
+        with patch("scripts.create_release_branches.build_plan", return_value=_make_full_plan(tmp_path)), \
+             patch("scripts.create_release_branches.update_submodules"), \
+             patch("scripts.create_release_branches.execute_plan", return_value=0):
             rc = main(["-B", "release/6.4", "-C", "main"])
         assert rc == 0
 
-    def test_tag_accepted(self):
+    def test_tag_accepted(self, tmp_path):
         from scripts.create_release_branches import main
-        with patch("scripts.create_release_branches.build_plan", return_value={}):
+        with patch("scripts.create_release_branches.build_plan", return_value=_make_full_plan(tmp_path)), \
+             patch("scripts.create_release_branches.update_submodules"), \
+             patch("scripts.create_release_branches.execute_plan", return_value=0):
             rc = main(["-B", "release/6.4", "-C", "rocm-6.3.0"])
         assert rc == 0
