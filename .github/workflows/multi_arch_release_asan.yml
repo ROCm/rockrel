@@ -3,7 +3,7 @@
 
 # Temporary dispatcher used only to validate the TSAN workflow before its new
 # filename exists on rockrel's default branch. This branch is not the PR head.
-name: Multi-Arch Release Host TSAN Branch Validation
+name: Multi-Arch Release TSAN Branch Validation
 
 on:
   workflow_dispatch:
@@ -14,24 +14,24 @@ on:
         options: [dev]
         default: dev
       linux_amdgpu_families:
-        description: "Linux artifact families. Tests remain CPU-only."
+        description: "Linux GPU families for comprehensive tests."
         type: string
         default: "all"
       ref:
         description: "TheRock branch, tag, or SHA."
         type: string
-        default: "users/sa-faizal/tsan-multi-arch"
+        default: "a1214538f3e0da1b54220a07dce81c10481ec0df"
 
 permissions:
   contents: read
 
 run-name: >-
-  Multi-Arch Release Host TSAN branch validation (${{ inputs.release_type }})
+  Multi-Arch Release TSAN branch validation (${{ inputs.release_type }})
   | Linux artifacts: ${{ inputs.linux_amdgpu_families }}
 
 jobs:
   release:
-    uses: ROCm/TheRock/.github/workflows/multi_arch_release_tsan.yml@users/sa-faizal/tsan-multi-arch
+    uses: ROCm/TheRock/.github/workflows/multi_arch_release_tsan.yml@users/sa-faizal/tsan-review-stack
     secrets: inherit
     with:
       release_type: ${{ inputs.release_type }}
