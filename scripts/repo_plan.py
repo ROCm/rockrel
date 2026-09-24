@@ -1,9 +1,13 @@
+#!/usr/bin/env python3
 # Copyright Advanced Micro Devices, Inc.
 # SPDX-License-Identifier: MIT
 """Repo discovery and plan building for ROCm release scripts."""
 
+import argparse
+import logging
 import shutil
 import subprocess
+import sys
 import tempfile
 from dataclasses import dataclass
 from pathlib import Path
@@ -156,3 +160,49 @@ def build_plan(
     plan = _collect_repos(clone_dir, canonical_sha, exclude)
     log.info("Execution plan:\n%s", pformat(plan))
     return plan
+
+
+def _format_plan(plan: dict[str, RepoInfo]) -> str:
+    col_repo = max(len(name) for name in plan)
+    lines = [
+        f"Repo Plan ({len(plan)} repos)",
+        "=" * (col_repo + 54),
+        f"{'repo':<{col_repo}}   commit     url",
+        "-" * (col_repo + 54),
+    ]
+    for name, info in plan.items():
+        lines.append(f"{name:<{col_repo}}   {info.commit[:8]}   {info.url}")
+    return "\n".join(lines)
+
+
+def main(argv: list[str]) -> int:
+    parser = argparse.ArgumentParser(description="Build and print the ROCm release repo plan.")
+    parser.add_argument("-C", "--commitid", required=True, help="TheRock git ref (branch, tag, or SHA)")
+    parser.add_argument("--cache-dir", default=None,
+                        help="Directory to cache the TheRock clone (default: system temp dir)")
+    parser.add_argument("--force-clone", action="store_true", default=False,
+                        help="Delete and reclone if the cache dir exists but is not a valid git repo")
+    parser.add_argument("--exclude-list", nargs="*", default=[],
+                        help="Repo names to exclude from the plan")
+    args = parser.parse_args(argv)
+
+    logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
+    cache_dir = Path(args.cache_dir) if args.cache_dir else None
+
+    try:
+        plan = build_plan(
+            commitid=args.commitid,
+            cache_dir=cache_dir,
+            force_clone=args.force_clone,
+            exclude_list=set(args.exclude_list),
+        )
+    except RuntimeError as exc:
+        log.error("%s", exc)
+        return 1
+
+    print(_format_plan(plan))
+    return 0
+
+
+if __name__ == "__main__":
+    sys.exit(main(sys.argv[1:]))
