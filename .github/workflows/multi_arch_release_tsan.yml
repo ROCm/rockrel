@@ -33,7 +33,8 @@ run-name: >-
 
 jobs:
   release:
-    uses: ROCm/TheRock/.github/workflows/multi_arch_release_tsan.yml@main
+    # Qualification branch until the reusable workflow lands on TheRock main.
+    uses: ROCm/TheRock/.github/workflows/multi_arch_release_tsan.yml@users/sa-faizal/tsan-review-stack
     secrets: inherit
     with:
       release_type: ${{ inputs.release_type }}
