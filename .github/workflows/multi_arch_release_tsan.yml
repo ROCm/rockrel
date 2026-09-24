@@ -1,10 +1,10 @@
 # Copyright Advanced Micro Devices, Inc.
 # SPDX-License-Identifier: MIT
 
-name: Multi-Arch Release Host TSAN
+name: Multi-Arch Release TSAN
 
-# Host TSAN remains manual while the CPU-only qualification set is being
-# stabilized. Add a schedule only after repeated green end-to-end runs.
+# TSAN remains manual while the comprehensive per-family GPU suite is being
+# qualified. Add a schedule only after repeated green end-to-end runs.
 on:
   workflow_dispatch:
     inputs:
@@ -14,10 +14,10 @@ on:
         options: [dev]
         default: dev
       linux_amdgpu_families:
-        description: "Linux artifact families. Tests remain CPU-only."
+        description: "Linux GPU families to build and test."
         type: string
         # "all" is filtered by TheRock's build-variant matrix to the families
-        # that explicitly support host-tsan (currently gfx94x and gfx950).
+        # that explicitly support tsan (currently gfx94x and gfx950).
         default: "all"
       ref:
         description: "TheRock branch, tag, or SHA. Empty = default branch."
@@ -28,7 +28,7 @@ permissions:
   contents: read
 
 run-name: >-
-  Multi-Arch Release Host TSAN (${{ inputs.release_type }})
+  Multi-Arch Release TSAN (${{ inputs.release_type }})
   | Linux artifacts: ${{ inputs.linux_amdgpu_families }}
 
 jobs:
