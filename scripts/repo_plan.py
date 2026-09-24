@@ -15,7 +15,6 @@ from release_utils import (
     log,
     resolve_git_ref,
     run_command,
-    run_command_output,
 )
 
 @dataclass
@@ -29,9 +28,10 @@ def get_submodule_url_map(repo_dir: Path) -> dict[str, str]:
     if not gitmodules.exists():
         return {}
     try:
-        path_entries = run_command_output(
+        path_entries = run_command(
             ["git", "config", "--file", str(gitmodules), "--get-regexp", r"submodule\..*\.path"],
             cwd=repo_dir,
+            capture=True,
         )
     except subprocess.CalledProcessError:
         return {}
@@ -44,9 +44,10 @@ def get_submodule_url_map(repo_dir: Path) -> dict[str, str]:
         section = parts[0].rsplit(".", 1)[0]
         path_value = parts[1].strip()
         try:
-            url = run_command_output(
+            url = run_command(
                 ["git", "config", "--file", str(gitmodules), "--get", f"{section}.url"],
                 cwd=repo_dir,
+                capture=True,
             )
             url_map[path_value] = url
         except subprocess.CalledProcessError:
@@ -72,7 +73,7 @@ def _ensure_clone(clone_dir: Path, cache_root: Path, force_clone: bool) -> None:
     else:
         log.info("Reusing existing TheRock clone at %s", clone_dir)
         try:
-            remote_url = run_command_output(["git", "remote", "get-url", "origin"], cwd=clone_dir)
+            remote_url = run_command(["git", "remote", "get-url", "origin"], cwd=clone_dir, capture=True)
             if "TheRock" not in remote_url:
                 raise RuntimeError(f"Repo at {clone_dir} does not look like TheRock (origin={remote_url})")
         except RuntimeError:
@@ -104,7 +105,7 @@ def update_submodules(clone_dir: Path) -> None:
 def _collect_repos(clone_dir: Path, commitid: str, exclude: set[str]) -> dict[str, RepoInfo]:
     """Parse submodule status and .gitmodules into a repo plan."""
     try:
-        status_output = run_command_output(["git", "submodule", "status"], cwd=clone_dir)
+        status_output = run_command(["git", "submodule", "status"], cwd=clone_dir, capture=True)
     except subprocess.CalledProcessError as exc:
         raise RuntimeError(f"Failed to read submodule status: {exc}") from exc
 

@@ -118,38 +118,31 @@ def run_command(
     cwd: Path,
     *,
     timeout: int | None = TIMEOUT_SHORT_SECONDS,
-) -> None:
-    """Run a command, raising CalledProcessError on failure."""
-    cmd = [str(a) for a in args]
-    log.info("++ Exec [%s]$ %s", cwd, shlex.join(cmd))
-    subprocess.run(
-        cmd,
-        cwd=str(cwd),
-        stdin=subprocess.DEVNULL,
-        check=True,
-        timeout=timeout,
-    )
+    capture: bool = False,
+) -> str:
+    """Run a command, raising CalledProcessError on failure.
 
-def run_command_output(args: list, cwd: Path, timeout: int | None = TIMEOUT_SHORT_SECONDS) -> str:
-    """Run a command and return its stdout as a stripped string."""
+    Returns captured stdout as a stripped string when capture=True, else "".
+    """
     cmd = [str(a) for a in args]
     log.info("++ Exec [%s]$ %s", cwd, shlex.join(cmd))
     result = subprocess.run(
         cmd,
         cwd=str(cwd),
-        stdout=subprocess.PIPE,
         stdin=subprocess.DEVNULL,
-        text=True,
+        stdout=subprocess.PIPE if capture else None,
+        text=capture,
         check=True,
         timeout=timeout,
     )
-    return result.stdout.strip()
+    return result.stdout.strip() if capture else ""
 
 def resolve_git_ref(ref: str, repo_dir: Path) -> str:
     """Resolve any git ref (branch, tag, SHA) to a full 40-char commit SHA."""
-    return run_command_output(
+    return run_command(
         ["git", "rev-parse", "--verify", f"{ref}^{{commit}}"],
         cwd=repo_dir,
+        capture=True,
     )
 
 def convert_to_ssh(url: str) -> str:

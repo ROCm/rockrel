@@ -66,7 +66,7 @@ class TestCheckSshAuth:
 
 class TestCheckRepo:
     def test_branch_does_not_exist(self):
-        with patch("scripts.check_release_branch_state.run_command_output", return_value=""):
+        with patch("scripts.check_release_branch_state.run_command", return_value=""):
             result = check_repo("hip", "https://github.com/ROCm/hip.git", "release/6.4")
         assert result["reachable"] is True
         assert result["branch_exists"] is False
@@ -74,7 +74,7 @@ class TestCheckRepo:
 
     def test_branch_exists(self):
         with patch(
-            "scripts.check_release_branch_state.run_command_output",
+            "scripts.check_release_branch_state.run_command",
             return_value="abc123\trefs/heads/release/6.4",
         ):
             result = check_repo("hip", "https://github.com/ROCm/hip.git", "release/6.4")
@@ -84,7 +84,7 @@ class TestCheckRepo:
 
     def test_timeout_recorded_as_error(self):
         with patch(
-            "scripts.check_release_branch_state.run_command_output",
+            "scripts.check_release_branch_state.run_command",
             side_effect=subprocess.TimeoutExpired("git", 60),
         ):
             result = check_repo("hip", "https://github.com/ROCm/hip.git", "release/6.4")
@@ -93,7 +93,7 @@ class TestCheckRepo:
 
     def test_unreachable_remote_recorded_as_error(self):
         with patch(
-            "scripts.check_release_branch_state.run_command_output",
+            "scripts.check_release_branch_state.run_command",
             side_effect=subprocess.CalledProcessError(128, "git ls-remote"),
         ):
             result = check_repo("hip", "https://github.com/ROCm/hip.git", "release/6.4")
@@ -101,7 +101,7 @@ class TestCheckRepo:
         assert "Remote unreachable" in result["error"]
 
     def test_https_url_converted_to_ssh(self):
-        with patch("scripts.check_release_branch_state.run_command_output", return_value="") as mock_run:
+        with patch("scripts.check_release_branch_state.run_command", return_value="") as mock_run:
             check_repo("hip", "https://github.com/ROCm/hip.git", "release/6.4")
         cmd = mock_run.call_args[0][0]
         assert "git@github.com:ROCm/hip.git" in cmd

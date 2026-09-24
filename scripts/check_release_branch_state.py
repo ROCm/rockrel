@@ -35,7 +35,7 @@ import subprocess
 import sys
 from pathlib import Path
 
-from release_utils import convert_to_ssh, fetch_repo_map, get_gh_token, run_command_output, TIMEOUT_SHORT_SECONDS
+from release_utils import convert_to_ssh, fetch_repo_map, get_gh_token, run_command, TIMEOUT_SHORT_SECONDS
 from check_github_permissions import check_permissions
 
 def check_ssh_auth() -> bool:
@@ -60,10 +60,11 @@ def check_repo(repo_name: str, url: str, branch_name: str) -> dict:
     ssh_url = convert_to_ssh(url)
     result = {"repo": repo_name, "reachable": False, "branch_exists": False, "error": None}
     try:
-        output = run_command_output(
+        output = run_command(
             ["git", "ls-remote", "--heads", ssh_url, branch_name],
             cwd=Path.cwd(),
             timeout=TIMEOUT_SHORT_SECONDS,
+            capture=True,
         )
         result["reachable"] = True
         result["branch_exists"] = bool(output)

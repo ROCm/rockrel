@@ -20,16 +20,17 @@ import sys
 from pathlib import Path
 from pprint import pformat
 
-from release_utils import run_command, run_command_output, setup_remote, TIMEOUT_SHORT_SECONDS
+from release_utils import run_command, setup_remote, TIMEOUT_SHORT_SECONDS
 from repo_plan import RepoInfo, build_plan, update_submodules
 
 log = logging.getLogger("rock_release")
 
 def remote_branch_exists(repo_dir: Path, branch_name: str) -> bool:
-    output = run_command_output(
+    output = run_command(
         ["git", "ls-remote", "--heads", "rocm-github", branch_name],
         cwd=repo_dir,
         timeout=TIMEOUT_SHORT_SECONDS,
+        capture=True,
     )
     return bool(output)
 

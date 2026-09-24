@@ -42,8 +42,7 @@ class TestEnsureClone:
         clone_dir = tmp_path / "TheRock"
         clone_dir.mkdir()
         (clone_dir / ".git").mkdir()
-        with patch("scripts.repo_plan.run_command") as mock_run, \
-             patch("scripts.repo_plan.run_command_output", return_value="https://github.com/ROCm/TheRock.git"):
+        with patch("scripts.repo_plan.run_command", return_value="https://github.com/ROCm/TheRock.git") as mock_run:
             _ensure_clone(clone_dir, tmp_path, force_clone=False)
         cmds = [c[0][0] for c in mock_run.call_args_list]
         assert any("fetch" in cmd for cmd in cmds)
@@ -68,7 +67,7 @@ class TestEnsureClone:
         clone_dir = tmp_path / "TheRock"
         clone_dir.mkdir()
         (clone_dir / ".git").mkdir()
-        with patch("scripts.repo_plan.run_command_output", return_value="https://github.com/other/repo.git"):
+        with patch("scripts.repo_plan.run_command", return_value="https://github.com/other/repo.git"):
             with pytest.raises(RuntimeError, match="does not look like TheRock"):
                 _ensure_clone(clone_dir, tmp_path, force_clone=False)
 
@@ -126,16 +125,16 @@ def _make_clone_dir(tmp_path: Path) -> Path:
 
 
 def _patch_collect(clone_dir: Path, status: str):
-    """Patch run_command_output so _collect_repos gets real .gitmodules data
+    """Patch run_command so _collect_repos gets real .gitmodules data
     but git submodule status returns our fake output."""
-    original = __import__("scripts.repo_plan", fromlist=["run_command_output"]).run_command_output
+    from scripts.repo_plan import run_command as _original_run_command
 
     def side_effect(args, **kwargs):
         if "submodule" in args and "status" in args:
             return status
-        return original(args, **kwargs)
+        return _original_run_command(args, **kwargs)
 
-    return patch("scripts.repo_plan.run_command_output", side_effect=side_effect)
+    return patch("scripts.repo_plan.run_command", side_effect=side_effect)
 
 
 class TestCollectRepos:
@@ -177,7 +176,7 @@ class TestCollectRepos:
     def test_submodule_status_failure_raises(self, tmp_path):
         clone_dir = _make_clone_dir(tmp_path)
         with patch(
-            "scripts.repo_plan.run_command_output",
+            "scripts.repo_plan.run_command",
             side_effect=subprocess.CalledProcessError(1, "git submodule"),
         ):
             with pytest.raises(RuntimeError, match="Failed to read submodule status"):
