@@ -95,16 +95,20 @@ def update_submodules(clone_dir: Path) -> None:
     fetch_script = clone_dir / "build_tools" / "fetch_sources.py"
     if fetch_script.exists():
         log.info("Updating submodules via fetch_sources.py...")
-        run_command(
-            ["python3", str(fetch_script), "--jobs", "10", "--no-apply-patches"],
-            cwd=clone_dir, timeout=TIMEOUT_LONG_SECONDS,
-        )
+        try:
+            run_command(
+                ["python3", str(fetch_script), "--jobs", "10", "--no-apply-patches"],
+                cwd=clone_dir, timeout=TIMEOUT_LONG_SECONDS,
+            )
+            return
+        except subprocess.CalledProcessError as exc:
+            log.warning("fetch_sources.py failed (%s); falling back to git submodule update", exc)
     else:
         log.info("fetch_sources.py not found; falling back to git submodule update")
-        run_command(
-            ["git", "submodule", "update", "--init", "--recursive"],
-            cwd=clone_dir, timeout=TIMEOUT_LONG_SECONDS,
-        )
+    run_command(
+        ["git", "submodule", "update", "--init", "--recursive"],
+        cwd=clone_dir, timeout=TIMEOUT_LONG_SECONDS,
+    )
 
 def _collect_repos(clone_dir: Path, commitid: str, exclude: set[str]) -> dict[str, RepoInfo]:
     """Parse submodule status and .gitmodules into a repo plan."""

@@ -93,6 +93,16 @@ class TestUpdateSubmodules:
         assert "submodule" in cmd
         assert "update" in cmd
 
+    def test_falls_back_when_fetch_sources_fails(self, tmp_path):
+        fetch_script = tmp_path / "build_tools" / "fetch_sources.py"
+        fetch_script.parent.mkdir(parents=True)
+        fetch_script.touch()
+        with patch("scripts.repo_plan.run_command",
+                   side_effect=[subprocess.CalledProcessError(1, "python3"), None]) as mock_run:
+            update_submodules(tmp_path)
+        cmds = [c[0][0] for c in mock_run.call_args_list]
+        assert any("submodule" in cmd for cmd in cmds)
+
 
 # ---------------------------------------------------------------------------
 # _collect_repos
