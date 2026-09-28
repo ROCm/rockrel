@@ -16,7 +16,11 @@ on:
       rocm_package_find_links_url:
         description: URL for pip --find-links to install ROCm packages
         type: string
-        required: true
+        default: ""
+      rocm_package_index_url:
+        description: URL for pip --index-url to install ROCm packages
+        type: string
+        default: ""
       release_type:
         description: 'Release type: "dev", "dev-bkc", "nightly", "nightly-bkc", or "prerelease". Selects the S3 bucket.'
         type: choice
@@ -88,6 +92,7 @@ jobs:
       amdgpu_families: ${{ inputs.amdgpu_families }}
       rocm_version: ${{ inputs.rocm_version }}
       rocm_package_find_links_url: ${{ inputs.rocm_package_find_links_url }}
+      rocm_package_index_url: ${{ inputs.rocm_package_index_url }}
       release_type: ${{ inputs.release_type }}
       cache_type: ${{ inputs.cache_type }}
       run_full_pytorch_tests: ${{ inputs.run_full_pytorch_tests }}
