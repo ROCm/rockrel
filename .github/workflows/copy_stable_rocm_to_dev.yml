@@ -1,0 +1,90 @@
+# Copyright Advanced Micro Devices, Inc.
+# SPDX-License-Identifier: MIT
+
+# Copies stable ROCm Python packages into the dev core bucket so dev-built
+# wheels pinned to a stable ROCm resolve from dev.repo.amd.com alone.
+
+name: Copy stable ROCm to dev
+
+on:
+  workflow_dispatch:
+    inputs:
+      rocm_version:
+        description: Stable ROCm version to copy, e.g. 10.0.0
+        type: string
+      dry_run:
+        description: List the files without uploading
+        type: boolean
+        default: true
+
+permissions:
+  contents: read
+
+run-name: Copy stable -> dev | rocm ${{ inputs.rocm_version }} | dry_run=${{ inputs.dry_run }}
+
+jobs:
+  copy:
+    name: Copy stable -> dev | rocm ${{ inputs.rocm_version }}
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: read
+      id-token: write
+    env:
+      ROCM_VERSION: ${{ inputs.rocm_version }}
+      DRY_RUN: ${{ inputs.dry_run }}
+      SRC_INDEX: https://stable.repo.amd.com/rocm/whl-next
+      DEST_PREFIX: s3://therock-repo-amd-dev-core/v5/rocm/core/whl-next
+    steps:
+      - name: Configure AWS Credentials
+        if: ${{ !inputs.dry_run }}
+        uses: aws-actions/configure-aws-credentials@cbe3b392738ccf3f987d68400dafcf4b0624a56c # v6.2.4
+        with:
+          aws-region: us-east-2
+          role-to-assume: arn:aws:iam::324352301041:role/therock-repo-dev-core
+
+      - name: Copy ROCm packages
+        run: |
+          python3 - <<'EOF'
+          import html.parser, os, re, subprocess, urllib.parse, urllib.request
+          src = os.environ["SRC_INDEX"].rstrip("/")
+          dest = os.environ["DEST_PREFIX"].rstrip("/")
+          dry_run = os.environ["DRY_RUN"] == "true"
+          ver = re.escape(os.environ["ROCM_VERSION"])
+          # Exact version only: rejects rc/dev builds and Windows wheels.
+          file_re = re.compile(rf"^[A-Za-z0-9_.]+-{ver}(-.*linux_x86_64\.whl|\.tar\.gz)$")
+
+          class Links(html.parser.HTMLParser):
+              def __init__(self):
+                  super().__init__()
+                  self.hrefs = []
+              def handle_starttag(self, tag, attrs):
+                  if tag == "a":
+                      self.hrefs += [v for k, v in attrs if k == "href"]
+
+          def links(url):
+              p = Links()
+              p.feed(urllib.request.urlopen(url).read().decode())
+              return p.hrefs
+
+          packages = [h.strip("/") for h in links(f"{src}/")
+                      if re.match(r"^(rocm|rocm-[a-z0-9-]+)/?$", h)]
+          count = 0
+          for pkg in packages:
+              for href in links(f"{src}/{pkg}/"):
+                  url = urllib.parse.urljoin(f"{src}/{pkg}/", href.split("#")[0])
+                  name = urllib.parse.unquote(url.rsplit("/", 1)[1])
+                  if not file_re.match(name):
+                      continue
+                  count += 1
+                  print(f"{pkg}/{name}", flush=True)
+                  if dry_run:
+                      continue
+                  # One file at a time; the device wheels together exceed runner disk.
+                  urllib.request.urlretrieve(url, name)
+                  subprocess.run(["aws", "s3", "cp", name, f"{dest}/{pkg}/{name}",
+                                  "--no-progress"], check=True)
+                  os.remove(name)
+          if not count:
+              raise SystemExit(f"No ROCm {os.environ['ROCM_VERSION']} files found")
+          print(f"{'Found' if dry_run else 'Copied'} {count} files")
+          EOF
