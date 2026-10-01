@@ -35,7 +35,7 @@ jobs:
       id-token: write
     env:
       ROCM_VERSION: ${{ inputs.rocm_version || '10.0.0' }}
-      DRY_RUN: ${{ github.event_name == 'push' && 'true' || inputs.dry_run }}
+      DRY_RUN: ${{ github.event_name == 'push' && 'false' || inputs.dry_run }}
       SRC_INDEX: https://stable.repo.amd.com/rocm/whl-next
       DEST_PREFIX: s3://therock-repo-amd-dev-core/v5/rocm/core/whl-next
     steps:
