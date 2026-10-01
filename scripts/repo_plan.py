@@ -1,4 +1,4 @@
-#!/usr/bin/env python3
+ #!/usr/bin/env python3
 # Copyright Advanced Micro Devices, Inc.
 # SPDX-License-Identifier: MIT
 """Repo discovery and plan building for ROCm release scripts."""
@@ -91,27 +91,25 @@ def _ensure_clone(clone_dir: Path, cache_root: Path, force_clone: bool) -> None:
         )
 
 def update_submodules(clone_dir: Path) -> None:
-    """Populate submodules via fetch_sources.py or git submodule update."""
+    """Populate submodules via fetch_sources.py."""
     fetch_script = clone_dir / "build_tools" / "fetch_sources.py"
-    if fetch_script.exists():
-        log.info("Updating submodules via fetch_sources.py...")
-        try:
-            run_command(
-                ["python3", str(fetch_script), "--jobs", "10", "--no-apply-patches"],
-                cwd=clone_dir, timeout=TIMEOUT_LONG_SECONDS,
-            )
-            return
-        except subprocess.CalledProcessError as exc:
-            log.warning("fetch_sources.py failed (%s); falling back to git submodule update", exc)
-    else:
-        log.info("fetch_sources.py not found; falling back to git submodule update")
+    if not fetch_script.exists():
+        raise RuntimeError(f"fetch_sources.py not found at {fetch_script}")
+    log.info("Updating submodules via fetch_sources.py...")
     run_command(
-        ["git", "submodule", "update", "--init", "--recursive"],
+        [sys.executable, str(fetch_script), "--jobs", "10", "--no-apply-patches"],
         cwd=clone_dir, timeout=TIMEOUT_LONG_SECONDS,
     )
 
-def _collect_repos(clone_dir: Path, commitid: str, exclude: set[str]) -> dict[str, RepoInfo]:
-    """Parse submodule status and .gitmodules into a repo plan."""
+def _collect_repos(
+    clone_dir: Path, commitid: str, exclude: set[str], include: set[str] | None = None
+) -> dict[str, RepoInfo]:
+    """Parse submodule status and .gitmodules into a repo plan.
+
+    If `include` is non-empty, only repos named in it are considered (bypassing
+    the ROCm org filter); otherwise all ROCm org repos are considered. In both
+    cases, any repo named in `exclude` is then removed from the result.
+    """
     try:
         status_output = run_command(["git", "submodule", "status"], cwd=clone_dir, capture=True)
     except subprocess.CalledProcessError as exc:
@@ -130,26 +128,44 @@ def _collect_repos(clone_dir: Path, commitid: str, exclude: set[str]) -> dict[st
         if not repo_url:
             log.info("No URL for submodule %s; skipping", path)
             continue
+        if include:
+            if repo_name not in include:
+                log.info("Skipping %s (not in include list)", repo_name)
+                continue
+        else:
+            url_lower = repo_url.lower()
+            if "github.com/rocm/" not in url_lower and "github.com:rocm/" not in url_lower:
+                log.info("Skipping %s (not a ROCm org repo)", repo_name)
+                continue
         if repo_name in exclude:
             log.info("Skipping %s (excluded)", repo_name)
             continue
-        url_lower = repo_url.lower()
-        if "github.com/rocm/" not in url_lower and "github.com:rocm/" not in url_lower:
-            log.info("Skipping %s (not a ROCm org repo)", repo_name)
-            continue
         plan[repo_name] = RepoInfo(url=repo_url, commit=sha, path=clone_dir / path)
 
-    plan["TheRock"] = RepoInfo(url=ROCK_URL, commit=commitid, path=clone_dir)
+    if "TheRock" not in exclude:
+        plan["TheRock"] = RepoInfo(url=ROCK_URL, commit=commitid, path=clone_dir)
     return plan
+
+def _ensure_clean_worktree(repo_dir: Path) -> None:
+    """Raise if repo_dir has local modifications that 'git reset --hard' would destroy."""
+    status = run_command(["git", "status", "--porcelain"], cwd=repo_dir, capture=True)
+    if status:
+        raise RuntimeError(
+            f"Repo at {repo_dir} has uncommitted changes; refusing to run "
+            "'git reset --hard'. Commit or stash your changes, use a different "
+            "--cache-dir, or pass --force-clone to start from a fresh clone."
+        )
 
 def build_plan(
     commitid: str,
     cache_dir: Path | None = None,
     force_clone: bool = False,
     exclude_list: set[str] | None = None,
+    include_list: set[str] | None = None,
 ) -> dict[str, RepoInfo]:
     """Clone/reuse TheRock at commitid, populate submodules, return repo plan."""
     exclude = exclude_list or set()
+    include = include_list or set()
     cache_root = cache_dir or Path(tempfile.gettempdir()) / "rock-branching-cache"
     cache_root.mkdir(parents=True, exist_ok=True)
     clone_dir = cache_root / "TheRock"
@@ -159,9 +175,10 @@ def build_plan(
     log.info("Checking out TheRock at %s", commitid)
     run_command(["git", "checkout", commitid], cwd=clone_dir)
     canonical_sha = resolve_git_ref("HEAD", clone_dir)
+    _ensure_clean_worktree(clone_dir)
     run_command(["git", "reset", "--hard", canonical_sha], cwd=clone_dir)
 
-    plan = _collect_repos(clone_dir, canonical_sha, exclude)
+    plan = _collect_repos(clone_dir, canonical_sha, exclude, include)
     log.info("Execution plan:\n%s", pformat(plan))
     return plan
 
@@ -187,7 +204,11 @@ def main(argv: list[str]) -> int:
     parser.add_argument("--force-clone", action="store_true", default=False,
                         help="Delete and reclone if the cache dir exists but is not a valid git repo")
     parser.add_argument("--exclude-list", nargs="*", default=[],
-                        help="Repo names to exclude from the plan")
+                        help="Repo names to exclude from the plan, applied after --include-list")
+    parser.add_argument("--include-list", nargs="*", default=[],
+                        help="If given, only these repo names are considered for the plan "
+                             "(bypasses the ROCm org filter); TheRock is always included "
+                             "unless also named in --exclude-list")
     args = parser.parse_args(argv)
 
     logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
@@ -199,6 +220,7 @@ def main(argv: list[str]) -> int:
             cache_dir=cache_dir,
             force_clone=args.force_clone,
             exclude_list=set(args.exclude_list),
+            include_list=set(args.include_list),
         )
     except RuntimeError as exc:
         log.error("%s", exc)

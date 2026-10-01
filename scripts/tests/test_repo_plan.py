@@ -9,18 +9,19 @@ Covers:
 - _collect_repos: ROCm filtering, exclude list, SHA prefix stripping
 """
 import subprocess
+import sys
 import textwrap
 from pathlib import Path
 from unittest.mock import call, patch
 
 import pytest
 
-import sys
 sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
 from scripts.repo_plan import (
     _collect_repos,
+    _ensure_clean_worktree,
     _ensure_clone,
     update_submodules,
 )
@@ -73,6 +74,21 @@ class TestEnsureClone:
 
 
 # ---------------------------------------------------------------------------
+# _ensure_clean_worktree
+# ---------------------------------------------------------------------------
+
+class TestEnsureCleanWorktree:
+    def test_raises_on_dirty_worktree(self, tmp_path):
+        with patch("scripts.repo_plan.run_command", return_value=" M some_file.py"):
+            with pytest.raises(RuntimeError, match="uncommitted changes"):
+                _ensure_clean_worktree(tmp_path)
+
+    def test_passes_on_clean_worktree(self, tmp_path):
+        with patch("scripts.repo_plan.run_command", return_value=""):
+            _ensure_clean_worktree(tmp_path)  # should not raise
+
+
+# ---------------------------------------------------------------------------
 # update_submodules
 # ---------------------------------------------------------------------------
 
@@ -85,23 +101,20 @@ class TestUpdateSubmodules:
             update_submodules(tmp_path)
         cmd = mock_run.call_args[0][0]
         assert "fetch_sources.py" in " ".join(str(a) for a in cmd)
+        assert cmd[0] == sys.executable
 
-    def test_falls_back_to_git_submodule_update(self, tmp_path):
-        with patch("scripts.repo_plan.run_command") as mock_run:
+    def test_raises_when_fetch_sources_missing(self, tmp_path):
+        with pytest.raises(RuntimeError, match="fetch_sources.py not found"):
             update_submodules(tmp_path)
-        cmd = mock_run.call_args[0][0]
-        assert "submodule" in cmd
-        assert "update" in cmd
 
-    def test_falls_back_when_fetch_sources_fails(self, tmp_path):
+    def test_propagates_when_fetch_sources_fails(self, tmp_path):
         fetch_script = tmp_path / "build_tools" / "fetch_sources.py"
         fetch_script.parent.mkdir(parents=True)
         fetch_script.touch()
         with patch("scripts.repo_plan.run_command",
-                   side_effect=[subprocess.CalledProcessError(1, "python3"), None]) as mock_run:
-            update_submodules(tmp_path)
-        cmds = [c[0][0] for c in mock_run.call_args_list]
-        assert any("submodule" in cmd for cmd in cmds)
+                   side_effect=subprocess.CalledProcessError(1, "fetch_sources.py")):
+            with pytest.raises(subprocess.CalledProcessError):
+                update_submodules(tmp_path)
 
 
 # ---------------------------------------------------------------------------
@@ -191,3 +204,31 @@ class TestCollectRepos:
         ):
             with pytest.raises(RuntimeError, match="Failed to read submodule status"):
                 _collect_repos(clone_dir, "a" * 40, set())
+
+    def test_include_list_limits_to_named_repos(self, tmp_path):
+        clone_dir = _make_clone_dir(tmp_path)
+        with _patch_collect(clone_dir, _SUBMODULE_STATUS):
+            plan = _collect_repos(clone_dir, "a" * 40, set(), {"hip"})
+        assert "hip" in plan
+        assert "clr" not in plan
+        assert "llvm-project" not in plan
+        assert "TheRock" in plan
+
+    def test_include_list_overrides_org_filter(self, tmp_path):
+        clone_dir = _make_clone_dir(tmp_path)
+        with _patch_collect(clone_dir, _SUBMODULE_STATUS):
+            plan = _collect_repos(clone_dir, "a" * 40, set(), {"llvm-project"})
+        assert "llvm-project" in plan
+
+    def test_exclude_list_applied_on_top_of_include_list(self, tmp_path):
+        clone_dir = _make_clone_dir(tmp_path)
+        with _patch_collect(clone_dir, _SUBMODULE_STATUS):
+            plan = _collect_repos(clone_dir, "a" * 40, {"hip"}, {"hip", "clr"})
+        assert "hip" not in plan
+        assert "clr" in plan
+
+    def test_exclude_list_can_remove_therock(self, tmp_path):
+        clone_dir = _make_clone_dir(tmp_path)
+        with _patch_collect(clone_dir, _SUBMODULE_STATUS):
+            plan = _collect_repos(clone_dir, "a" * 40, {"TheRock"})
+        assert "TheRock" not in plan

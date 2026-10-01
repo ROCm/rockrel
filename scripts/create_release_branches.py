@@ -104,6 +104,7 @@ def main(argv: list[str]) -> int:
     parser.add_argument("--dry-run", action=argparse.BooleanOptionalAction, default=True,
                         help="Log planned actions without making any git changes (default: enabled)")
     parser.add_argument("--exclude-list", nargs="*", default=[])
+    parser.add_argument("--include-list", nargs="*", default=[])
     parser.add_argument("--force-clone", action="store_true", default=False)
     parser.add_argument("--cache-dir", default=None)
     args = parser.parse_args(argv)
@@ -119,6 +120,7 @@ def main(argv: list[str]) -> int:
             cache_dir=cache_dir,
             force_clone=args.force_clone,
             exclude_list=set(args.exclude_list),
+            include_list=set(args.include_list),
         )
         update_submodules(plan["TheRock"].path)
     except RuntimeError as exc:
