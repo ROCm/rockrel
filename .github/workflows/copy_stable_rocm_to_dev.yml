@@ -16,27 +16,31 @@ on:
         description: List the files without uploading
         type: boolean
         default: true
+  # Temporary: workflow_dispatch needs the file on main.
+  push:
+    branches:
+      - ethanwee1-copy-stable-rocm-to-dev
+    paths:
+      - .github/workflows/copy_stable_rocm_to_dev.yml
 
 permissions:
   contents: read
 
-run-name: Copy stable -> dev | rocm ${{ inputs.rocm_version }} | dry_run=${{ inputs.dry_run }}
-
 jobs:
   copy:
-    name: Copy stable -> dev | rocm ${{ inputs.rocm_version }}
+    name: Copy stable -> dev | rocm ${{ inputs.rocm_version || '10.0.0' }}
     runs-on: ubuntu-24.04
     permissions:
       contents: read
       id-token: write
     env:
-      ROCM_VERSION: ${{ inputs.rocm_version }}
-      DRY_RUN: ${{ inputs.dry_run }}
+      ROCM_VERSION: ${{ inputs.rocm_version || '10.0.0' }}
+      DRY_RUN: ${{ github.event_name == 'push' && 'true' || inputs.dry_run }}
       SRC_INDEX: https://stable.repo.amd.com/rocm/whl-next
       DEST_PREFIX: s3://therock-repo-amd-dev-core/v5/rocm/core/whl-next
     steps:
       - name: Configure AWS Credentials
-        if: ${{ !inputs.dry_run }}
+        if: ${{ env.DRY_RUN != 'true' }}
         uses: aws-actions/configure-aws-credentials@cbe3b392738ccf3f987d68400dafcf4b0624a56c # v6.2.4
         with:
           aws-region: us-east-2
