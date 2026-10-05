@@ -21,7 +21,7 @@ from pathlib import Path
 from pprint import pformat
 
 from release_utils import run_command, setup_remote, TIMEOUT_SHORT_SECONDS
-from repo_plan import RepoInfo, build_plan, update_submodules
+from therock_checkout_and_plan import RepoInfo, build_plan, update_submodules
 
 log = logging.getLogger("rock_release")
 

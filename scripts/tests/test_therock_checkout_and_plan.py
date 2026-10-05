@@ -1,7 +1,7 @@
 # Copyright Advanced Micro Devices, Inc.
 # SPDX-License-Identifier: MIT
 """
-Tests for repo_plan.py.
+Tests for therock_checkout_and_plan.py.
 
 Covers:
 - _ensure_clone: clone, fetch, force-clone, invalid cache dir
@@ -19,7 +19,7 @@ import pytest
 sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
-from scripts.repo_plan import (
+from scripts.therock_checkout_and_plan import (
     _collect_repos,
     _ensure_clean_worktree,
     _ensure_clone,
@@ -34,7 +34,7 @@ from scripts.repo_plan import (
 class TestEnsureClone:
     def test_clones_when_dir_missing(self, tmp_path):
         clone_dir = tmp_path / "TheRock"
-        with patch("scripts.repo_plan.run_command") as mock_run:
+        with patch("scripts.therock_checkout_and_plan.run_command") as mock_run:
             _ensure_clone(clone_dir, tmp_path, force_clone=False)
         mock_run.assert_called_once()
         assert "clone" in mock_run.call_args[0][0]
@@ -43,7 +43,7 @@ class TestEnsureClone:
         clone_dir = tmp_path / "TheRock"
         clone_dir.mkdir()
         (clone_dir / ".git").mkdir()
-        with patch("scripts.repo_plan.run_command", return_value="https://github.com/ROCm/TheRock.git") as mock_run:
+        with patch("scripts.therock_checkout_and_plan.run_command", return_value="https://github.com/ROCm/TheRock.git") as mock_run:
             _ensure_clone(clone_dir, tmp_path, force_clone=False)
         cmds = [c[0][0] for c in mock_run.call_args_list]
         assert any("fetch" in cmd for cmd in cmds)
@@ -58,8 +58,8 @@ class TestEnsureClone:
     def test_force_clone_removes_and_reclones(self, tmp_path):
         clone_dir = tmp_path / "TheRock"
         clone_dir.mkdir()
-        with patch("scripts.repo_plan.run_command") as mock_run, \
-             patch("scripts.repo_plan.shutil.rmtree") as mock_rmtree:
+        with patch("scripts.therock_checkout_and_plan.run_command") as mock_run, \
+             patch("scripts.therock_checkout_and_plan.shutil.rmtree") as mock_rmtree:
             _ensure_clone(clone_dir, tmp_path, force_clone=True)
         mock_rmtree.assert_called_once_with(clone_dir)
         assert any("clone" in c[0][0] for c in mock_run.call_args_list)
@@ -68,7 +68,7 @@ class TestEnsureClone:
         clone_dir = tmp_path / "TheRock"
         clone_dir.mkdir()
         (clone_dir / ".git").mkdir()
-        with patch("scripts.repo_plan.run_command", return_value="https://github.com/other/repo.git"):
+        with patch("scripts.therock_checkout_and_plan.run_command", return_value="https://github.com/other/repo.git"):
             with pytest.raises(RuntimeError, match="does not look like TheRock"):
                 _ensure_clone(clone_dir, tmp_path, force_clone=False)
 
@@ -79,12 +79,12 @@ class TestEnsureClone:
 
 class TestEnsureCleanWorktree:
     def test_raises_on_dirty_worktree(self, tmp_path):
-        with patch("scripts.repo_plan.run_command", return_value=" M some_file.py"):
+        with patch("scripts.therock_checkout_and_plan.run_command", return_value=" M some_file.py"):
             with pytest.raises(RuntimeError, match="uncommitted changes"):
                 _ensure_clean_worktree(tmp_path)
 
     def test_passes_on_clean_worktree(self, tmp_path):
-        with patch("scripts.repo_plan.run_command", return_value=""):
+        with patch("scripts.therock_checkout_and_plan.run_command", return_value=""):
             _ensure_clean_worktree(tmp_path)  # should not raise
 
 
@@ -97,7 +97,7 @@ class TestUpdateSubmodules:
         fetch_script = tmp_path / "build_tools" / "fetch_sources.py"
         fetch_script.parent.mkdir(parents=True)
         fetch_script.touch()
-        with patch("scripts.repo_plan.run_command") as mock_run:
+        with patch("scripts.therock_checkout_and_plan.run_command") as mock_run:
             update_submodules(tmp_path)
         cmd = mock_run.call_args[0][0]
         assert "fetch_sources.py" in " ".join(str(a) for a in cmd)
@@ -111,7 +111,7 @@ class TestUpdateSubmodules:
         fetch_script = tmp_path / "build_tools" / "fetch_sources.py"
         fetch_script.parent.mkdir(parents=True)
         fetch_script.touch()
-        with patch("scripts.repo_plan.run_command",
+        with patch("scripts.therock_checkout_and_plan.run_command",
                    side_effect=subprocess.CalledProcessError(1, "fetch_sources.py")):
             with pytest.raises(subprocess.CalledProcessError):
                 update_submodules(tmp_path)
@@ -150,14 +150,14 @@ def _make_clone_dir(tmp_path: Path) -> Path:
 def _patch_collect(clone_dir: Path, status: str):
     """Patch run_command so _collect_repos gets real .gitmodules data
     but git submodule status returns our fake output."""
-    from scripts.repo_plan import run_command as _original_run_command
+    from scripts.therock_checkout_and_plan import run_command as _original_run_command
 
     def side_effect(args, **kwargs):
         if "submodule" in args and "status" in args:
             return status
         return _original_run_command(args, **kwargs)
 
-    return patch("scripts.repo_plan.run_command", side_effect=side_effect)
+    return patch("scripts.therock_checkout_and_plan.run_command", side_effect=side_effect)
 
 
 class TestCollectRepos:
@@ -199,7 +199,7 @@ class TestCollectRepos:
     def test_submodule_status_failure_raises(self, tmp_path):
         clone_dir = _make_clone_dir(tmp_path)
         with patch(
-            "scripts.repo_plan.run_command",
+            "scripts.therock_checkout_and_plan.run_command",
             side_effect=subprocess.CalledProcessError(1, "git submodule"),
         ):
             with pytest.raises(RuntimeError, match="Failed to read submodule status"):

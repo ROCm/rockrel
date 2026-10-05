@@ -21,7 +21,7 @@ import pytest
 import sys
 sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 sys.path.insert(0, str(Path(__file__).parent.parent))
-from scripts.repo_plan import RepoInfo, get_submodule_url_map
+from scripts.therock_checkout_and_plan import RepoInfo, get_submodule_url_map
 from scripts.create_release_branches import create_branch, execute_plan, push_branch
 
 def _make_plan(tmp_path: Path) -> dict[str, RepoInfo]:
