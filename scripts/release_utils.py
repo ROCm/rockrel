@@ -4,7 +4,9 @@
 
 import base64
 import json
+import logging
 import re
+import shlex
 import subprocess
 import urllib.error
 import urllib.request
@@ -12,6 +14,10 @@ from pathlib import Path
 
 ROCK_URL = "https://github.com/ROCm/TheRock.git"
 GITHUB_API = "https://api.github.com"
+TIMEOUT_LONG_SECONDS = 1800
+TIMEOUT_SHORT_SECONDS = 60
+
+log = logging.getLogger("rock_release")
 
 def get_gh_token() -> str:
     """Return the GitHub token from the active gh CLI session."""
@@ -106,3 +112,47 @@ def fetch_repo_map(token: str, commitid: str, exclude_list: set[str]) -> dict[st
     if "TheRock" not in exclude_list:
         repo_map["TheRock"] = ROCK_URL
     return repo_map
+
+def run_command(
+    args: list,
+    cwd: Path,
+    *,
+    timeout: int | None = TIMEOUT_SHORT_SECONDS,
+    capture: bool = False,
+) -> str:
+    """Run a command, raising CalledProcessError on failure.
+
+    Returns captured stdout as a stripped string when capture=True, else "".
+    """
+    cmd = [str(a) for a in args]
+    log.info("++ Exec [%s]$ %s", cwd, shlex.join(cmd))
+    result = subprocess.run(
+        cmd,
+        cwd=str(cwd),
+        stdin=subprocess.DEVNULL,
+        stdout=subprocess.PIPE if capture else None,
+        text=capture,
+        check=True,
+        timeout=timeout,
+    )
+    return result.stdout.strip() if capture else ""
+
+def resolve_git_ref(ref: str, repo_dir: Path) -> str:
+    """Resolve any git ref (branch, tag, SHA) to a full 40-char commit SHA."""
+    return run_command(
+        ["git", "rev-parse", "--verify", f"{ref}^{{commit}}"],
+        cwd=repo_dir,
+        capture=True,
+    )
+
+def convert_to_ssh(url: str) -> str:
+    if url.startswith("https://github.com/"):
+        return "git@github.com:" + url.replace("https://github.com/", "")
+    return url
+
+def setup_remote(url: str, repo_dir: Path) -> None:
+    ssh_url = convert_to_ssh(url)
+    try:
+        run_command(["git", "remote", "set-url", "rocm-github", ssh_url], cwd=repo_dir)
+    except subprocess.CalledProcessError:
+        run_command(["git", "remote", "add", "rocm-github", ssh_url], cwd=repo_dir)
