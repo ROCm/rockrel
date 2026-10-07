@@ -55,7 +55,6 @@ on:
         default: ""
 
 permissions:
-  id-token: write
   contents: read
 
 run-name: Multi-Arch Release Windows PyTorch Wheels (${{ inputs.amdgpu_families }}, ${{ inputs.release_type }}, ${{ inputs.rocm_version }})
@@ -78,6 +77,9 @@ jobs:
 
   release:
     uses: ROCm/TheRock/.github/workflows/multi_arch_release_windows_pytorch_wheels.yml@main
+    permissions:
+      id-token: write
+      contents: read
     secrets: inherit
     with:
       amdgpu_families: ${{ inputs.amdgpu_families }}

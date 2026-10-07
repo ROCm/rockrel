@@ -64,7 +64,6 @@ jobs:
       ref: ${{ inputs.ref }}
     permissions:
       contents: read
-      id-token: write
 
   windows:
     uses: ./.github/workflows/multi_arch_repackage_windows.yml
@@ -77,4 +76,3 @@ jobs:
       ref: ${{ inputs.ref }}
     permissions:
       contents: read
-      id-token: write

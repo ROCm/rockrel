@@ -59,9 +59,7 @@ on:
         default: ""
 
 permissions:
-  id-token: write
   contents: read
-  actions: write
 
 run-name: Multi-Arch Release Linux PyTorch Wheels (${{ inputs.amdgpu_families }}, ${{ inputs.release_type }}, ${{ inputs.rocm_version }})
 
@@ -83,6 +81,10 @@ jobs:
 
   release:
     uses: ROCm/TheRock/.github/workflows/multi_arch_release_linux_pytorch_wheels.yml@main
+    permissions:
+      id-token: write
+      contents: read
+      actions: write
     secrets: inherit
     with:
       amdgpu_families: ${{ inputs.amdgpu_families }}
