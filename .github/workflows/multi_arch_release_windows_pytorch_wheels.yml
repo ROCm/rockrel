@@ -80,7 +80,9 @@ jobs:
     permissions:
       id-token: write
       contents: read
-    secrets: inherit
+    # Higher-trust entry points: triggered by maintainers or automation.
+    # Inherit secrets for Quartz notifications across the workflow chain.
+    secrets: inherit # zizmor: ignore[secrets-inherit]
     with:
       amdgpu_families: ${{ inputs.amdgpu_families }}
       rocm_version: ${{ inputs.rocm_version }}

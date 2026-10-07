@@ -83,7 +83,9 @@ jobs:
 
   test:
     uses: ROCm/TheRock/.github/workflows/test_pytorch_wheels_full.yml@main
-    secrets: inherit
+    # Higher-trust entry points: triggered by maintainers or automation.
+    # Inherit secrets for Quartz notifications across the workflow chain.
+    secrets: inherit # zizmor: ignore[secrets-inherit]
     with:
       amdgpu_family: ${{ inputs.amdgpu_family }}
       test_runs_on: ${{ inputs.test_runs_on }}

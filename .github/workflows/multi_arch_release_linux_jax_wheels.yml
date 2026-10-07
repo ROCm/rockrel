@@ -73,7 +73,9 @@ jobs:
     permissions:
       contents: read
       id-token: write
-    secrets: inherit
+    # Higher-trust entry points: triggered by maintainers or automation.
+    # Inherit secrets for Quartz notifications across the workflow chain.
+    secrets: inherit # zizmor: ignore[secrets-inherit]
     with:
       test_amdgpu_family: ${{ inputs.test_amdgpu_family }}
       release_type: ${{ inputs.release_type }}
