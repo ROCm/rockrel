@@ -1,13 +1,11 @@
-# zizmor minimal configuration
+# zizmor configuration
 # Reference: https://docs.zizmor.sh/configuration/
+# Local scan: zizmor --config .github/scan_tools_configs/zizmor.yml .
 #
 # Zizmor configuration for this repository's security scans.
 #
 # This file defines the complete scanner policy;
 # Keep repository-specific suppressions and tuning here.
 #
-# Per-rule ignore lists and tuning live under `rules:`, as
-# `<rule-id>: { ignore: [file.yml:line:col] }`, which keeps a suppression
-# reviewable in one place rather than scattered as inline comments
-# across workflows.
+# Add rule-specific settings and suppressions under `rules:`.
 rules: {}
