@@ -16,7 +16,7 @@ updates:
     cooldown:
       default-days: 7
       exclude:
-        - "ROCm/rocm-security-gh*"  
+        - "ROCm/rocm-security-gh*"
     groups:
       rocm-security-gh:
         patterns: ["ROCm/rocm-security-gh*"]
