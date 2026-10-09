@@ -1,3 +1,6 @@
+# Copyright Advanced Micro Devices, Inc.
+# SPDX-License-Identifier: MIT
+#
 # zizmor configuration
 # Reference: https://docs.zizmor.sh/configuration/
 # Local scan: zizmor --config .github/scan_tools_configs/zizmor.yml .
@@ -8,4 +11,23 @@
 # Keep repository-specific suppressions and tuning here.
 #
 # Add rule-specific settings and suppressions under `rules:`.
-rules: {}
+
+rules:
+  unpinned-uses:
+    config:
+      policies:
+        # These workflow wrappers intentionally follow TheRock's selected ref.
+        # https://github.com/ROCm/rockrel/issues/49
+        ROCm/TheRock/.github/workflows/multi_arch_release.yml: ref-pin
+        ROCm/TheRock/.github/workflows/multi_arch_release_asan.yml: ref-pin
+        ROCm/TheRock/.github/workflows/multi_arch_release_linux_jax_wheels.yml: ref-pin
+        ROCm/TheRock/.github/workflows/multi_arch_release_linux_pytorch_wheels.yml: ref-pin
+        ROCm/TheRock/.github/workflows/multi_arch_release_windows_pytorch_wheels.yml: ref-pin
+        ROCm/TheRock/.github/workflows/test_artifacts.yml: ref-pin
+        ROCm/TheRock/.github/workflows/test_native_linux_packages_install.yml: ref-pin
+        ROCm/TheRock/.github/workflows/test_pytorch_wheels_full.yml: ref-pin
+        "*": hash-pin
+  self-repository:
+    # TODO: Migrate to $/ once actionlint supports the syntax.
+    # https://github.com/rhysd/actionlint/issues/711
+    disable: true
