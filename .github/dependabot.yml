@@ -11,10 +11,12 @@ updates:
     # pins, so .github/actions has to be listed separately to get bumped.
     directory: "/"
     schedule:
-      interval: "weekly"
+      interval: "daily"
       # Wait a week before adopting newly released action versions.
     cooldown:
       default-days: 7
+      exclude:
+        - "ROCm/rocm-security-gh*"
     groups:
       rocm-security-gh:
         patterns: ["ROCm/rocm-security-gh*"]
