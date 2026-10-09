@@ -31,9 +31,15 @@ jobs:
     runs-on: ubuntu-24.04
     steps:
       - name: Show inputs
+        env:
+          RELEASE_TYPE: ${{ inputs.release_type }}
+          PRERELEASE_VERSION: ${{ inputs.prerelease_version }}
+          PREBUILT_PREFIX: ${{ inputs.prebuilt_prefix }}
+          AMDGPU_FAMILIES: ${{ inputs.amdgpu_families }}
+          REF: ${{ inputs.ref }}
         run: |
-          echo "release_type=${{ inputs.release_type }}"
-          echo "prerelease_version=${{ inputs.prerelease_version }}"
-          echo "prebuilt_prefix=${{ inputs.prebuilt_prefix }}"
-          echo "amdgpu_families=${{ inputs.amdgpu_families }}"
-          echo "ref=${{ inputs.ref }}"
+          echo "release_type=${RELEASE_TYPE}"
+          echo "prerelease_version=${PRERELEASE_VERSION}"
+          echo "prebuilt_prefix=${PREBUILT_PREFIX}"
+          echo "amdgpu_families=${AMDGPU_FAMILIES}"
+          echo "ref=${REF}"
