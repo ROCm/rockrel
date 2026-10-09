@@ -76,7 +76,9 @@ jobs:
 
   test:
     uses: ROCm/TheRock/.github/workflows/test_artifacts.yml@main
-    secrets: inherit
+    # Higher-trust entry points: triggered by maintainers or automation.
+    # Inherit secrets for Quartz notifications across the workflow chain.
+    secrets: inherit # zizmor: ignore[secrets-inherit]
     with:
       artifact_group: ${{ inputs.artifact_group }}
       artifact_run_id: ${{ inputs.artifact_run_id }}

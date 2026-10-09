@@ -55,7 +55,7 @@ run-name: >-
 jobs:
   linux:
     uses: ./.github/workflows/multi_arch_repackage_linux.yml
-    secrets: inherit
+    # No secrets are needed by the placeholder repackage workflow.
     with:
       release_type: ${{ inputs.release_type }}
       prerelease_version: ${{ inputs.prerelease_version }}
@@ -64,11 +64,10 @@ jobs:
       ref: ${{ inputs.ref }}
     permissions:
       contents: read
-      id-token: write
 
   windows:
     uses: ./.github/workflows/multi_arch_repackage_windows.yml
-    secrets: inherit
+    # No secrets are needed by the placeholder repackage workflow.
     with:
       release_type: ${{ inputs.release_type }}
       prerelease_version: ${{ inputs.prerelease_version }}
@@ -77,4 +76,3 @@ jobs:
       ref: ${{ inputs.ref }}
     permissions:
       contents: read
-      id-token: write

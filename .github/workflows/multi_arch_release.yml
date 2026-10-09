@@ -78,7 +78,9 @@ jobs:
 
   release:
     uses: ROCm/TheRock/.github/workflows/multi_arch_release.yml@main
-    secrets: inherit
+    # Higher-trust entry points: triggered by maintainers or automation.
+    # Inherit secrets for Quartz notifications across the workflow chain.
+    secrets: inherit # zizmor: ignore[secrets-inherit]
     with:
       release_type: ${{ inputs.release_type || 'nightly' }}
       prerelease_version: ${{ inputs.prerelease_version || '' }}

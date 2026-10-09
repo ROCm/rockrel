@@ -59,9 +59,7 @@ on:
         default: ""
 
 permissions:
-  id-token: write
   contents: read
-  actions: write
 
 run-name: Multi-Arch Release Linux PyTorch Wheels (${{ inputs.amdgpu_families }}, ${{ inputs.release_type }}, ${{ inputs.rocm_version }})
 
@@ -83,7 +81,13 @@ jobs:
 
   release:
     uses: ROCm/TheRock/.github/workflows/multi_arch_release_linux_pytorch_wheels.yml@main
-    secrets: inherit
+    permissions:
+      id-token: write
+      contents: read
+      actions: write
+    # Higher-trust entry points: triggered by maintainers or automation.
+    # Inherit secrets for Quartz notifications across the workflow chain.
+    secrets: inherit # zizmor: ignore[secrets-inherit]
     with:
       amdgpu_families: ${{ inputs.amdgpu_families }}
       rocm_version: ${{ inputs.rocm_version }}
