@@ -1,3 +1,6 @@
+# Copyright Advanced Micro Devices, Inc.
+# SPDX-License-Identifier: MIT
+#
 # trivy minimal configuration
 # Reference: https://trivy.dev/latest/docs/references/configuration/config-file/
 # Local scan: trivy fs --config .github/scan_tools_configs/trivy.yml .
