@@ -63,7 +63,6 @@ on:
 
 permissions:
   contents: read
-  id-token: write
 
 run-name: Test Native Linux Packages Install (${{ inputs.os_profile }}, ${{ inputs.release_type }}, ${{ inputs.test_type || 'sanity' }})
 
@@ -85,7 +84,12 @@ jobs:
 
   test:
     uses: ROCm/TheRock/.github/workflows/test_native_linux_packages_install.yml@main
-    secrets: inherit
+    permissions:
+      contents: read
+      id-token: write
+    # Higher-trust entry points: triggered by maintainers or automation.
+    # Inherit secrets for Quartz notifications across the workflow chain.
+    secrets: inherit # zizmor: ignore[secrets-inherit]
     with:
       package_install_url: ${{ inputs.package_install_url }}
       release_type: ${{ inputs.release_type }}
