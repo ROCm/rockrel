@@ -87,8 +87,6 @@ jobs:
     permissions:
       contents: read
       id-token: write
-    # Higher-trust entry points: triggered by maintainers or automation.
-    # Inherit secrets for Quartz notifications across the workflow chain.
     secrets: inherit # zizmor: ignore[secrets-inherit]
     with:
       package_install_url: ${{ inputs.package_install_url }}
