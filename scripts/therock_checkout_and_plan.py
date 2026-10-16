@@ -1,25 +1,21 @@
- #!/usr/bin/env python3
+#!/usr/bin/env python3
 # Copyright Advanced Micro Devices, Inc.
 # SPDX-License-Identifier: MIT
-"""Repo discovery and plan building for ROCm release scripts."""
+"""Repo discovery and plan building for ROCm release scripts.
+
+Read-only: assumes TheRock is already checked out at the desired ref (see
+checkout_therock.py) and only inspects submodule status / .gitmodules.
+"""
 
 import argparse
 import logging
-import shutil
 import subprocess
 import sys
-import tempfile
 from dataclasses import dataclass
 from pathlib import Path
 from pprint import pformat
 
-from release_utils import (
-    ROCK_URL,
-    TIMEOUT_LONG_SECONDS,
-    log,
-    resolve_git_ref,
-    run_command,
-)
+from release_utils import ROCK_URL, log, run_command
 
 @dataclass
 class RepoInfo:
@@ -57,49 +53,6 @@ def get_submodule_url_map(repo_dir: Path) -> dict[str, str]:
         except subprocess.CalledProcessError:
             log.info("No URL entry for %s; skipping", section)
     return url_map
-
-def _ensure_clone(clone_dir: Path, cache_root: Path, force_clone: bool) -> None:
-    """Clone TheRock if needed, or fetch latest changes."""
-    needs_clone = not clone_dir.exists()
-    if not needs_clone and not (clone_dir / ".git").exists():
-        if not force_clone:
-            raise RuntimeError(
-                f"Cache directory {clone_dir} exists but is not a git repo. "
-                "Use --force-clone to delete it and reclone."
-            )
-        log.info("Removing invalid cache dir before reclone")
-        shutil.rmtree(clone_dir)
-        needs_clone = True
-
-    if needs_clone:
-        log.info("Cloning TheRock into %s", clone_dir)
-        run_command(["git", "clone", ROCK_URL, str(clone_dir)], cwd=cache_root, timeout=TIMEOUT_LONG_SECONDS)
-    else:
-        log.info("Reusing existing TheRock clone at %s", clone_dir)
-        try:
-            remote_url = run_command(["git", "remote", "get-url", "origin"], cwd=clone_dir, capture=True)
-            if "TheRock" not in remote_url:
-                raise RuntimeError(f"Repo at {clone_dir} does not look like TheRock (origin={remote_url})")
-        except RuntimeError:
-            raise
-        except Exception as exc:
-            raise RuntimeError(f"Failed to inspect repo at {clone_dir}: {exc}") from exc
-        log.info("Fetching latest changes...")
-        run_command(
-            ["git", "fetch", "origin", "--prune", "--recurse-submodules=on-demand"],
-            cwd=clone_dir, timeout=TIMEOUT_LONG_SECONDS,
-        )
-
-def update_submodules(clone_dir: Path) -> None:
-    """Populate submodules via fetch_sources.py."""
-    fetch_script = clone_dir / "build_tools" / "fetch_sources.py"
-    if not fetch_script.exists():
-        raise RuntimeError(f"fetch_sources.py not found at {fetch_script}")
-    log.info("Updating submodules via fetch_sources.py...")
-    run_command(
-        [sys.executable, str(fetch_script), "--jobs", "10", "--no-apply-patches"],
-        cwd=clone_dir, timeout=TIMEOUT_LONG_SECONDS,
-    )
 
 def _collect_repos(
     clone_dir: Path, commitid: str, exclude: set[str], include: set[str] | None = None
@@ -146,39 +99,19 @@ def _collect_repos(
         plan["TheRock"] = RepoInfo(url=ROCK_URL, commit=commitid, path=clone_dir)
     return plan
 
-def _ensure_clean_worktree(repo_dir: Path) -> None:
-    """Raise if repo_dir has local modifications that 'git reset --hard' would destroy."""
-    status = run_command(["git", "status", "--porcelain"], cwd=repo_dir, capture=True)
-    if status:
-        raise RuntimeError(
-            f"Repo at {repo_dir} has uncommitted changes; refusing to run "
-            "'git reset --hard'. Commit or stash your changes, use a different "
-            "--cache-dir, or pass --force-clone to start from a fresh clone."
-        )
-
 def build_plan(
+    clone_dir: Path,
     commitid: str,
-    cache_dir: Path | None = None,
-    force_clone: bool = False,
     exclude_list: set[str] | None = None,
     include_list: set[str] | None = None,
 ) -> dict[str, RepoInfo]:
-    """Clone/reuse TheRock at commitid, populate submodules, return repo plan."""
+    """Discover the repo plan from an already-checked-out TheRock clone.
+
+    Read-only: does not clone, checkout, or modify clone_dir in any way.
+    """
     exclude = exclude_list or set()
     include = include_list or set()
-    cache_root = cache_dir or Path(tempfile.gettempdir()) / "rock-branching-cache"
-    cache_root.mkdir(parents=True, exist_ok=True)
-    clone_dir = cache_root / "TheRock"
-
-    _ensure_clone(clone_dir, cache_root, force_clone)
-
-    log.info("Checking out TheRock at %s", commitid)
-    run_command(["git", "checkout", commitid], cwd=clone_dir)
-    canonical_sha = resolve_git_ref("HEAD", clone_dir)
-    _ensure_clean_worktree(clone_dir)
-    run_command(["git", "reset", "--hard", canonical_sha], cwd=clone_dir)
-
-    plan = _collect_repos(clone_dir, canonical_sha, exclude, include)
+    plan = _collect_repos(clone_dir, commitid, exclude, include)
     log.info("Execution plan:\n%s", pformat(plan))
     return plan
 
@@ -197,12 +130,13 @@ def _format_plan(plan: dict[str, RepoInfo]) -> str:
 
 
 def main(argv: list[str]) -> int:
-    parser = argparse.ArgumentParser(description="Build and print the ROCm release repo plan.")
-    parser.add_argument("-C", "--commitid", required=True, help="TheRock git ref (branch, tag, or SHA)")
-    parser.add_argument("--cache-dir", default=None,
-                        help="Directory to cache the TheRock clone (default: system temp dir)")
-    parser.add_argument("--force-clone", action="store_true", default=False,
-                        help="Delete and reclone if the cache dir exists but is not a valid git repo")
+    parser = argparse.ArgumentParser(
+        description="Build and print the ROCm release repo plan from an already-checked-out TheRock clone."
+    )
+    parser.add_argument("--clone-dir", required=True, type=Path,
+                        help="Path to an existing TheRock clone (see checkout_therock.py)")
+    parser.add_argument("-C", "--commitid", required=True,
+                        help="Resolved TheRock commit (used as the reported TheRock commit in the plan)")
     parser.add_argument("--exclude-list", nargs="*", default=[],
                         help="Repo names to exclude from the plan, applied after --include-list")
     parser.add_argument("--include-list", nargs="*", default=[],
@@ -212,13 +146,11 @@ def main(argv: list[str]) -> int:
     args = parser.parse_args(argv)
 
     logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
-    cache_dir = Path(args.cache_dir) if args.cache_dir else None
 
     try:
         plan = build_plan(
+            clone_dir=args.clone_dir,
             commitid=args.commitid,
-            cache_dir=cache_dir,
-            force_clone=args.force_clone,
             exclude_list=set(args.exclude_list),
             include_list=set(args.include_list),
         )

@@ -4,8 +4,12 @@
 """
 Create release branches for TheRock and all tracked ROCm submodules.
 
-Dry-run mode (default) logs all planned actions without making any local or
-remote git changes.
+Dry-run mode (default) never creates or pushes a branch. It does NOT control
+whether TheRock is checked out/updated: by default this script always clones
+or fetches TheRock, resets it to --commitid, and runs fetch_sources.py to
+populate submodules, since discovering the submodule plan requires that repo
+state to exist somewhere. Pass --skip-checkout (with --cache-dir pointing at
+an existing, already-checked-out clone) to make dry-run fully read-only.
 
 Usage:
     python create_release_branches.py \\
@@ -20,8 +24,9 @@ import sys
 from pathlib import Path
 from pprint import pformat
 
-from release_utils import run_command, setup_remote, TIMEOUT_SHORT_SECONDS
-from therock_checkout_and_plan import RepoInfo, build_plan, update_submodules
+from checkout_therock import checkout_therock, default_clone_dir
+from release_utils import resolve_git_ref, run_command, setup_remote, TIMEOUT_SHORT_SECONDS
+from therock_checkout_and_plan import RepoInfo, build_plan
 
 log = logging.getLogger("rock_release")
 
@@ -107,6 +112,12 @@ def main(argv: list[str]) -> int:
     parser.add_argument("--include-list", nargs="*", default=[])
     parser.add_argument("--force-clone", action="store_true", default=False)
     parser.add_argument("--cache-dir", default=None)
+    parser.add_argument(
+        "--skip-checkout", action="store_true", default=False,
+        help="Do not clone/fetch/reset TheRock or run fetch_sources.py; assume "
+             "--cache-dir already holds TheRock checked out at --commitid. "
+             "Makes the full run (including dry-run) read-only.",
+    )
     args = parser.parse_args(argv)
 
     logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
@@ -115,14 +126,32 @@ def main(argv: list[str]) -> int:
     cache_dir = Path(args.cache_dir) if args.cache_dir else None
 
     try:
+        if args.skip_checkout:
+            clone_dir = default_clone_dir(cache_dir)
+            if not clone_dir.exists():
+                raise RuntimeError(
+                    f"--skip-checkout set but no clone found at {clone_dir}; "
+                    "run checkout_therock.py first or omit --skip-checkout."
+                )
+            log.info("--skip-checkout set; using existing clone at %s as-is", clone_dir)
+            try:
+                canonical_sha = resolve_git_ref(args.commitid, clone_dir)
+            except subprocess.CalledProcessError as exc:
+                raise RuntimeError(
+                    f"Failed to resolve {args.commitid!r} in existing clone at {clone_dir}: {exc}"
+                ) from exc
+        else:
+            clone_dir, canonical_sha = checkout_therock(
+                commitid=args.commitid,
+                cache_dir=cache_dir,
+                force_clone=args.force_clone,
+            )
         plan = build_plan(
-            commitid=args.commitid,
-            cache_dir=cache_dir,
-            force_clone=args.force_clone,
+            clone_dir=clone_dir,
+            commitid=canonical_sha,
             exclude_list=set(args.exclude_list),
             include_list=set(args.include_list),
         )
-        update_submodules(plan["TheRock"].path)
     except RuntimeError as exc:
         log.error("%s", exc)
         return 1
