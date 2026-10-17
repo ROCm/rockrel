@@ -237,8 +237,8 @@ class TestMainAcceptsAnyRef:
 class TestSkipCheckout:
     def test_skip_checkout_does_not_call_checkout_therock(self, tmp_path):
         from scripts.create_release_branches import main
-        clone_dir = tmp_path / "TheRock"
-        clone_dir.mkdir()
+        clone_dir = tmp_path / "existing-clone" / "TheRock"
+        clone_dir.mkdir(parents=True)
         with patch("scripts.create_release_branches.default_clone_dir", return_value=clone_dir), \
              patch("scripts.create_release_branches.checkout_therock") as mock_checkout, \
              patch("scripts.create_release_branches.resolve_git_ref", return_value="a" * 40), \
