@@ -26,7 +26,7 @@ from pprint import pformat
 
 from checkout_therock import checkout_therock, default_clone_dir
 from release_utils import resolve_git_ref, run_command, setup_remote, TIMEOUT_SHORT_SECONDS
-from therock_checkout_and_plan import RepoInfo, build_plan
+from discover_submodules import RepoInfo, build_plan
 
 log = logging.getLogger("rock_release")
 

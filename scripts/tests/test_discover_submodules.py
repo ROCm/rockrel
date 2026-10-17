@@ -1,7 +1,7 @@
 # Copyright Advanced Micro Devices, Inc.
 # SPDX-License-Identifier: MIT
 """
-Tests for therock_checkout_and_plan.py.
+Tests for discover_submodules.py.
 
 Covers:
 - get_submodule_url_map: .gitmodules parsing
@@ -19,7 +19,7 @@ import pytest
 sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
-from scripts.therock_checkout_and_plan import _collect_repos, build_plan
+from scripts.discover_submodules import _collect_repos, build_plan
 
 
 # ---------------------------------------------------------------------------
@@ -55,14 +55,14 @@ def _make_clone_dir(tmp_path: Path) -> Path:
 def _patch_collect(clone_dir: Path, status: str):
     """Patch run_command so _collect_repos gets real .gitmodules data
     but git submodule status returns our fake output."""
-    from scripts.therock_checkout_and_plan import run_command as _original_run_command
+    from scripts.discover_submodules import run_command as _original_run_command
 
     def side_effect(args, **kwargs):
         if "submodule" in args and "status" in args:
             return status
         return _original_run_command(args, **kwargs)
 
-    return patch("scripts.therock_checkout_and_plan.run_command", side_effect=side_effect)
+    return patch("scripts.discover_submodules.run_command", side_effect=side_effect)
 
 
 class TestCollectRepos:
@@ -104,7 +104,7 @@ class TestCollectRepos:
     def test_submodule_status_failure_raises(self, tmp_path):
         clone_dir = _make_clone_dir(tmp_path)
         with patch(
-            "scripts.therock_checkout_and_plan.run_command",
+            "scripts.discover_submodules.run_command",
             side_effect=subprocess.CalledProcessError(1, "git submodule"),
         ):
             with pytest.raises(RuntimeError, match="Failed to read submodule status"):
