@@ -6,13 +6,13 @@ Tests for check_github_permissions.py.
 Covers:
 - check_permissions pass/fail logic
 """
-import sys
 import urllib.error
-from pathlib import Path
 from unittest.mock import patch
 
 import pytest
 
+import sys
+from pathlib import Path
 sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 sys.path.insert(0, str(Path(__file__).parent.parent))
 

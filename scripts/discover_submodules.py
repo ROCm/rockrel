@@ -60,8 +60,9 @@ def _collect_repos(
     """Parse submodule status and .gitmodules into a repo plan.
 
     If `include` is non-empty, only repos named in it are considered (bypassing
-    the ROCm org filter); otherwise all ROCm org repos are considered. In both
-    cases, any repo named in `exclude` is then removed from the result.
+    the ROCm org filter and applying to TheRock as well); otherwise all ROCm
+    org repos, plus TheRock, are considered. In both cases, any repo named in
+    `exclude` is then removed from the result.
     """
     try:
         status_output = run_command(["git", "submodule", "status"], cwd=clone_dir, capture=True)
@@ -95,7 +96,7 @@ def _collect_repos(
             continue
         plan[repo_name] = RepoInfo(url=repo_url, commit=sha, path=clone_dir / path)
 
-    if "TheRock" not in exclude:
+    if (not include or "TheRock" in include) and "TheRock" not in exclude:
         plan["TheRock"] = RepoInfo(url=ROCK_URL, commit=commitid, path=clone_dir)
     return plan
 
@@ -141,8 +142,8 @@ def main(argv: list[str]) -> int:
                         help="Repo names to exclude from the plan, applied after --include-list")
     parser.add_argument("--include-list", nargs="*", default=[],
                         help="If given, only these repo names are considered for the plan "
-                             "(bypasses the ROCm org filter); TheRock is always included "
-                             "unless also named in --exclude-list")
+                             "(bypasses the ROCm org filter); this also applies to TheRock, "
+                             "so name it explicitly to keep it in the plan")
     args = parser.parse_args(argv)
 
     logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")

@@ -11,16 +11,16 @@ Covers:
 - execute_plan behaviour with mocked subprocess calls
 """
 import subprocess
-import sys
 import textwrap
 from pathlib import Path
 from types import SimpleNamespace
-from unittest.mock import MagicMock, patch
+from unittest.mock import MagicMock, call, patch
 
 import pytest
 
+import sys
 sys.path.insert(0, str(Path(__file__).parent.parent.parent))
-from scripts.rock_tagging import RepoInfo, RockTagging, main
+from scripts.rock_tagging import RepoInfo, RockTagging
 
 
 _FAKE_COMMIT = "a" * 40
@@ -144,6 +144,13 @@ def _make_plan(tmp_path: Path) -> dict[str, RepoInfo]:
 
 
 class TestExecutePlan:
+    def _patch_tag_absent(self, auto):
+        """Return a context manager that makes tag_exists check return False."""
+        return patch(
+            "subprocess.run",
+            return_value=MagicMock(returncode=1),
+        )
+
     def test_dry_run_does_not_push(self, tmp_path):
         auto = make_tagging(dry_run=True)
         plan = _make_plan(tmp_path)
@@ -313,6 +320,7 @@ class TestMainExceptionHandling:
         ]
 
     def test_runtime_error_returns_1(self):
+        from scripts.rock_tagging import main
         with patch(
             "scripts.rock_tagging.RockTagging.run",
             side_effect=RuntimeError("cache error"),
@@ -320,6 +328,7 @@ class TestMainExceptionHandling:
             assert main(self._make_args()) == 1
 
     def test_called_process_error_returns_1(self):
+        from scripts.rock_tagging import main
         with patch(
             "scripts.rock_tagging.RockTagging.run",
             side_effect=subprocess.CalledProcessError(1, "git"),
@@ -327,6 +336,7 @@ class TestMainExceptionHandling:
             assert main(self._make_args()) == 1
 
     def test_timeout_expired_returns_1(self):
+        from scripts.rock_tagging import main
         with patch(
             "scripts.rock_tagging.RockTagging.run",
             side_effect=subprocess.TimeoutExpired("git", 60),
@@ -334,5 +344,6 @@ class TestMainExceptionHandling:
             assert main(self._make_args()) == 1
 
     def test_success_returns_0(self):
+        from scripts.rock_tagging import main
         with patch("scripts.rock_tagging.RockTagging.run"):
             assert main(self._make_args()) == 0

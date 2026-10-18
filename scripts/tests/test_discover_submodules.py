@@ -117,6 +117,13 @@ class TestCollectRepos:
         assert "hip" in plan
         assert "clr" not in plan
         assert "llvm-project" not in plan
+        assert "TheRock" not in plan
+
+    def test_include_list_can_add_therock_back(self, tmp_path):
+        clone_dir = _make_clone_dir(tmp_path)
+        with _patch_collect(clone_dir, _SUBMODULE_STATUS):
+            plan = _collect_repos(clone_dir, "a" * 40, set(), {"hip", "TheRock"})
+        assert "hip" in plan
         assert "TheRock" in plan
 
     def test_include_list_overrides_org_filter(self, tmp_path):
