@@ -8,12 +8,12 @@ Covers:
 - check_repo: reachable/branch-exists, timeout, unreachable
 """
 import subprocess
+import sys
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 
 import pytest
 
-import sys
 sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 sys.path.insert(0, str(Path(__file__).parent.parent))
 

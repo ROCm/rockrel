@@ -1,5 +1,4 @@
 #!/usr/bin/env python3
-#!/usr/bin/env python3
 # Copyright Advanced Micro Devices, Inc.
 # SPDX-License-Identifier: MIT
 """
@@ -11,19 +10,20 @@ Covers:
 - create_branch / push_branch helpers
 - execute_plan behaviour
 - main() accepts any git ref
+- --skip-checkout
 """
 import subprocess
+import sys
 import textwrap
 from pathlib import Path
-from unittest.mock import call, patch
+from unittest.mock import patch
 
 import pytest
 
-import sys
 sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 sys.path.insert(0, str(Path(__file__).parent.parent))
 from scripts.discover_submodules import RepoInfo, get_submodule_url_map
-from scripts.create_release_branches import create_branch, execute_plan, push_branch
+from scripts.create_release_branches import create_branch, execute_plan, main, push_branch
 
 def _make_plan(tmp_path: Path) -> dict[str, RepoInfo]:
     repo_dir = tmp_path / "hip"
@@ -199,36 +199,22 @@ class TestExecutePlan:
 
 def _make_full_plan(tmp_path: Path) -> dict[str, RepoInfo]:
     rock_dir = tmp_path / "TheRock"
-    rock_dir.mkdir()
+    rock_dir.mkdir(exist_ok=True)
     return {"TheRock": RepoInfo(url="https://github.com/ROCm/TheRock.git", commit="a" * 40, path=rock_dir)}
 
+@pytest.fixture
+def patched_main(tmp_path):
+    """Patch main()'s collaborators so it runs without touching git or disk."""
+    with patch("scripts.create_release_branches.checkout_therock",
+               return_value=(tmp_path / "TheRock", "a" * 40)), \
+         patch("scripts.create_release_branches.build_plan", return_value=_make_full_plan(tmp_path)), \
+         patch("scripts.create_release_branches.execute_plan", return_value=0):
+        yield
+
 class TestMainAcceptsAnyRef:
-    def test_full_sha_accepted(self, tmp_path):
-        from scripts.create_release_branches import main
-        with patch("scripts.create_release_branches.checkout_therock",
-                   return_value=(tmp_path / "TheRock", "a" * 40)), \
-             patch("scripts.create_release_branches.build_plan", return_value=_make_full_plan(tmp_path)), \
-             patch("scripts.create_release_branches.execute_plan", return_value=0):
-            rc = main(["-B", "release/6.4", "-C", "a" * 40])
-        assert rc == 0
-
-    def test_branch_name_accepted(self, tmp_path):
-        from scripts.create_release_branches import main
-        with patch("scripts.create_release_branches.checkout_therock",
-                   return_value=(tmp_path / "TheRock", "a" * 40)), \
-             patch("scripts.create_release_branches.build_plan", return_value=_make_full_plan(tmp_path)), \
-             patch("scripts.create_release_branches.execute_plan", return_value=0):
-            rc = main(["-B", "release/6.4", "-C", "main"])
-        assert rc == 0
-
-    def test_tag_accepted(self, tmp_path):
-        from scripts.create_release_branches import main
-        with patch("scripts.create_release_branches.checkout_therock",
-                   return_value=(tmp_path / "TheRock", "a" * 40)), \
-             patch("scripts.create_release_branches.build_plan", return_value=_make_full_plan(tmp_path)), \
-             patch("scripts.create_release_branches.execute_plan", return_value=0):
-            rc = main(["-B", "release/6.4", "-C", "rocm-6.3.0"])
-        assert rc == 0
+    @pytest.mark.parametrize("ref", ["a" * 40, "main", "rocm-6.3.0"], ids=["sha", "branch", "tag"])
+    def test_ref_accepted(self, patched_main, ref):
+        assert main(["-B", "release/6.4", "-C", ref]) == 0
 
 
 # ---------------------------------------------------------------------------
@@ -236,8 +222,7 @@ class TestMainAcceptsAnyRef:
 # ---------------------------------------------------------------------------
 
 class TestSkipCheckout:
-    def test_skip_checkout_does_not_call_checkout_therock(self, tmp_path):
-        from scripts.create_release_branches import main
+    def test_skips_checkout_therock_and_uses_existing_clone(self, tmp_path):
         clone_dir = tmp_path / "existing-clone" / "TheRock"
         clone_dir.mkdir(parents=True)
         with patch("scripts.create_release_branches.default_clone_dir", return_value=clone_dir), \
@@ -249,10 +234,9 @@ class TestSkipCheckout:
         assert rc == 0
         mock_checkout.assert_not_called()
 
-    def test_skip_checkout_fails_when_clone_missing(self, tmp_path):
-        from scripts.create_release_branches import main
-        missing_dir = tmp_path / "does-not-exist"
-        with patch("scripts.create_release_branches.default_clone_dir", return_value=missing_dir), \
+    def test_fails_when_clone_missing(self, tmp_path):
+        with patch("scripts.create_release_branches.default_clone_dir",
+                   return_value=tmp_path / "does-not-exist"), \
              patch("scripts.create_release_branches.checkout_therock") as mock_checkout:
             rc = main(["-B", "release/6.4", "-C", "main", "--skip-checkout"])
         assert rc == 1
