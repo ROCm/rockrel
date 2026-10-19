@@ -73,7 +73,7 @@ def update_submodules(clone_dir: Path) -> None:
 
 def default_clone_dir(cache_dir: Path | None = None) -> Path:
     """Return the TheRock clone path for a given cache dir (without creating it)."""
-    cache_root = cache_dir or Path(tempfile.gettempdir()) / "rock-branching-cache"
+    cache_root = (cache_dir or Path(tempfile.gettempdir()) / "rock-branching-cache").resolve()
     return cache_root / "TheRock"
 
 def checkout_therock(
@@ -86,9 +86,9 @@ def checkout_therock(
     Mutates the local cache: clones or fetches, checks out the resolved
     commit, and runs fetch_sources.py. Returns (clone_dir, canonical_sha).
     """
-    cache_root = cache_dir or Path(tempfile.gettempdir()) / "rock-branching-cache"
+    clone_dir = default_clone_dir(cache_dir)
+    cache_root = clone_dir.parent
     cache_root.mkdir(parents=True, exist_ok=True)
-    clone_dir = cache_root / "TheRock"
 
     _ensure_clone(clone_dir, cache_root, force_clone)
     _ensure_clean_worktree(clone_dir)
