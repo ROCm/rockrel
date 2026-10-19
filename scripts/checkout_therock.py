@@ -77,13 +77,13 @@ def default_clone_dir(cache_dir: Path | None = None) -> Path:
     return cache_root / "TheRock"
 
 def checkout_therock(
-    commitid: str,
+    commit_ref: str,
     cache_dir: Path | None = None,
     force_clone: bool = False,
 ) -> tuple[Path, str]:
-    """Clone/reuse TheRock, check out commitid, and populate submodules.
+    """Clone/reuse TheRock, check out commit_ref, and populate submodules.
 
-    Mutates the local cache: clones or fetches, hard-resets to the resolved
+    Mutates the local cache: clones or fetches, checks out the resolved
     commit, and runs fetch_sources.py. Returns (clone_dir, canonical_sha).
     """
     cache_root = cache_dir or Path(tempfile.gettempdir()) / "rock-branching-cache"
@@ -91,19 +91,18 @@ def checkout_therock(
     clone_dir = cache_root / "TheRock"
 
     _ensure_clone(clone_dir, cache_root, force_clone)
-
-    log.info("Checking out TheRock at %s", commitid)
-    run_command(["git", "checkout", commitid], cwd=clone_dir)
-    canonical_sha = resolve_git_ref("HEAD", clone_dir)
     _ensure_clean_worktree(clone_dir)
-    run_command(["git", "reset", "--hard", canonical_sha], cwd=clone_dir)
+
+    canonical_sha = resolve_git_ref(commit_ref, clone_dir)
+    log.info("Checking out TheRock at %s", canonical_sha)
+    run_command(["git", "checkout", canonical_sha], cwd=clone_dir)
 
     update_submodules(clone_dir)
     return clone_dir, canonical_sha
 
 def main(argv: list[str]) -> int:
     parser = argparse.ArgumentParser(description="Clone/checkout TheRock and populate submodules.")
-    parser.add_argument("-C", "--commitid", required=True, help="TheRock git ref (branch, tag, or SHA)")
+    parser.add_argument("-C", "--commit-ref", required=True, help="TheRock git ref (branch, tag, or SHA)")
     parser.add_argument("--cache-dir", default=None,
                         help="Directory to cache the TheRock clone (default: system temp dir)")
     parser.add_argument("--force-clone", action="store_true", default=False,
@@ -115,7 +114,7 @@ def main(argv: list[str]) -> int:
 
     try:
         clone_dir, canonical_sha = checkout_therock(
-            commitid=args.commitid,
+            commit_ref=args.commit_ref,
             cache_dir=cache_dir,
             force_clone=args.force_clone,
         )

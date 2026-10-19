@@ -55,7 +55,7 @@ def get_submodule_url_map(repo_dir: Path) -> dict[str, str]:
     return url_map
 
 def _collect_repos(
-    clone_dir: Path, commitid: str, exclude: set[str], include: set[str] | None = None
+    clone_dir: Path, commit_ref: str, exclude: set[str], include: set[str] | None = None
 ) -> dict[str, RepoInfo]:
     """Parse submodule status and .gitmodules into a repo plan.
 
@@ -97,12 +97,12 @@ def _collect_repos(
         plan[repo_name] = RepoInfo(url=repo_url, commit=sha, path=clone_dir / path)
 
     if (not include or "TheRock" in include) and "TheRock" not in exclude:
-        plan["TheRock"] = RepoInfo(url=ROCK_URL, commit=commitid, path=clone_dir)
+        plan["TheRock"] = RepoInfo(url=ROCK_URL, commit=commit_ref, path=clone_dir)
     return plan
 
 def build_plan(
     clone_dir: Path,
-    commitid: str,
+    commit_ref: str,
     exclude_list: set[str] | None = None,
     include_list: set[str] | None = None,
 ) -> dict[str, RepoInfo]:
@@ -112,7 +112,7 @@ def build_plan(
     """
     exclude = exclude_list or set()
     include = include_list or set()
-    plan = _collect_repos(clone_dir, commitid, exclude, include)
+    plan = _collect_repos(clone_dir, commit_ref, exclude, include)
     log.info("Execution plan:\n%s", pformat(plan))
     return plan
 
@@ -136,7 +136,7 @@ def main(argv: list[str]) -> int:
     )
     parser.add_argument("--clone-dir", required=True, type=Path,
                         help="Path to an existing TheRock clone (see checkout_therock.py)")
-    parser.add_argument("-C", "--commitid", required=True,
+    parser.add_argument("-C", "--commit-ref", required=True,
                         help="Resolved TheRock commit (used as the reported TheRock commit in the plan)")
     parser.add_argument("--exclude-list", nargs="*", default=[],
                         help="Repo names to exclude from the plan, applied after --include-list")
@@ -151,7 +151,7 @@ def main(argv: list[str]) -> int:
     try:
         plan = build_plan(
             clone_dir=args.clone_dir,
-            commitid=args.commitid,
+            commit_ref=args.commit_ref,
             exclude_list=set(args.exclude_list),
             include_list=set(args.include_list),
         )

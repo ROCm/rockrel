@@ -21,13 +21,13 @@ Checks (in order):
 Usage:
     python check_release_branch_state.py \\
         --branch-name <release-branch> \\
-        --commitid <rock-git-ref> \\
+        --commit-ref <rock-git-ref> \\
         [--exclude-list repo1 repo2]
 
 Arguments:
     --branch-name   The new release branch name to check.
                     This branch should NOT exist yet — [OK] means it is safe to create.
-    --commitid      TheRock git ref (branch, tag, or SHA) to read the repo list from.
+    --commit-ref    TheRock git ref (branch, tag, or SHA) to read the repo list from.
     --exclude-list  Repo names to skip.
 """
 import argparse
@@ -74,8 +74,8 @@ def check_repo(repo_name: str, url: str, branch_name: str) -> dict:
         result["error"] = f"Remote unreachable: {exc}"
     return result
 
-def run_checks(branch_name: str, commitid: str, exclude_list: list[str]) -> int:
-    print(f"Checking release branch state for: {branch_name} @ {commitid}\n")
+def run_checks(branch_name: str, commit_ref: str, exclude_list: list[str]) -> int:
+    print(f"Checking release branch state for: {branch_name} @ {commit_ref}\n")
 
     if not check_ssh_auth():
         print("\nAborting: SSH auth failed. Configure SSH key for git@github.com.")
@@ -83,7 +83,7 @@ def run_checks(branch_name: str, commitid: str, exclude_list: list[str]) -> int:
 
     print()
     token = get_gh_token()
-    repo_map = fetch_repo_map(token, commitid, set(exclude_list))
+    repo_map = fetch_repo_map(token, commit_ref, set(exclude_list))
     if check_permissions(token, repo_map) != 0:
         return 1
 
@@ -117,11 +117,11 @@ def run_checks(branch_name: str, commitid: str, exclude_list: list[str]) -> int:
 def main(argv: list[str]) -> int:
     parser = argparse.ArgumentParser(description="Check release branch state (read-only)")
     parser.add_argument("-B", "--branch-name", required=True, help="Release branch name")
-    parser.add_argument("-C", "--commitid", required=True, help="TheRock git ref (branch, tag, or SHA)")
+    parser.add_argument("-C", "--commit-ref", required=True, help="TheRock git ref (branch, tag, or SHA)")
     parser.add_argument("--exclude-list", nargs="*", default=[], help="Repo names to skip")
     args = parser.parse_args(argv)
 
-    return run_checks(args.branch_name, args.commitid, args.exclude_list)
+    return run_checks(args.branch_name, args.commit_ref, args.exclude_list)
 
 if __name__ == "__main__":
     sys.exit(main(sys.argv[1:]))

@@ -95,11 +95,11 @@ class TestCollectRepos:
 
     def test_therock_always_in_plan(self, tmp_path):
         clone_dir = _make_clone_dir(tmp_path)
-        commitid = "a" * 40
+        commit_ref = "a" * 40
         with _patch_collect(clone_dir, _SUBMODULE_STATUS):
-            plan = _collect_repos(clone_dir, commitid, set())
+            plan = _collect_repos(clone_dir, commit_ref, set())
         assert "TheRock" in plan
-        assert plan["TheRock"].commit == commitid
+        assert plan["TheRock"].commit == commit_ref
 
     def test_submodule_status_failure_raises(self, tmp_path):
         clone_dir = _make_clone_dir(tmp_path)

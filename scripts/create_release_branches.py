@@ -6,7 +6,7 @@ Create release branches for TheRock and all tracked ROCm submodules.
 
 Dry-run mode (default) never creates or pushes a branch. It does NOT control
 whether TheRock is checked out/updated: by default this script always clones
-or fetches TheRock, resets it to --commitid, and runs fetch_sources.py to
+or fetches TheRock, resets it to --commit-ref, and runs fetch_sources.py to
 populate submodules, since discovering the submodule plan requires that repo
 state to exist somewhere. Pass --skip-checkout (with --cache-dir pointing at
 an existing, already-checked-out clone) to make dry-run fully read-only.
@@ -14,7 +14,7 @@ an existing, already-checked-out clone) to make dry-run fully read-only.
 Usage:
     python create_release_branches.py \\
         --branch-name <release-branch> \\
-        --commitid <rock-git-ref> \\
+        --commit-ref <rock-git-ref> \\
         [--no-dry-run]
 """
 import argparse
@@ -105,7 +105,7 @@ def execute_plan(plan: dict[str, RepoInfo], branch_name: str, dry_run: bool) -> 
 def main(argv: list[str]) -> int:
     parser = argparse.ArgumentParser(description="Create ROCm release branches")
     parser.add_argument("-B", "--branch-name", required=True, help="Release branch name")
-    parser.add_argument("-C", "--commitid", required=True, help="TheRock git ref (branch, tag, or SHA)")
+    parser.add_argument("-C", "--commit-ref", required=True, help="TheRock git ref (branch, tag, or SHA)")
     parser.add_argument("--dry-run", action=argparse.BooleanOptionalAction, default=True,
                         help="Log planned actions without making any git changes (default: enabled)")
     parser.add_argument("--exclude-list", nargs="*", default=[])
@@ -115,7 +115,7 @@ def main(argv: list[str]) -> int:
     parser.add_argument(
         "--skip-checkout", action="store_true", default=False,
         help="Do not clone/fetch/reset TheRock or run fetch_sources.py; assume "
-             "--cache-dir already holds TheRock checked out at --commitid. "
+             "--cache-dir already holds TheRock checked out at --commit-ref. "
              "Makes the full run (including dry-run) read-only.",
     )
     args = parser.parse_args(argv)
@@ -135,20 +135,20 @@ def main(argv: list[str]) -> int:
                 )
             log.info("--skip-checkout set; using existing clone at %s as-is", clone_dir)
             try:
-                canonical_sha = resolve_git_ref(args.commitid, clone_dir)
+                canonical_sha = resolve_git_ref(args.commit_ref, clone_dir)
             except subprocess.CalledProcessError as exc:
                 raise RuntimeError(
-                    f"Failed to resolve {args.commitid!r} in existing clone at {clone_dir}: {exc}"
+                    f"Failed to resolve {args.commit_ref!r} in existing clone at {clone_dir}: {exc}"
                 ) from exc
         else:
             clone_dir, canonical_sha = checkout_therock(
-                commitid=args.commitid,
+                commit_ref=args.commit_ref,
                 cache_dir=cache_dir,
                 force_clone=args.force_clone,
             )
         plan = build_plan(
             clone_dir=clone_dir,
-            commitid=canonical_sha,
+            commit_ref=canonical_sha,
             exclude_list=set(args.exclude_list),
             include_list=set(args.include_list),
         )

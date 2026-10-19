@@ -64,19 +64,19 @@ def _api_request(url: str, token: str) -> dict:
     with urllib.request.urlopen(req, timeout=15) as resp:
         return json.loads(resp.read())
 
-def fetch_repo_map(token: str, commitid: str, exclude_list: set[str]) -> dict[str, str]:
+def fetch_repo_map(token: str, commit_ref: str, exclude_list: set[str]) -> dict[str, str]:
     """Return repo-name → URL map by reading .gitmodules from the GitHub API.
 
     No local clone required. Filters to ROCm org repos only.
     Accepts any valid git ref (branch, tag, or SHA).
     """
-    api_url = f"{GITHUB_API}/repos/ROCm/TheRock/contents/.gitmodules?ref={commitid}"
+    api_url = f"{GITHUB_API}/repos/ROCm/TheRock/contents/.gitmodules?ref={commit_ref}"
     try:
         data = _api_request(api_url, token)
     except urllib.error.HTTPError as exc:
         raise SystemExit(
             f"ERROR: Failed to fetch .gitmodules (HTTP {exc.code}). "
-            f"Check that ref {commitid!r} exists and the token has repo read access."
+            f"Check that ref {commit_ref!r} exists and the token has repo read access."
         )
     except urllib.error.URLError as exc:
         raise SystemExit(f"ERROR: Network error fetching .gitmodules: {exc.reason}")
