@@ -115,12 +115,16 @@ def fetch_repo_map(token: str, commit_ref: str, exclude_list: set[str]) -> dict[
 
 def run_command(
     args: list,
-    cwd: Path,
+    cwd: Path | None = None,
     *,
     timeout: int | None = TIMEOUT_SHORT_SECONDS,
     capture: bool = False,
 ) -> str:
     """Run a command, raising CalledProcessError on failure.
+
+    cwd=None lets the command inherit the caller's working directory, for
+    commands (e.g. `git ls-remote`) that don't operate on a local repo and
+    so have no real working tree to run in.
 
     Returns captured stdout as a stripped string when capture=True, else "".
     """
@@ -128,7 +132,7 @@ def run_command(
     log.info("++ Exec [%s]$ %s", cwd, shlex.join(cmd))
     result = subprocess.run(
         cmd,
-        cwd=str(cwd),
+        cwd=str(cwd) if cwd is not None else None,
         stdin=subprocess.DEVNULL,
         stdout=subprocess.PIPE if capture else None,
         text=capture,

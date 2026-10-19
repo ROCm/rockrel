@@ -54,7 +54,7 @@ def get_submodule_url_map(repo_dir: Path) -> dict[str, str]:
             log.info("No URL entry for %s; skipping", section)
     return url_map
 
-def _collect_repos(
+def _collect_repos_from_clone(
     clone_dir: Path, commit_ref: str, exclude: set[str], include: set[str] | None = None
 ) -> dict[str, RepoInfo]:
     """Parse submodule status and .gitmodules into a repo plan.
@@ -100,7 +100,7 @@ def _collect_repos(
         plan["TheRock"] = RepoInfo(url=ROCK_URL, commit=commit_ref, path=clone_dir)
     return plan
 
-def build_plan(
+def discover_repo_plan(
     clone_dir: Path,
     commit_ref: str,
     exclude_list: set[str] | None = None,
@@ -112,7 +112,7 @@ def build_plan(
     """
     exclude = exclude_list or set()
     include = include_list or set()
-    plan = _collect_repos(clone_dir, commit_ref, exclude, include)
+    plan = _collect_repos_from_clone(clone_dir, commit_ref, exclude, include)
     log.info("Execution plan:\n%s", pformat(plan))
     return plan
 
@@ -149,7 +149,7 @@ def main(argv: list[str]) -> int:
     logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
 
     try:
-        plan = build_plan(
+        plan = discover_repo_plan(
             clone_dir=args.clone_dir,
             commit_ref=args.commit_ref,
             exclude_list=set(args.exclude_list),

@@ -207,7 +207,7 @@ def patched_main(tmp_path):
     """Patch main()'s collaborators so it runs without touching git or disk."""
     with patch("scripts.create_release_branches.checkout_therock",
                return_value=(tmp_path / "TheRock", "a" * 40)), \
-         patch("scripts.create_release_branches.build_plan", return_value=_make_full_plan(tmp_path)), \
+         patch("scripts.create_release_branches.discover_repo_plan", return_value=_make_full_plan(tmp_path)), \
          patch("scripts.create_release_branches.execute_plan", return_value=0):
         yield
 
@@ -228,7 +228,7 @@ class TestSkipCheckout:
         with patch("scripts.create_release_branches.default_clone_dir", return_value=clone_dir), \
              patch("scripts.create_release_branches.checkout_therock") as mock_checkout, \
              patch("scripts.create_release_branches.resolve_git_ref", return_value="a" * 40), \
-             patch("scripts.create_release_branches.build_plan", return_value=_make_full_plan(tmp_path)), \
+             patch("scripts.create_release_branches.discover_repo_plan", return_value=_make_full_plan(tmp_path)), \
              patch("scripts.create_release_branches.execute_plan", return_value=0):
             rc = main(["-B", "release/6.4", "-C", "main", "--skip-checkout"])
         assert rc == 0

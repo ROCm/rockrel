@@ -33,7 +33,6 @@ Arguments:
 import argparse
 import subprocess
 import sys
-from pathlib import Path
 
 from release_utils import convert_to_ssh, fetch_repo_map, get_gh_token, run_command, TIMEOUT_SHORT_SECONDS
 from check_github_permissions import check_permissions
@@ -62,7 +61,6 @@ def check_repo(repo_name: str, url: str, branch_name: str) -> dict:
     try:
         output = run_command(
             ["git", "ls-remote", "--heads", ssh_url, branch_name],
-            cwd=Path.cwd(),
             timeout=TIMEOUT_SHORT_SECONDS,
             capture=True,
         )

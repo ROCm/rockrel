@@ -26,7 +26,7 @@ from pprint import pformat
 
 from checkout_therock import checkout_therock, default_clone_dir
 from release_utils import resolve_git_ref, run_command, setup_remote, TIMEOUT_SHORT_SECONDS
-from discover_submodules import RepoInfo, build_plan
+from discover_submodules import RepoInfo, discover_repo_plan
 
 log = logging.getLogger("rock_release")
 
@@ -146,12 +146,23 @@ def main(argv: list[str]) -> int:
                 cache_dir=cache_dir,
                 force_clone=args.force_clone,
             )
-        plan = build_plan(
+        plan = discover_repo_plan(
             clone_dir=clone_dir,
             commit_ref=canonical_sha,
             exclude_list=set(args.exclude_list),
             include_list=set(args.include_list),
         )
+        if not plan:
+            if args.include_list:
+                reason = f"--include-list {args.include_list} matched no repos"
+            elif args.exclude_list:
+                reason = f"--exclude-list {args.exclude_list} excluded every repo"
+            else:
+                reason = (
+                    "no repos were discovered at all; check that .gitmodules/"
+                    "submodule status at the resolved commit is as expected"
+                )
+            raise RuntimeError(f"Empty repo plan ({reason}); aborting instead of a no-op run.")
     except RuntimeError as exc:
         log.error("%s", exc)
         return 1
