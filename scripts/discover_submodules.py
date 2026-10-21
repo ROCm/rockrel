@@ -71,6 +71,7 @@ def _collect_repos_from_clone(
 
     url_map = get_submodule_url_map(clone_dir)
     plan: dict[str, RepoInfo] = {}
+    matched_include: set[str] = set()
 
     for line in (status_output.splitlines() if status_output else []):
         parts = line.split()
@@ -83,9 +84,11 @@ def _collect_repos_from_clone(
             log.info("No URL for submodule %s; skipping", path)
             continue
         if include:
-            if repo_name not in include:
+            matches = include & {repo_name, path}
+            if not matches:
                 log.info("Skipping %s (not in include list)", repo_name)
                 continue
+            matched_include |= matches
         else:
             url_lower = repo_url.lower()
             if "github.com/rocm/" not in url_lower and "github.com:rocm/" not in url_lower:
@@ -98,6 +101,15 @@ def _collect_repos_from_clone(
 
     if (not include or "TheRock" in include) and "TheRock" not in exclude:
         plan["TheRock"] = RepoInfo(url=ROCK_URL, commit=commit_ref, path=clone_dir)
+        if include:
+            matched_include.add("TheRock")
+
+    if include:
+        unmatched = include - matched_include
+        if unmatched:
+            raise RuntimeError(
+                f"--include-list entries matched no submodule path or name: {sorted(unmatched)}"
+            )
     return plan
 
 def discover_repo_plan(
@@ -150,7 +162,7 @@ def main(argv: list[str]) -> int:
 
     try:
         plan = discover_repo_plan(
-            clone_dir=args.clone_dir,
+            clone_dir=args.clone_dir.resolve(),
             commit_ref=args.commit_ref,
             exclude_list=set(args.exclude_list),
             include_list=set(args.include_list),

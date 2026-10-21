@@ -23,11 +23,18 @@ import pytest
 sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 sys.path.insert(0, str(Path(__file__).parent.parent))
 from scripts.discover_submodules import RepoInfo, get_submodule_url_map
-from scripts.create_release_branches import create_branch, execute_plan, main, push_branch
+from scripts.create_release_branches import (
+    create_branch,
+    execute_plan,
+    main,
+    push_branch,
+    remote_branch_exists,
+)
 
 def _make_plan(tmp_path: Path) -> dict[str, RepoInfo]:
     repo_dir = tmp_path / "hip"
     repo_dir.mkdir()
+    (repo_dir / ".git").mkdir()
     return {
         "hip": RepoInfo(
             url="https://github.com/ROCm/hip.git",
@@ -116,6 +123,26 @@ class TestPushBranch:
             ["git", "push", "rocm-github", "release/6.4"], cwd=tmp_path, timeout=120
         )
 
+class TestRemoteBranchExists:
+    def test_queries_repo_url_directly_without_local_remote(self):
+        """Must check the given URL directly via ls-remote, with no cwd
+        (no local repo needed), so dry-run never requires a configured
+        'rocm-github' remote to answer this question."""
+        with patch("scripts.create_release_branches.run_command", return_value="") as mock_run:
+            result = remote_branch_exists("https://github.com/ROCm/hip.git", "release/6.4")
+        assert result is False
+        mock_run.assert_called_once_with(
+            ["git", "ls-remote", "--heads", "git@github.com:ROCm/hip.git", "release/6.4"],
+            cwd=None,
+            timeout=60,
+            capture=True,
+        )
+
+    def test_returns_true_when_branch_found(self):
+        with patch("scripts.create_release_branches.run_command",
+                   return_value="abcd1234\trefs/heads/release/6.4"):
+            assert remote_branch_exists("https://github.com/ROCm/hip.git", "release/6.4") is True
+
     def test_propagates_subprocess_error(self, tmp_path):
         with patch(
             "scripts.create_release_branches.run_command",
@@ -131,14 +158,26 @@ class TestPushBranch:
 class TestExecutePlan:
     def test_dry_run_makes_no_git_changes(self, tmp_path):
         plan = _make_plan(tmp_path)
-        with patch("scripts.create_release_branches.setup_remote"), \
+        with patch("scripts.create_release_branches.setup_remote") as mock_setup, \
              patch("scripts.create_release_branches.remote_branch_exists", return_value=False), \
              patch("scripts.create_release_branches.create_branch") as mock_create, \
              patch("scripts.create_release_branches.push_branch") as mock_push:
             rc = execute_plan(plan, "release/6.4", dry_run=True)
         assert rc == 0
+        mock_setup.assert_not_called()
         mock_create.assert_not_called()
         mock_push.assert_not_called()
+
+    def test_dry_run_does_not_touch_local_remote_config(self, tmp_path):
+        """Dry-run must be truly read-only: setup_remote (which mutates the
+        local .git/config) must never run before the dry-run guard, even
+        when the branch doesn't already exist upstream."""
+        plan = _make_plan(tmp_path)
+        with patch("scripts.create_release_branches.setup_remote") as mock_setup, \
+             patch("scripts.create_release_branches.remote_branch_exists", return_value=False):
+            rc = execute_plan(plan, "release/6.4", dry_run=True)
+        assert rc == 0
+        mock_setup.assert_not_called()
 
     def test_existing_remote_branch_skipped(self, tmp_path):
         plan = _make_plan(tmp_path)
@@ -162,13 +201,33 @@ class TestExecutePlan:
         rc = execute_plan(plan, "release/6.4", dry_run=True)
         assert rc == 1
 
+    def test_uninitialized_submodule_recorded_as_failure(self, tmp_path):
+        """A submodule shown as '-sha path' in 'git submodule status' is
+        uninitialized: its directory exists but has no .git of its own. Using
+        it as a cwd for git commands would silently fall through to the
+        parent repo (e.g. TheRock), so it must be rejected before setup_remote."""
+        repo_dir = tmp_path / "uninitialized-submodule"
+        repo_dir.mkdir()  # no .git inside
+        plan = {
+            "uninitialized-submodule": RepoInfo(
+                url="https://github.com/ROCm/uninitialized-submodule.git",
+                commit="d" * 40,
+                path=repo_dir,
+            )
+        }
+        with patch("scripts.create_release_branches.setup_remote") as mock_setup:
+            rc = execute_plan(plan, "release/6.4", dry_run=True)
+        assert rc == 1
+        mock_setup.assert_not_called()
+
     def test_setup_remote_failure_recorded_not_raised(self, tmp_path):
         plan = _make_plan(tmp_path)
-        with patch(
-            "scripts.create_release_branches.setup_remote",
-            side_effect=subprocess.CalledProcessError(1, "git remote"),
-        ):
-            rc = execute_plan(plan, "release/6.4", dry_run=True)
+        with patch("scripts.create_release_branches.remote_branch_exists", return_value=False), \
+             patch(
+                 "scripts.create_release_branches.setup_remote",
+                 side_effect=subprocess.CalledProcessError(1, "git remote"),
+             ):
+            rc = execute_plan(plan, "release/6.4", dry_run=False)
         assert rc == 1
 
     def test_create_branch_failure_recorded_not_raised(self, tmp_path):

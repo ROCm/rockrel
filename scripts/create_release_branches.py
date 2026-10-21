@@ -31,15 +31,16 @@ from checkout_therock import (
     checkout_therock,
     default_clone_dir,
 )
-from release_utils import resolve_git_ref, run_command, setup_remote, TIMEOUT_SHORT_SECONDS
+from release_utils import convert_to_ssh, resolve_git_ref, run_command, setup_remote, TIMEOUT_SHORT_SECONDS
 from discover_submodules import RepoInfo, discover_repo_plan
 
 log = logging.getLogger("rock_release")
 
-def remote_branch_exists(repo_dir: Path, branch_name: str) -> bool:
+def remote_branch_exists(repo_url: str, branch_name: str) -> bool:
+    """Check branch existence directly against repo_url; no local remote needed."""
     output = run_command(
-        ["git", "ls-remote", "--heads", "rocm-github", branch_name],
-        cwd=repo_dir,
+        ["git", "ls-remote", "--heads", convert_to_ssh(repo_url), branch_name],
+        cwd=None,
         timeout=TIMEOUT_SHORT_SECONDS,
         capture=True,
     )
@@ -61,14 +62,15 @@ def execute_plan(plan: dict[str, RepoInfo], branch_name: str, dry_run: bool) -> 
             failed[repo_name] = f"Path does not exist: {info.path}"
             continue
 
-        try:
-            setup_remote(info.url, info.path)
-        except subprocess.CalledProcessError as exc:
-            failed[repo_name] = f"Remote setup failed: {exc}"
+        if not (info.path / ".git").exists():
+            failed[repo_name] = (
+                f"{info.path} is not an initialized git repo (no .git); "
+                "the submodule may need 'git submodule update --init'"
+            )
             continue
 
         try:
-            if remote_branch_exists(info.path, branch_name):
+            if remote_branch_exists(info.url, branch_name):
                 msg = f"Branch '{branch_name}' already exists on rocm-github"
                 log.info(msg)
                 skipped[repo_name] = msg
@@ -81,6 +83,12 @@ def execute_plan(plan: dict[str, RepoInfo], branch_name: str, dry_run: bool) -> 
             log.info("[DRY RUN] Would create and push branch %s for %s @ %s",
                      branch_name, repo_name, info.commit)
             successful[repo_name] = info
+            continue
+
+        try:
+            setup_remote(info.url, info.path)
+        except subprocess.CalledProcessError as exc:
+            failed[repo_name] = f"Remote setup failed: {exc}"
             continue
 
         try:

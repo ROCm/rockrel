@@ -19,7 +19,7 @@ import pytest
 sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
-from scripts.discover_submodules import _collect_repos_from_clone, discover_repo_plan
+from scripts.discover_submodules import _collect_repos_from_clone, discover_repo_plan, main
 
 
 # ---------------------------------------------------------------------------
@@ -147,6 +147,75 @@ class TestCollectRepos:
 
 
 # ---------------------------------------------------------------------------
+# include-list matching against nested submodule paths (BKC-style selection)
+# ---------------------------------------------------------------------------
+
+_BKC_SUBMODULE_STATUS = """\
+ aaaa1111aaaa1111aaaa1111aaaa1111aaaa1111 compiler/amd-llvm (v1.0)
+ bbbb2222bbbb2222bbbb2222bbbb2222bbbb2222 debug-tools/rocgdb/source (v1.0)
+ cccc3333cccc3333cccc3333cccc3333cccc3333 rocm-libraries (v1.0)
+ dddd4444dddd4444dddd4444dddd4444dddd4444 rocm-systems (v1.0)
+"""
+
+_BKC_GITMODULES = textwrap.dedent("""\
+    [submodule "compiler/amd-llvm"]
+        path = compiler/amd-llvm
+        url = https://github.com/ROCm/llvm-project.git
+    [submodule "debug-tools/rocgdb/source"]
+        path = debug-tools/rocgdb/source
+        url = https://github.com/ROCm/rocgdb.git
+    [submodule "rocm-libraries"]
+        path = rocm-libraries
+        url = https://github.com/ROCm/rocm-libraries.git
+    [submodule "rocm-systems"]
+        path = rocm-systems
+        url = https://github.com/ROCm/rocm-systems.git
+""")
+
+
+def _make_bkc_clone_dir(tmp_path: Path) -> Path:
+    clone_dir = tmp_path / "TheRock"
+    clone_dir.mkdir()
+    (clone_dir / ".gitmodules").write_text(_BKC_GITMODULES)
+    return clone_dir
+
+
+class TestIncludeListBkcSelection:
+    """Regression test for the exact BKC include list that previously
+    matched only 2 of 4 intended repos: 'compiler/amd-llvm' and
+    'debug-tools/rocgdb/source' were matched against Path(path).name
+    ('amd-llvm', 'source') instead of the full submodule path, so passing
+    the basenames silently dropped them."""
+
+    def test_full_paths_select_all_four_repos(self, tmp_path):
+        clone_dir = _make_bkc_clone_dir(tmp_path)
+        include = {"compiler/amd-llvm", "debug-tools/rocgdb/source", "rocm-libraries", "rocm-systems"}
+        with _patch_collect(clone_dir, _BKC_SUBMODULE_STATUS):
+            plan = _collect_repos_from_clone(clone_dir, "a" * 40, set(), include)
+        assert "amd-llvm" in plan
+        assert "source" in plan
+        assert "rocm-libraries" in plan
+        assert "rocm-systems" in plan
+
+    def test_basenames_also_select_all_four_repos(self, tmp_path):
+        clone_dir = _make_bkc_clone_dir(tmp_path)
+        include = {"amd-llvm", "source", "rocm-libraries", "rocm-systems"}
+        with _patch_collect(clone_dir, _BKC_SUBMODULE_STATUS):
+            plan = _collect_repos_from_clone(clone_dir, "a" * 40, set(), include)
+        assert "amd-llvm" in plan
+        assert "source" in plan
+        assert "rocm-libraries" in plan
+        assert "rocm-systems" in plan
+
+    def test_unmatched_include_entry_raises_instead_of_silently_dropping(self, tmp_path):
+        clone_dir = _make_bkc_clone_dir(tmp_path)
+        include = {"amd-llvm", "does-not-exist"}
+        with _patch_collect(clone_dir, _BKC_SUBMODULE_STATUS):
+            with pytest.raises(RuntimeError, match="does-not-exist"):
+                _collect_repos_from_clone(clone_dir, "a" * 40, set(), include)
+
+
+# ---------------------------------------------------------------------------
 # discover_repo_plan
 # ---------------------------------------------------------------------------
 
@@ -158,3 +227,43 @@ class TestDiscoverRepoPlan:
             plan = discover_repo_plan(clone_dir, "a" * 40, set())
         assert "TheRock" in plan
         assert "hip" in plan
+
+
+# ---------------------------------------------------------------------------
+# main() with a relative --clone-dir (real git, no mocking of run_command)
+# ---------------------------------------------------------------------------
+
+class TestMainRelativeCloneDir:
+    """Regression test: get_submodule_url_map builds gitmodules = repo_dir /
+    ".gitmodules" and passes it to `git config --file`, while also setting
+    cwd=repo_dir. If repo_dir is relative, git resolves that relative --file
+    path against the already-changed cwd, doubling the path segment and
+    failing to find .gitmodules at all. main() must resolve --clone-dir to
+    an absolute path before this ever happens."""
+
+    def test_relative_clone_dir_finds_all_submodules(self, tmp_path, monkeypatch, capsys):
+        clone_dir = tmp_path / "TheRock"
+        clone_dir.mkdir()
+        subprocess.run(["git", "init", "-q"], cwd=clone_dir, check=True)
+        subprocess.run(["git", "config", "user.email", "a@b.com"], cwd=clone_dir, check=True)
+        subprocess.run(["git", "config", "user.name", "a"], cwd=clone_dir, check=True)
+        (clone_dir / ".gitmodules").write_text(_GITMODULES)
+        (clone_dir / "dummy").write_text("x")
+        subprocess.run(["git", "add", "."], cwd=clone_dir, check=True)
+        subprocess.run(["git", "commit", "-q", "-m", "init"], cwd=clone_dir, check=True)
+
+        from scripts.discover_submodules import run_command as _original_run_command
+
+        def side_effect(args, **kwargs):
+            if "submodule" in args and "status" in args:
+                return _SUBMODULE_STATUS
+            return _original_run_command(args, **kwargs)
+
+        monkeypatch.chdir(tmp_path)
+        with patch("scripts.discover_submodules.run_command", side_effect=side_effect):
+            rc = main(["--clone-dir", "TheRock", "--commit-ref", "a" * 40])
+
+        assert rc == 0
+        out = capsys.readouterr().out
+        assert "hip" in out
+        assert "clr" in out
