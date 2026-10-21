@@ -6,6 +6,7 @@
 import argparse
 import logging
 import shutil
+import subprocess
 import sys
 import tempfile
 from pathlib import Path
@@ -17,6 +18,15 @@ from release_utils import (
     resolve_git_ref,
     run_command,
 )
+
+def _ensure_is_therock(repo_dir: Path) -> None:
+    """Raise if repo_dir's origin remote does not look like TheRock."""
+    try:
+        remote_url = run_command(["git", "remote", "get-url", "origin"], cwd=repo_dir, capture=True)
+    except subprocess.CalledProcessError as exc:
+        raise RuntimeError(f"Failed to inspect repo at {repo_dir}: {exc}") from exc
+    if "TheRock" not in remote_url:
+        raise RuntimeError(f"Repo at {repo_dir} does not look like TheRock (origin={remote_url})")
 
 def _ensure_clone(clone_dir: Path, cache_root: Path, force_clone: bool) -> None:
     """Clone TheRock if needed, or fetch latest changes."""
@@ -36,14 +46,7 @@ def _ensure_clone(clone_dir: Path, cache_root: Path, force_clone: bool) -> None:
         run_command(["git", "clone", ROCK_URL, str(clone_dir)], cwd=cache_root, timeout=TIMEOUT_LONG_SECONDS)
     else:
         log.info("Reusing existing TheRock clone at %s", clone_dir)
-        try:
-            remote_url = run_command(["git", "remote", "get-url", "origin"], cwd=clone_dir, capture=True)
-            if "TheRock" not in remote_url:
-                raise RuntimeError(f"Repo at {clone_dir} does not look like TheRock (origin={remote_url})")
-        except RuntimeError:
-            raise
-        except Exception as exc:
-            raise RuntimeError(f"Failed to inspect repo at {clone_dir}: {exc}") from exc
+        _ensure_is_therock(clone_dir)
         log.info("Fetching latest changes...")
         run_command(
             ["git", "fetch", "origin", "--prune", "--recurse-submodules=on-demand"],
@@ -58,6 +61,15 @@ def _ensure_clean_worktree(repo_dir: Path) -> None:
             f"Repo at {repo_dir} has uncommitted changes; refusing to run "
             "'git reset --hard'. Commit or stash your changes, use a different "
             "--cache-dir, or pass --force-clone to start from a fresh clone."
+        )
+
+def _ensure_head_matches(repo_dir: Path, expected_sha: str) -> None:
+    """Raise if repo_dir's checked-out HEAD does not match expected_sha."""
+    actual_sha = run_command(["git", "rev-parse", "HEAD"], cwd=repo_dir, capture=True)
+    if actual_sha != expected_sha:
+        raise RuntimeError(
+            f"Repo at {repo_dir} is checked out at {actual_sha}, not the "
+            f"expected {expected_sha}. Run checkout_therock.py first or omit --skip-checkout."
         )
 
 def update_submodules(clone_dir: Path) -> None:

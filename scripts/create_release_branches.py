@@ -24,7 +24,13 @@ import sys
 from pathlib import Path
 from pprint import pformat
 
-from checkout_therock import checkout_therock, default_clone_dir
+from checkout_therock import (
+    _ensure_clean_worktree,
+    _ensure_head_matches,
+    _ensure_is_therock,
+    checkout_therock,
+    default_clone_dir,
+)
 from release_utils import resolve_git_ref, run_command, setup_remote, TIMEOUT_SHORT_SECONDS
 from discover_submodules import RepoInfo, discover_repo_plan
 
@@ -133,13 +139,16 @@ def main(argv: list[str]) -> int:
                     f"--skip-checkout set but no clone found at {clone_dir}; "
                     "run checkout_therock.py first or omit --skip-checkout."
                 )
-            log.info("--skip-checkout set; using existing clone at %s as-is", clone_dir)
+            _ensure_is_therock(clone_dir)
+            _ensure_clean_worktree(clone_dir)
             try:
                 canonical_sha = resolve_git_ref(args.commit_ref, clone_dir)
             except subprocess.CalledProcessError as exc:
                 raise RuntimeError(
                     f"Failed to resolve {args.commit_ref!r} in existing clone at {clone_dir}: {exc}"
                 ) from exc
+            _ensure_head_matches(clone_dir, canonical_sha)
+            log.info("--skip-checkout set; using existing clone at %s as-is", clone_dir)
         else:
             clone_dir, canonical_sha = checkout_therock(
                 commit_ref=args.commit_ref,

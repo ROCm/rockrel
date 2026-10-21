@@ -5,7 +5,9 @@ Tests for checkout_therock.py.
 
 Covers:
 - _ensure_clone: clone, fetch, force-clone, invalid cache dir
+- _ensure_is_therock: identity check used directly by --skip-checkout
 - _ensure_clean_worktree: dirty vs clean worktree
+- _ensure_head_matches: HEAD vs expected commit
 - update_submodules: fetch_sources.py invocation and failure propagation
 """
 import subprocess
@@ -21,6 +23,8 @@ sys.path.insert(0, str(Path(__file__).parent.parent))
 from scripts.checkout_therock import (
     _ensure_clean_worktree,
     _ensure_clone,
+    _ensure_head_matches,
+    _ensure_is_therock,
     update_submodules,
 )
 
@@ -72,6 +76,29 @@ class TestEnsureClone:
 
 
 # ---------------------------------------------------------------------------
+# _ensure_is_therock
+# ---------------------------------------------------------------------------
+
+class TestEnsureIsTheRock:
+    def test_passes_when_origin_is_therock(self, tmp_path):
+        with patch("scripts.checkout_therock.run_command",
+                   return_value="https://github.com/ROCm/TheRock.git"):
+            _ensure_is_therock(tmp_path)  # should not raise
+
+    def test_raises_when_origin_is_not_therock(self, tmp_path):
+        with patch("scripts.checkout_therock.run_command",
+                   return_value="https://github.com/other/repo.git"):
+            with pytest.raises(RuntimeError, match="does not look like TheRock"):
+                _ensure_is_therock(tmp_path)
+
+    def test_raises_when_not_a_git_repo(self, tmp_path):
+        with patch("scripts.checkout_therock.run_command",
+                   side_effect=subprocess.CalledProcessError(128, "git remote")):
+            with pytest.raises(RuntimeError, match="Failed to inspect repo"):
+                _ensure_is_therock(tmp_path)
+
+
+# ---------------------------------------------------------------------------
 # _ensure_clean_worktree
 # ---------------------------------------------------------------------------
 
@@ -84,6 +111,21 @@ class TestEnsureCleanWorktree:
     def test_passes_on_clean_worktree(self, tmp_path):
         with patch("scripts.checkout_therock.run_command", return_value=""):
             _ensure_clean_worktree(tmp_path)  # should not raise
+
+
+# ---------------------------------------------------------------------------
+# _ensure_head_matches
+# ---------------------------------------------------------------------------
+
+class TestEnsureHeadMatches:
+    def test_passes_when_head_matches(self, tmp_path):
+        with patch("scripts.checkout_therock.run_command", return_value="a" * 40):
+            _ensure_head_matches(tmp_path, "a" * 40)  # should not raise
+
+    def test_raises_when_head_does_not_match(self, tmp_path):
+        with patch("scripts.checkout_therock.run_command", return_value="b" * 40):
+            with pytest.raises(RuntimeError, match="is checked out at"):
+                _ensure_head_matches(tmp_path, "a" * 40)
 
 
 # ---------------------------------------------------------------------------

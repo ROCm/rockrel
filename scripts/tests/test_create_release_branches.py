@@ -227,12 +227,18 @@ class TestSkipCheckout:
         clone_dir.mkdir(parents=True)
         with patch("scripts.create_release_branches.default_clone_dir", return_value=clone_dir), \
              patch("scripts.create_release_branches.checkout_therock") as mock_checkout, \
+             patch("scripts.create_release_branches._ensure_is_therock") as mock_identity, \
+             patch("scripts.create_release_branches._ensure_clean_worktree") as mock_clean, \
+             patch("scripts.create_release_branches._ensure_head_matches") as mock_head, \
              patch("scripts.create_release_branches.resolve_git_ref", return_value="a" * 40), \
              patch("scripts.create_release_branches.discover_repo_plan", return_value=_make_full_plan(tmp_path)), \
              patch("scripts.create_release_branches.execute_plan", return_value=0):
             rc = main(["-B", "release/6.4", "-C", "main", "--skip-checkout"])
         assert rc == 0
         mock_checkout.assert_not_called()
+        mock_identity.assert_called_once_with(clone_dir)
+        mock_clean.assert_called_once_with(clone_dir)
+        mock_head.assert_called_once_with(clone_dir, "a" * 40)
 
     def test_fails_when_clone_missing(self, tmp_path):
         with patch("scripts.create_release_branches.default_clone_dir",
@@ -241,3 +247,59 @@ class TestSkipCheckout:
             rc = main(["-B", "release/6.4", "-C", "main", "--skip-checkout"])
         assert rc == 1
         mock_checkout.assert_not_called()
+
+    def test_fails_when_clone_is_not_therock(self, tmp_path):
+        clone_dir = tmp_path / "existing-clone" / "TheRock"
+        clone_dir.mkdir(parents=True)
+        with patch("scripts.create_release_branches.default_clone_dir", return_value=clone_dir), \
+             patch("scripts.create_release_branches._ensure_is_therock",
+                   side_effect=RuntimeError("does not look like TheRock")), \
+             patch("scripts.create_release_branches.checkout_therock") as mock_checkout:
+            rc = main(["-B", "release/6.4", "-C", "main", "--skip-checkout"])
+        assert rc == 1
+        mock_checkout.assert_not_called()
+
+    def test_fails_when_worktree_dirty(self, tmp_path):
+        clone_dir = tmp_path / "existing-clone" / "TheRock"
+        clone_dir.mkdir(parents=True)
+        with patch("scripts.create_release_branches.default_clone_dir", return_value=clone_dir), \
+             patch("scripts.create_release_branches._ensure_is_therock"), \
+             patch("scripts.create_release_branches._ensure_clean_worktree",
+                   side_effect=RuntimeError("uncommitted changes")), \
+             patch("scripts.create_release_branches.checkout_therock") as mock_checkout:
+            rc = main(["-B", "release/6.4", "-C", "main", "--skip-checkout"])
+        assert rc == 1
+        mock_checkout.assert_not_called()
+
+    def test_fails_when_head_does_not_match_resolved_ref(self, tmp_path):
+        clone_dir = tmp_path / "existing-clone" / "TheRock"
+        clone_dir.mkdir(parents=True)
+        with patch("scripts.create_release_branches.default_clone_dir", return_value=clone_dir), \
+             patch("scripts.create_release_branches._ensure_is_therock"), \
+             patch("scripts.create_release_branches._ensure_clean_worktree"), \
+             patch("scripts.create_release_branches.resolve_git_ref", return_value="a" * 40), \
+             patch("scripts.create_release_branches._ensure_head_matches",
+                   side_effect=RuntimeError("is checked out at")), \
+             patch("scripts.create_release_branches.checkout_therock") as mock_checkout:
+            rc = main(["-B", "release/6.4", "-C", "main", "--skip-checkout"])
+        assert rc == 1
+        mock_checkout.assert_not_called()
+
+    def test_dry_run_with_stale_cache_still_fails(self, tmp_path):
+        """Dry-run must not bypass staleness validation: a stale/dirty cache
+        should abort before discovery/planning even though no push occurs."""
+        clone_dir = tmp_path / "existing-clone" / "TheRock"
+        clone_dir.mkdir(parents=True)
+        with patch("scripts.create_release_branches.default_clone_dir", return_value=clone_dir), \
+             patch("scripts.create_release_branches._ensure_is_therock"), \
+             patch("scripts.create_release_branches._ensure_clean_worktree",
+                   side_effect=RuntimeError("uncommitted changes")), \
+             patch("scripts.create_release_branches.checkout_therock") as mock_checkout, \
+             patch("scripts.create_release_branches.discover_repo_plan") as mock_discover, \
+             patch("scripts.create_release_branches.execute_plan") as mock_execute:
+            # --dry-run is the default; not passing --no-dry-run.
+            rc = main(["-B", "release/6.4", "-C", "main", "--skip-checkout"])
+        assert rc == 1
+        mock_checkout.assert_not_called()
+        mock_discover.assert_not_called()
+        mock_execute.assert_not_called()
