@@ -122,10 +122,16 @@ def main(argv: list[str]) -> int:
     parser.add_argument("-C", "--commit-ref", required=True, help="TheRock git ref (branch, tag, or SHA)")
     parser.add_argument("--dry-run", action=argparse.BooleanOptionalAction, default=True,
                         help="Log planned actions without making any git changes (default: enabled)")
-    parser.add_argument("--exclude-list", nargs="*", default=[])
-    parser.add_argument("--include-list", nargs="*", default=[])
-    parser.add_argument("--force-clone", action="store_true", default=False)
-    parser.add_argument("--cache-dir", default=None)
+    parser.add_argument("--exclude-list", nargs="*", default=[],
+                        help="Repo names to exclude from the plan, applied after --include-list")
+    parser.add_argument("--include-list", nargs="*", default=[],
+                        help="If given, only these repo names are considered for the plan "
+                             "(bypasses the ROCm org filter); this also applies to TheRock, "
+                             "so name it explicitly to keep it in the plan")
+    parser.add_argument("--force-clone", action="store_true", default=False,
+                        help="Delete and reclone if the cache dir exists but is not a valid git repo")
+    parser.add_argument("--cache-dir", default=None,
+                        help="Directory to cache the TheRock clone (default: system temp dir)")
     parser.add_argument(
         "--skip-checkout", action="store_true", default=False,
         help="Do not clone/fetch/reset TheRock or run fetch_sources.py; assume "

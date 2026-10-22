@@ -64,12 +64,20 @@ def _api_request(url: str, token: str) -> dict:
     with urllib.request.urlopen(req, timeout=15) as resp:
         return json.loads(resp.read())
 
-def fetch_repo_map(token: str, commit_ref: str, exclude_list: set[str]) -> dict[str, str]:
+def fetch_repo_map(
+    token: str, commit_ref: str, exclude_list: set[str], include_list: set[str] | None = None
+) -> dict[str, str]:
     """Return repo-name → URL map by reading .gitmodules from the GitHub API.
 
-    No local clone required. Filters to ROCm org repos only.
-    Accepts any valid git ref (branch, tag, or SHA).
+    No local clone required. Accepts any valid git ref (branch, tag, or SHA).
+
+    If `include_list` is non-empty, only repos named in it are considered
+    (matched by short name or full submodule path, bypassing the ROCm org
+    filter), and it is an error if any entry matches nothing; otherwise all
+    ROCm org repos are considered. In both cases, TheRock is included unless
+    excluded, and any repo named in `exclude_list` is removed from the result.
     """
+    include = include_list or set()
     api_url = f"{GITHUB_API}/repos/ROCm/TheRock/contents/.gitmodules?ref={commit_ref}"
     try:
         data = _api_request(api_url, token)
@@ -83,6 +91,7 @@ def fetch_repo_map(token: str, commit_ref: str, exclude_list: set[str]) -> dict[
 
     raw = base64.b64decode(data["content"]).decode()
     repo_map: dict[str, str] = {}
+    matched_include: set[str] = set()
     current_path: str | None = None
     current_url: str | None = None
 
@@ -90,9 +99,17 @@ def fetch_repo_map(token: str, commit_ref: str, exclude_list: set[str]) -> dict[
         if not path or not url:
             return
         repo_name = Path(path).name
-        url_lower = url.lower()
-        is_rocm = "github.com/rocm/" in url_lower or "github.com:rocm/" in url_lower
-        if is_rocm and repo_name not in exclude_list:
+        if include:
+            matches = include & {repo_name, path}
+            if not matches:
+                return
+            matched_include.update(matches)
+        else:
+            url_lower = url.lower()
+            is_rocm = "github.com/rocm/" in url_lower or "github.com:rocm/" in url_lower
+            if not is_rocm:
+                return
+        if repo_name not in exclude_list:
             repo_map[repo_name] = url
 
     for line in raw.splitlines():
@@ -109,8 +126,17 @@ def fetch_repo_map(token: str, commit_ref: str, exclude_list: set[str]) -> dict[
                 current_url = value
     _flush(current_path, current_url)
 
-    if "TheRock" not in exclude_list:
+    if (not include or "TheRock" in include) and "TheRock" not in exclude_list:
         repo_map["TheRock"] = ROCK_URL
+        if include:
+            matched_include.add("TheRock")
+
+    if include:
+        unmatched = include - matched_include
+        if unmatched:
+            raise SystemExit(
+                f"ERROR: --include-list entries matched no submodule path or name: {sorted(unmatched)}"
+            )
     return repo_map
 
 def run_command(

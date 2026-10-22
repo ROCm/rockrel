@@ -22,13 +22,18 @@ Usage:
     python check_release_branch_state.py \\
         --branch-name <release-branch> \\
         --commit-ref <rock-git-ref> \\
-        [--exclude-list repo1 repo2]
+        [--exclude-list repo1 repo2] \\
+        [--include-list repo1 repo2]
 
 Arguments:
     --branch-name   The new release branch name to check.
                     This branch should NOT exist yet — [OK] means it is safe to create.
     --commit-ref    TheRock git ref (branch, tag, or SHA) to read the repo list from.
     --exclude-list  Repo names to skip.
+    --include-list  If given, only these repo names are checked (bypasses the
+                     ROCm org filter). Pass the same --include-list used with
+                     create_release_branches.py so preflight checks exactly the
+                     repos that will actually be branched.
 """
 import argparse
 import subprocess
@@ -40,7 +45,7 @@ from check_github_permissions import check_permissions
 def check_ssh_auth() -> bool:
     try:
         result = subprocess.run(
-            ["ssh", "-T", "-o", "StrictHostKeyChecking=no", "git@github.com"],
+            ["ssh", "-T", "-o", "BatchMode=yes", "git@github.com"],
             stdout=subprocess.PIPE,
             stderr=subprocess.STDOUT,
             timeout=15,
@@ -49,6 +54,14 @@ def check_ssh_auth() -> bool:
         if "successfully authenticated" in output:
             print("[OK]  SSH authentication to github.com succeeded")
             return True
+        if "host key verification failed" in output.lower():
+            print(
+                "[FAIL] github.com is not in your known_hosts (or its key changed). "
+                "Run 'ssh-keyscan github.com >> ~/.ssh/known_hosts' after verifying the "
+                "fingerprint against https://docs.github.com/en/authentication/keeping-your-account-and-data-secure/githubs-ssh-key-fingerprints, "
+                "then retry."
+            )
+            return False
         print(f"[FAIL] SSH authentication failed: {output.strip()}")
         return False
     except (subprocess.TimeoutExpired, FileNotFoundError) as exc:
@@ -72,7 +85,9 @@ def check_repo(repo_name: str, url: str, branch_name: str) -> dict:
         result["error"] = f"Remote unreachable: {exc}"
     return result
 
-def run_checks(branch_name: str, commit_ref: str, exclude_list: list[str]) -> int:
+def run_checks(
+    branch_name: str, commit_ref: str, exclude_list: list[str], include_list: list[str] | None = None
+) -> int:
     print(f"Checking release branch state for: {branch_name} @ {commit_ref}\n")
 
     if not check_ssh_auth():
@@ -81,7 +96,7 @@ def run_checks(branch_name: str, commit_ref: str, exclude_list: list[str]) -> in
 
     print()
     token = get_gh_token()
-    repo_map = fetch_repo_map(token, commit_ref, set(exclude_list))
+    repo_map = fetch_repo_map(token, commit_ref, set(exclude_list), set(include_list or []))
     if check_permissions(token, repo_map) != 0:
         return 1
 
@@ -117,9 +132,13 @@ def main(argv: list[str]) -> int:
     parser.add_argument("-B", "--branch-name", required=True, help="Release branch name")
     parser.add_argument("-C", "--commit-ref", required=True, help="TheRock git ref (branch, tag, or SHA)")
     parser.add_argument("--exclude-list", nargs="*", default=[], help="Repo names to skip")
+    parser.add_argument("--include-list", nargs="*", default=[],
+                        help="If given, only these repo names are checked (bypasses the "
+                             "ROCm org filter); pass the same list used with "
+                             "create_release_branches.py")
     args = parser.parse_args(argv)
 
-    return run_checks(args.branch_name, args.commit_ref, args.exclude_list)
+    return run_checks(args.branch_name, args.commit_ref, args.exclude_list, args.include_list)
 
 if __name__ == "__main__":
     sys.exit(main(sys.argv[1:]))
