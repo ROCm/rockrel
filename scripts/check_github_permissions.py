@@ -13,7 +13,7 @@ has the necessary permissions before performing release activities.
 
 Usage:
     python check_github_permissions.py \\
-        --commitid <rock-git-ref> \\
+        --commit-ref <rock-git-ref> \\
         [--exclude-list repo1 repo2]
 """
 import argparse
@@ -98,7 +98,7 @@ def main(argv: list[str]) -> int:
         )
     )
     parser.add_argument(
-        "-C", "--commitid",
+        "-C", "--commit-ref",
         required=True,
         help="TheRock git ref (branch, tag, or SHA) to read .gitmodules from",
     )
@@ -113,7 +113,7 @@ def main(argv: list[str]) -> int:
     logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
 
     token = get_gh_token()
-    repo_map = fetch_repo_map(token, args.commitid, set(args.exclude_list))
+    repo_map = fetch_repo_map(token, args.commit_ref, set(args.exclude_list))
     return check_permissions(token, repo_map)
 
 if __name__ == "__main__":
