@@ -99,10 +99,11 @@ def _collect_repos_from_clone(
             continue
         plan[repo_name] = RepoInfo(url=repo_url, commit=sha, path=clone_dir / path)
 
-    if (not include or "TheRock" in include) and "TheRock" not in exclude:
-        plan["TheRock"] = RepoInfo(url=ROCK_URL, commit=commit_ref, path=clone_dir)
+    if not include or "TheRock" in include:
         if include:
             matched_include.add("TheRock")
+        if "TheRock" not in exclude:
+            plan["TheRock"] = RepoInfo(url=ROCK_URL, commit=commit_ref, path=clone_dir)
 
     if include:
         unmatched = include - matched_include

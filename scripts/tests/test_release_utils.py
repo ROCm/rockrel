@@ -170,6 +170,15 @@ class TestFetchRepoMap:
         assert "TheRock" not in repo_map
         assert "clr" in repo_map
 
+    def test_therock_in_include_and_exclude_does_not_raise(self):
+        """Regression test: excluding TheRock after including it must still
+        count as a matched include entry, not an unmatched one."""
+        with self._patch_api(_GITMODULES_CONTENT):
+            repo_map = fetch_repo_map("token", "main", {"TheRock"}, {"TheRock", "clr"})
+        assert "TheRock" not in repo_map
+        assert "clr" in repo_map
+        assert "hip" not in repo_map
+
     def test_http_error_raises_systemexit(self):
         with patch(
             "scripts.release_utils._api_request",

@@ -126,10 +126,11 @@ def fetch_repo_map(
                 current_url = value
     _flush(current_path, current_url)
 
-    if (not include or "TheRock" in include) and "TheRock" not in exclude_list:
-        repo_map["TheRock"] = ROCK_URL
+    if not include or "TheRock" in include:
         if include:
             matched_include.add("TheRock")
+        if "TheRock" not in exclude_list:
+            repo_map["TheRock"] = ROCK_URL
 
     if include:
         unmatched = include - matched_include

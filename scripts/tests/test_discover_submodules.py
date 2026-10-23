@@ -145,6 +145,18 @@ class TestCollectRepos:
             plan = _collect_repos_from_clone(clone_dir, "a" * 40, {"TheRock"})
         assert "TheRock" not in plan
 
+    def test_therock_in_include_and_exclude_does_not_raise(self, tmp_path):
+        """Regression test: excluding TheRock after including it must still
+        count as a matched include entry, not an unmatched one."""
+        clone_dir = _make_clone_dir(tmp_path)
+        with _patch_collect(clone_dir, _SUBMODULE_STATUS):
+            plan = _collect_repos_from_clone(
+                clone_dir, "a" * 40, {"TheRock"}, {"TheRock", "clr"}
+            )
+        assert "TheRock" not in plan
+        assert "clr" in plan
+        assert "hip" not in plan
+
 
 # ---------------------------------------------------------------------------
 # include-list matching against nested submodule paths (BKC-style selection)
