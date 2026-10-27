@@ -73,7 +73,10 @@ jobs:
 
   test:
     uses: ROCm/TheRock/.github/workflows/test_native_windows_packages_install.yml@main
-    secrets: inherit
+    permissions:
+      contents: read
+      id-token: write
+    secrets: inherit # zizmor: ignore[secrets-inherit]
     with:
       artifact_run_id: ${{ inputs.artifact_run_id }}
       artifact_github_repo: ${{ inputs.artifact_github_repo }}
