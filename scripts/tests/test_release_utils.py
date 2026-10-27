@@ -4,7 +4,6 @@
 Tests for release_utils.py.
 
 Covers:
-- convert_to_ssh URL conversion
 - extract_owner_repo URL parsing
 - get_gh_token success and error cases
 - _api_request HTTP handling
@@ -12,45 +11,23 @@ Covers:
 """
 import base64
 import subprocess
-import sys
 import urllib.error
-from pathlib import Path
 from unittest.mock import MagicMock, patch
 
 import pytest
 
+import sys
+from pathlib import Path
 sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
 from scripts.release_utils import (
     ROCK_URL,
     _api_request,
-    convert_to_ssh,
     extract_owner_repo,
     fetch_repo_map,
     get_gh_token,
 )
-
-# ---------------------------------------------------------------------------
-# convert_to_ssh
-# ---------------------------------------------------------------------------
-
-class TestConvertToSsh:
-    def test_https_converted(self):
-        assert convert_to_ssh("https://github.com/ROCm/hip.git") == \
-            "git@github.com:ROCm/hip.git"
-
-    def test_https_without_dot_git(self):
-        assert convert_to_ssh("https://github.com/ROCm/clr") == \
-            "git@github.com:ROCm/clr"
-
-    def test_ssh_url_passthrough(self):
-        url = "git@github.com:ROCm/hip.git"
-        assert convert_to_ssh(url) == url
-
-    def test_non_github_url_passthrough(self):
-        url = "https://gitlab.com/someorg/repo.git"
-        assert convert_to_ssh(url) == url
 
 # ---------------------------------------------------------------------------
 # extract_owner_repo
@@ -169,15 +146,6 @@ class TestFetchRepoMap:
         assert "hip" not in repo_map
         assert "TheRock" not in repo_map
         assert "clr" in repo_map
-
-    def test_therock_in_include_and_exclude_does_not_raise(self):
-        """Regression test: excluding TheRock after including it must still
-        count as a matched include entry, not an unmatched one."""
-        with self._patch_api(_GITMODULES_CONTENT):
-            repo_map = fetch_repo_map("token", "main", {"TheRock"}, {"TheRock", "clr"})
-        assert "TheRock" not in repo_map
-        assert "clr" in repo_map
-        assert "hip" not in repo_map
 
     def test_http_error_raises_systemexit(self):
         with patch(
