@@ -52,7 +52,6 @@ on:
 
 permissions:
   contents: read
-  id-token: write
 
 run-name: Test Native Windows Packages Install (${{ inputs.packages }}, ${{ inputs.rocm_version }}, ${{ inputs.release_type }})
 
