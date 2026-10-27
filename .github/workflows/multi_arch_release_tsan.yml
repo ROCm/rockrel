@@ -1,0 +1,47 @@
+# Copyright Advanced Micro Devices, Inc.
+# SPDX-License-Identifier: MIT
+
+name: Multi-Arch Release TSAN
+
+# TSAN remains manual while the comprehensive per-family GPU suite is being
+# qualified. Add a schedule only after repeated green end-to-end runs.
+on:
+  workflow_dispatch:
+    inputs:
+      release_type:
+        description: "Artifact release type."
+        type: choice
+        options: [dev]
+        default: dev
+      linux_amdgpu_families:
+        description: "Linux GPU families to build and test."
+        type: string
+        # "all" is filtered by TheRock's build-variant matrix to the families
+        # that explicitly support tsan (currently gfx94x and gfx950).
+        default: "all"
+      ref:
+        description: "TheRock branch, tag, or SHA. Empty = default branch."
+        type: string
+        default: ""
+
+permissions:
+  contents: read
+
+run-name: >-
+  Multi-Arch Release TSAN (${{ inputs.release_type }})
+  | Linux artifacts: ${{ inputs.linux_amdgpu_families }}
+
+jobs:
+  release:
+    # Qualification branch until the reusable workflow lands on TheRock main.
+    uses: ROCm/TheRock/.github/workflows/multi_arch_release_tsan.yml@users/sa-faizal/tsan-review-stack
+    secrets: inherit
+    with:
+      release_type: ${{ inputs.release_type }}
+      linux_amdgpu_families: ${{ inputs.linux_amdgpu_families }}
+      repository: "ROCm/TheRock"
+      ref: ${{ inputs.ref }}
+    permissions:
+      contents: read
+      actions: read
+      id-token: write
