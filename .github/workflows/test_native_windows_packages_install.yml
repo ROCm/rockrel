@@ -72,7 +72,7 @@ jobs:
           gh_app_private_key: ${{ secrets.GH_APP_HAULY_PRIVATE_KEY }}
 
   test:
-    uses: ROCm/TheRock/.github/workflows/test_native_windows_packages_install.yml@main
+    uses: ROCm/TheRock/.github/workflows/test_native_windows_packages_install.yml@release/bkc/therock-10.3-20261027
     permissions:
       contents: read
       id-token: write
