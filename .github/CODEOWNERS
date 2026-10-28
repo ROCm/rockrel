@@ -1,0 +1,5 @@
+# This file itself
+/.github/CODEOWNERS     @ROCm/rocm-releases-admin
+
+# All other files
+*                       @ROCm/rocm-releases-devops
