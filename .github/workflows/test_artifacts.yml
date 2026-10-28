@@ -76,7 +76,7 @@ jobs:
 
   test:
     uses: ROCm/TheRock/.github/workflows/test_artifacts.yml@main
-    secrets: inherit
+    secrets: inherit # zizmor: ignore[secrets-inherit]
     with:
       artifact_group: ${{ inputs.artifact_group }}
       artifact_run_id: ${{ inputs.artifact_run_id }}
