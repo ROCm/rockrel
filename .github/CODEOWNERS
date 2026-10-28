@@ -1,5 +1,7 @@
-# This file itself
-/.github/CODEOWNERS     @ROCm/rocm-releases-admin
-
-# All other files
+# Default for all files. This release repository is particularly sensitive so we
+# require CODEOWNERS approval for all changes, not just approval from a
+# contributor with write access.
 *                       @ROCm/rocm-releases-devops
+
+# Changes to this CODEOWNERS file itself require even narrower approval.
+/.github/CODEOWNERS     @ROCm/rocm-releases-admin
