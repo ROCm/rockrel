@@ -24,6 +24,10 @@ on:
           - bkc
           - rc
         default: all
+      dry_run:
+        description: Inspect S3 and report actions without writing.
+        type: boolean
+        default: true
 
 permissions:
   contents: read
@@ -102,9 +106,16 @@ jobs:
           aws-profile: mirror-rc
 
       - name: Publish dependency snapshot
+        env:
+          DRY_RUN: ${{ inputs.dry_run || false }}
         run: |
+          publish_args=()
+          if [[ "${DRY_RUN}" == "true" ]]; then
+            publish_args+=(--dry-run)
+          fi
           AWS_PROFILE="mirror-${PUBLISH_STREAM}" python "${MIRROR_SCRIPT}" publish \
             --snapshot-dir "${SNAPSHOT_DIR}" \
             --bucket "therock-repo-amd-${PUBLISH_STREAM}-core" \
             --refresh-existing \
-            --summary-file "${GITHUB_STEP_SUMMARY}"
+            --summary-file "${GITHUB_STEP_SUMMARY}" \
+            "${publish_args[@]}"
