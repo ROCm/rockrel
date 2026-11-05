@@ -1,0 +1,17 @@
+# Copyright Advanced Micro Devices, Inc.
+# SPDX-License-Identifier: MIT
+
+name: Mirror Python Dependencies
+
+on:
+  workflow_dispatch:
+
+permissions: {}
+
+jobs:
+  dispatch:
+    name: Confirm workflow dispatch
+    runs-on: ubuntu-26.04
+    steps:
+      - name: Confirm workflow dispatch
+        run: echo "Workflow dispatch is available."
