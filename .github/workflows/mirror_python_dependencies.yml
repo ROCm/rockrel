@@ -14,8 +14,8 @@ on:
     inputs:
       publish_stream:
         description: >-
-          Stream to publish to. "all" publishes to every stream like the
-          scheduled run.
+          Stream to publish to. "all" currently publishes to dev only, like
+          the scheduled run.
         type: choice
         options:
           - all
@@ -32,20 +32,20 @@ concurrency:
   group: ${{ github.workflow }}
   cancel-in-progress: false
 
-env:
-  MIRROR_SCRIPT: build_tools/packaging/python/mirror_python_dependencies.py
-  SNAPSHOT_ARTIFACT: rocm-dependency-snapshot
-
 jobs:
-  resolve:
-    name: Resolve dependency snapshot
+  mirror:
+    name: Mirror Python Dependencies (${{ inputs.publish_stream || 'all' }})
     if: ${{ github.repository == 'ROCm/rockrel' }}
     runs-on: ubuntu-26.04
-    timeout-minutes: 30
-    outputs:
-      therock_sha: ${{ steps.therock.outputs.sha }}
+    timeout-minutes: 60
+    permissions:
+      contents: read
+      id-token: write # Assume the stream publication roles via OIDC.
     env:
+      # "all" currently means dev only.
+      PUBLISH_STREAM: ${{ (inputs.publish_stream || 'all') == 'all' && 'dev' || inputs.publish_stream }}
       SNAPSHOT_DIR: ${{ github.workspace }}/rocm-dependency-snapshot
+      MIRROR_SCRIPT: build_tools/packaging/python/mirror_python_dependencies.py
 
     steps:
       - name: Checkout TheRock
@@ -53,10 +53,6 @@ jobs:
         with:
           repository: ROCm/TheRock
           persist-credentials: false
-
-      - name: Record TheRock revision
-        id: therock
-        run: echo "sha=$(git rev-parse HEAD)" >> "${GITHUB_OUTPUT}"
 
       - name: Set up Python
         uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
@@ -67,74 +63,48 @@ jobs:
         run: pip install -r requirements.txt
 
       - name: Resolve dependency snapshot
-        env:
-          THEROCK_SHA: ${{ steps.therock.outputs.sha }}
         run: |
           python "${MIRROR_SCRIPT}" resolve \
             --output-dir "${SNAPSHOT_DIR}" \
-            --source-revision "${THEROCK_SHA}" \
+            --source-revision "$(git rev-parse HEAD)" \
             --summary-file "${GITHUB_STEP_SUMMARY}"
 
-      - name: Upload dependency snapshot
-        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+      - name: Configure AWS Credentials for dev
+        if: ${{ env.PUBLISH_STREAM == 'dev' }}
+        uses: aws-actions/configure-aws-credentials@e1253824e5c10ff9df46874f81ed3ec929e19cfd # v6.3.0
         with:
-          name: ${{ env.SNAPSHOT_ARTIFACT }}
-          path: ${{ env.SNAPSHOT_DIR }}
-          if-no-files-found: error
-          retention-days: 1
+          aws-region: us-east-1
+          role-to-assume: arn:aws:iam::324352301041:role/therock-repo-dev-core
+          aws-profile: mirror-dev
 
-  publish:
-    name: Publish to ${{ matrix.stream }}
-    needs: resolve
-    runs-on: ubuntu-26.04
-    timeout-minutes: 30
-    permissions:
-      contents: read
-      id-token: write
-    strategy:
-      fail-fast: false
-      matrix:
-        stream: >-
-          ${{ fromJSON((inputs.publish_stream || 'all') == 'all'
-          && '["dev", "nightly", "bkc", "rc"]'
-          || format('["{0}"]', inputs.publish_stream)) }}
-    env:
-      SNAPSHOT_DIR: ${{ github.workspace }}/rocm-dependency-snapshot
-      BUCKET: therock-repo-amd-${{ matrix.stream }}-core
-
-    steps:
-      - name: Checkout TheRock
-        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: Configure AWS Credentials for nightly
+        if: ${{ env.PUBLISH_STREAM == 'nightly' }}
+        uses: aws-actions/configure-aws-credentials@e1253824e5c10ff9df46874f81ed3ec929e19cfd # v6.3.0
         with:
-          repository: ROCm/TheRock
-          ref: ${{ needs.resolve.outputs.therock_sha }}
-          persist-credentials: false
+          aws-region: us-east-1
+          role-to-assume: arn:aws:iam::324352301041:role/therock-repo-nightly-core
+          aws-profile: mirror-nightly
 
-      - name: Set up Python
-        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+      - name: Configure AWS Credentials for bkc
+        if: ${{ env.PUBLISH_STREAM == 'bkc' }}
+        uses: aws-actions/configure-aws-credentials@e1253824e5c10ff9df46874f81ed3ec929e19cfd # v6.3.0
         with:
-          python-version: "3.12"
+          aws-region: us-east-1
+          role-to-assume: arn:aws:iam::324352301041:role/therock-repo-bkc-core
+          aws-profile: mirror-bkc
 
-      - name: Install Python requirements
-        run: pip install -r requirements.txt
-
-      - name: Download dependency snapshot
-        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+      - name: Configure AWS Credentials for rc
+        if: ${{ env.PUBLISH_STREAM == 'rc' }}
+        uses: aws-actions/configure-aws-credentials@e1253824e5c10ff9df46874f81ed3ec929e19cfd # v6.3.0
         with:
-          name: ${{ env.SNAPSHOT_ARTIFACT }}
-          path: ${{ env.SNAPSHOT_DIR }}
-
-      - name: Configure AWS Credentials
-        uses: ./.github/actions/configure_aws_product_publication_credentials # zizmor: ignore[self-repository]
-        with:
-          release_type: >-
-            ${{ fromJSON('{"dev": "dev", "nightly": "nightly", "bkc": "nightly-bkc", "rc": "prerelease"}')[matrix.stream] }}
-          product: core
+          aws-region: us-east-1
+          role-to-assume: arn:aws:iam::324352301041:role/therock-repo-rc-core
+          aws-profile: mirror-rc
 
       - name: Publish dependency snapshot
         run: |
-          python "${MIRROR_SCRIPT}" publish \
+          AWS_PROFILE="mirror-${PUBLISH_STREAM}" python "${MIRROR_SCRIPT}" publish \
             --snapshot-dir "${SNAPSHOT_DIR}" \
-            --bucket "${BUCKET}" \
+            --bucket "therock-repo-amd-${PUBLISH_STREAM}-core" \
             --refresh-existing \
             --summary-file "${GITHUB_STEP_SUMMARY}"
