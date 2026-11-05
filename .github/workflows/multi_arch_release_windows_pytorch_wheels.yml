@@ -43,6 +43,14 @@ on:
         description: "Single Python version to build (empty for full matrix)"
         type: string
         default: ''
+      pytorch_git_refs:
+        description: >-
+          PyTorch refs to build (comma/semicolon separated). Use 'all' for the
+          full default set for the release type, a subset of the available
+          release refs (e.g. 'release/2.12, release/2.13'), or a custom
+          branch/tag/SHA for bring-up.
+        type: string
+        default: "all"
       build_runs_on:
         description: "Build runner label"
         type: string
@@ -58,7 +66,7 @@ permissions:
   id-token: write
   contents: read
 
-run-name: Multi-Arch Release Windows PyTorch Wheels (${{ inputs.amdgpu_families }}, ${{ inputs.release_type }}, ${{ inputs.rocm_version }})
+run-name: Multi-Arch Release Windows PyTorch Wheels (${{ inputs.amdgpu_families }}, ${{ inputs.release_type }}, ${{ inputs.rocm_version }}, torch ${{ inputs.pytorch_git_refs }})
 
 jobs:
   notify_quartz_start:
@@ -88,6 +96,7 @@ jobs:
       repository: "ROCm/TheRock"
       ref: ${{ inputs.ref || '' }}
       python_version: ${{ inputs.python_version }}
+      pytorch_git_refs: ${{ inputs.pytorch_git_refs }}
       build_runs_on: ${{ inputs.build_runs_on }}
       quartz_tracking_id: ${{ inputs.quartz_tracking_id }}
 
