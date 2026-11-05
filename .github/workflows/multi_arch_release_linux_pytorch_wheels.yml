@@ -47,6 +47,12 @@ on:
         description: "Single Python version to build (empty for full matrix)"
         type: string
         default: ''
+      pytorch_git_refs:
+        description: >-
+          Comma- or semicolon-separated PyTorch refs. Empty uses the release
+          type default. "all" is not a keyword on the ROCm 10.1 branch.
+        type: string
+        default: ''
       build_runs_on:
         description: "Build runner label"
         type: string
@@ -63,7 +69,7 @@ permissions:
   contents: read
   actions: write
 
-run-name: Multi-Arch Release Linux PyTorch Wheels (${{ inputs.amdgpu_families }}, ${{ inputs.release_type }}, ${{ inputs.rocm_version }})
+run-name: Multi-Arch Release Linux PyTorch Wheels (${{ inputs.amdgpu_families }}, ${{ inputs.release_type }}, ${{ inputs.rocm_version }}, torch ${{ inputs.pytorch_git_refs }})
 
 jobs:
   notify_quartz_start:
@@ -94,6 +100,7 @@ jobs:
       repository: "ROCm/TheRock"
       ref: ${{ inputs.ref || '' }}
       python_version: ${{ inputs.python_version }}
+      pytorch_git_refs: ${{ inputs.pytorch_git_refs }}
       build_runs_on: ${{ inputs.build_runs_on }}
       quartz_tracking_id: ${{ inputs.quartz_tracking_id }}
 
