@@ -14,8 +14,8 @@ on:
     inputs:
       publish_stream:
         description: >-
-          Stream to publish to. "all" currently publishes to dev only, like
-          the scheduled run.
+          Stream to publish to. "all" publishes to dev and nightly, like the
+          scheduled run.
         type: choice
         options:
           - all
@@ -46,8 +46,8 @@ jobs:
       contents: read
       id-token: write # Assume the stream publication roles via OIDC.
     env:
-      # "all" currently means dev only.
-      PUBLISH_STREAM: ${{ (inputs.publish_stream || 'all') == 'all' && 'dev' || inputs.publish_stream }}
+      # Space-separated streams; "all" is dev and nightly.
+      PUBLISH_STREAMS: ${{ (inputs.publish_stream || 'all') == 'all' && 'dev nightly' || inputs.publish_stream }}
       SNAPSHOT_DIR: ${{ github.workspace }}/rocm-dependency-snapshot
       MIRROR_SCRIPT: build_tools/packaging/python/mirror_python_dependencies.py
 
@@ -74,7 +74,7 @@ jobs:
             --summary-file "${GITHUB_STEP_SUMMARY}"
 
       - name: Configure AWS Credentials for dev
-        if: ${{ env.PUBLISH_STREAM == 'dev' }}
+        if: ${{ contains(env.PUBLISH_STREAMS, 'dev') }}
         uses: aws-actions/configure-aws-credentials@e1253824e5c10ff9df46874f81ed3ec929e19cfd # v6.3.0
         with:
           aws-region: us-east-1
@@ -82,7 +82,7 @@ jobs:
           aws-profile: mirror-dev
 
       - name: Configure AWS Credentials for nightly
-        if: ${{ env.PUBLISH_STREAM == 'nightly' }}
+        if: ${{ contains(env.PUBLISH_STREAMS, 'nightly') }}
         uses: aws-actions/configure-aws-credentials@e1253824e5c10ff9df46874f81ed3ec929e19cfd # v6.3.0
         with:
           aws-region: us-east-1
@@ -90,7 +90,7 @@ jobs:
           aws-profile: mirror-nightly
 
       - name: Configure AWS Credentials for bkc
-        if: ${{ env.PUBLISH_STREAM == 'bkc' }}
+        if: ${{ contains(env.PUBLISH_STREAMS, 'bkc') }}
         uses: aws-actions/configure-aws-credentials@e1253824e5c10ff9df46874f81ed3ec929e19cfd # v6.3.0
         with:
           aws-region: us-east-1
@@ -98,7 +98,7 @@ jobs:
           aws-profile: mirror-bkc
 
       - name: Configure AWS Credentials for rc
-        if: ${{ env.PUBLISH_STREAM == 'rc' }}
+        if: ${{ contains(env.PUBLISH_STREAMS, 'rc') }}
         uses: aws-actions/configure-aws-credentials@e1253824e5c10ff9df46874f81ed3ec929e19cfd # v6.3.0
         with:
           aws-region: us-east-1
@@ -113,9 +113,11 @@ jobs:
           if [[ "${DRY_RUN}" == "true" ]]; then
             publish_args+=(--dry-run)
           fi
-          AWS_PROFILE="mirror-${PUBLISH_STREAM}" python "${MIRROR_SCRIPT}" publish \
-            --snapshot-dir "${SNAPSHOT_DIR}" \
-            --bucket "therock-repo-amd-${PUBLISH_STREAM}-core" \
-            --refresh-existing \
-            --summary-file "${GITHUB_STEP_SUMMARY}" \
-            "${publish_args[@]}"
+          for stream in ${PUBLISH_STREAMS}; do
+            AWS_PROFILE="mirror-${stream}" python "${MIRROR_SCRIPT}" publish \
+              --snapshot-dir "${SNAPSHOT_DIR}" \
+              --bucket "therock-repo-amd-${stream}-core" \
+              --refresh-existing \
+              --summary-file "${GITHUB_STEP_SUMMARY}" \
+              "${publish_args[@]}"
+          done
