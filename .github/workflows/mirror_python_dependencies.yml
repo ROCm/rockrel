@@ -1,17 +1,115 @@
 # Copyright Advanced Micro Devices, Inc.
 # SPDX-License-Identifier: MIT
 
+# Existing objects are refreshed so each stream's lifecycle rule does not
+# expire the current dependency versions.
+
 name: Mirror Python Dependencies
 
 on:
+  schedule:
+    # Mondays at 06:00 UTC.
+    - cron: "0 6 * * 1"
   workflow_dispatch:
+    inputs:
+      publish_stream:
+        description: >-
+          Stream to publish to. "all" currently publishes to dev only, like
+          the scheduled run.
+        type: choice
+        options:
+          - all
+          - dev
+          # Streams are enabled one by one after dev is rolled out.
+          # - nightly
+          # - bkc
+          # - rc
+        default: all
 
-permissions: {}
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}
+  cancel-in-progress: false
 
 jobs:
-  dispatch:
-    name: Confirm workflow dispatch
+  mirror:
+    name: Mirror Python Dependencies (${{ inputs.publish_stream || 'all' }})
+    if: ${{ github.repository == 'ROCm/rockrel' }}
     runs-on: ubuntu-26.04
+    timeout-minutes: 60
+    permissions:
+      contents: read
+      id-token: write
+    env:
+      ALL_STREAMS: dev
+      PUBLISH_STREAM: ${{ inputs.publish_stream || 'all' }}
+      SNAPSHOT_DIR: ${{ github.workspace }}/rocm-dependency-snapshot
+      MIRROR_SCRIPT: build_tools/packaging/python/mirror_python_dependencies.py
+
     steps:
-      - name: Confirm workflow dispatch
-        run: echo "Workflow dispatch is available."
+      - name: Checkout TheRock
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          repository: ROCm/TheRock
+          persist-credentials: false
+
+      - name: Set up Python
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: "3.12"
+
+      - name: Install Python requirements
+        run: pip install -r requirements.txt
+
+      - name: Resolve dependency snapshot
+        run: |
+          python "${MIRROR_SCRIPT}" resolve \
+            --output-dir "${SNAPSHOT_DIR}" \
+            --source-revision "$(git rev-parse HEAD)" \
+            --summary-file "${GITHUB_STEP_SUMMARY}"
+
+      - name: Configure AWS Credentials for dev
+        if: ${{ contains(fromJSON('["dev", "all"]'), env.PUBLISH_STREAM) }}
+        uses: ./.github/actions/configure_aws_product_publication_credentials # zizmor: ignore[self-repository]
+        with:
+          release_type: dev
+          product: core
+          aws_profile: mirror-dev
+
+      - name: Configure AWS Credentials for nightly
+        if: ${{ contains(fromJSON('["nightly"]'), env.PUBLISH_STREAM) }}
+        uses: ./.github/actions/configure_aws_product_publication_credentials # zizmor: ignore[self-repository]
+        with:
+          release_type: nightly
+          product: core
+          aws_profile: mirror-nightly
+
+      - name: Configure AWS Credentials for bkc
+        if: ${{ contains(fromJSON('["bkc"]'), env.PUBLISH_STREAM) }}
+        uses: ./.github/actions/configure_aws_product_publication_credentials # zizmor: ignore[self-repository]
+        with:
+          release_type: nightly-bkc
+          product: core
+          aws_profile: mirror-bkc
+
+      - name: Configure AWS Credentials for rc
+        if: ${{ contains(fromJSON('["rc"]'), env.PUBLISH_STREAM) }}
+        uses: ./.github/actions/configure_aws_product_publication_credentials # zizmor: ignore[self-repository]
+        with:
+          release_type: prerelease
+          product: core
+          aws_profile: mirror-rc
+
+      - name: Publish dependency snapshot
+        env:
+          STREAMS: ${{ env.PUBLISH_STREAM == 'all' && env.ALL_STREAMS || env.PUBLISH_STREAM }}
+        run: |
+          for stream in ${STREAMS}; do
+            AWS_PROFILE="mirror-${stream}" python "${MIRROR_SCRIPT}" publish \
+              --snapshot-dir "${SNAPSHOT_DIR}" \
+              --bucket "therock-repo-amd-${stream}-core" \
+              --refresh-existing \
+              --summary-file "${GITHUB_STEP_SUMMARY}"
+          done
