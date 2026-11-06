@@ -72,37 +72,40 @@ jobs:
             --source-revision "$(git rev-parse HEAD)" \
             --summary-file "${GITHUB_STEP_SUMMARY}"
 
+      # The credential action comes from the TheRock checkout above. Each
+      # stream logs in to its own named profile, which the publish loop selects
+      # through AWS_PROFILE.
       - name: Configure AWS Credentials for dev
         if: ${{ env.PUBLISH_STREAM == 'dev' }}
-        uses: aws-actions/configure-aws-credentials@e1253824e5c10ff9df46874f81ed3ec929e19cfd # v6.3.0
+        uses: ./.github/actions/configure_aws_product_publication_credentials # zizmor: ignore[self-repository]
         with:
-          aws-region: us-east-1
-          role-to-assume: arn:aws:iam::324352301041:role/therock-repo-dev-core
-          aws-profile: mirror-dev
+          release_type: dev
+          product: core
+          aws_profile: mirror-dev
 
       - name: Configure AWS Credentials for nightly
         if: ${{ env.PUBLISH_STREAM == 'nightly' }}
-        uses: aws-actions/configure-aws-credentials@e1253824e5c10ff9df46874f81ed3ec929e19cfd # v6.3.0
+        uses: ./.github/actions/configure_aws_product_publication_credentials # zizmor: ignore[self-repository]
         with:
-          aws-region: us-east-1
-          role-to-assume: arn:aws:iam::324352301041:role/therock-repo-nightly-core
-          aws-profile: mirror-nightly
+          release_type: nightly
+          product: core
+          aws_profile: mirror-nightly
 
       - name: Configure AWS Credentials for bkc
         if: ${{ env.PUBLISH_STREAM == 'bkc' }}
-        uses: aws-actions/configure-aws-credentials@e1253824e5c10ff9df46874f81ed3ec929e19cfd # v6.3.0
+        uses: ./.github/actions/configure_aws_product_publication_credentials # zizmor: ignore[self-repository]
         with:
-          aws-region: us-east-1
-          role-to-assume: arn:aws:iam::324352301041:role/therock-repo-bkc-core
-          aws-profile: mirror-bkc
+          release_type: nightly-bkc
+          product: core
+          aws_profile: mirror-bkc
 
       - name: Configure AWS Credentials for rc
         if: ${{ env.PUBLISH_STREAM == 'rc' }}
-        uses: aws-actions/configure-aws-credentials@e1253824e5c10ff9df46874f81ed3ec929e19cfd # v6.3.0
+        uses: ./.github/actions/configure_aws_product_publication_credentials # zizmor: ignore[self-repository]
         with:
-          aws-region: us-east-1
-          role-to-assume: arn:aws:iam::324352301041:role/therock-repo-rc-core
-          aws-profile: mirror-rc
+          release_type: prerelease
+          product: core
+          aws_profile: mirror-rc
 
       - name: Publish dependency snapshot
         run: |
