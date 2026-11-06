@@ -43,10 +43,8 @@ jobs:
       contents: read
       id-token: write
     env:
-      PUBLISH_STREAM: ${{ inputs.publish_stream != 'all' && inputs.publish_stream || 'dev' }}
-      # Mapping for "all" once more streams are enabled. The login steps of the
-      # enabled streams must then also match "all", e.g.
-      # PUBLISH_STREAM: ${{ inputs.publish_stream != 'all' && inputs.publish_stream || 'dev nightly bkc rc' }}
+      ALL_STREAMS: dev
+      PUBLISH_STREAM: ${{ inputs.publish_stream || 'all' }}
       SNAPSHOT_DIR: ${{ github.workspace }}/rocm-dependency-snapshot
       MIRROR_SCRIPT: build_tools/packaging/python/mirror_python_dependencies.py
 
@@ -72,11 +70,8 @@ jobs:
             --source-revision "$(git rev-parse HEAD)" \
             --summary-file "${GITHUB_STEP_SUMMARY}"
 
-      # The credential action comes from the TheRock checkout above. Each
-      # stream logs in to its own named profile, which the publish loop selects
-      # through AWS_PROFILE.
       - name: Configure AWS Credentials for dev
-        if: ${{ env.PUBLISH_STREAM == 'dev' }}
+        if: ${{ contains(fromJSON('["dev", "all"]'), env.PUBLISH_STREAM) }}
         uses: ./.github/actions/configure_aws_product_publication_credentials # zizmor: ignore[self-repository]
         with:
           release_type: dev
@@ -84,7 +79,7 @@ jobs:
           aws_profile: mirror-dev
 
       - name: Configure AWS Credentials for nightly
-        if: ${{ env.PUBLISH_STREAM == 'nightly' }}
+        if: ${{ contains(fromJSON('["nightly"]'), env.PUBLISH_STREAM) }}
         uses: ./.github/actions/configure_aws_product_publication_credentials # zizmor: ignore[self-repository]
         with:
           release_type: nightly
@@ -92,7 +87,7 @@ jobs:
           aws_profile: mirror-nightly
 
       - name: Configure AWS Credentials for bkc
-        if: ${{ env.PUBLISH_STREAM == 'bkc' }}
+        if: ${{ contains(fromJSON('["bkc"]'), env.PUBLISH_STREAM) }}
         uses: ./.github/actions/configure_aws_product_publication_credentials # zizmor: ignore[self-repository]
         with:
           release_type: nightly-bkc
@@ -100,7 +95,7 @@ jobs:
           aws_profile: mirror-bkc
 
       - name: Configure AWS Credentials for rc
-        if: ${{ env.PUBLISH_STREAM == 'rc' }}
+        if: ${{ contains(fromJSON('["rc"]'), env.PUBLISH_STREAM) }}
         uses: ./.github/actions/configure_aws_product_publication_credentials # zizmor: ignore[self-repository]
         with:
           release_type: prerelease
@@ -108,8 +103,10 @@ jobs:
           aws_profile: mirror-rc
 
       - name: Publish dependency snapshot
+        env:
+          STREAMS: ${{ env.PUBLISH_STREAM == 'all' && env.ALL_STREAMS || env.PUBLISH_STREAM }}
         run: |
-          for stream in ${PUBLISH_STREAM}; do
+          for stream in ${STREAMS}; do
             AWS_PROFILE="mirror-${stream}" python "${MIRROR_SCRIPT}" publish \
               --snapshot-dir "${SNAPSHOT_DIR}" \
               --bucket "therock-repo-amd-${stream}-core" \
