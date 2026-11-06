@@ -41,10 +41,12 @@ jobs:
     timeout-minutes: 60
     permissions:
       contents: read
-      id-token: write # Assume the stream publication roles via OIDC.
+      id-token: write
     env:
-      # "all" currently means dev only.
       PUBLISH_STREAM: ${{ inputs.publish_stream != 'all' && inputs.publish_stream || 'dev' }}
+      # Mapping for "all" once more streams are enabled. The login steps of the
+      # enabled streams must then also match "all", e.g.
+      # PUBLISH_STREAM: ${{ inputs.publish_stream != 'all' && inputs.publish_stream || 'dev nightly bkc rc' }}
       SNAPSHOT_DIR: ${{ github.workspace }}/rocm-dependency-snapshot
       MIRROR_SCRIPT: build_tools/packaging/python/mirror_python_dependencies.py
 
@@ -104,8 +106,10 @@ jobs:
 
       - name: Publish dependency snapshot
         run: |
-          AWS_PROFILE="mirror-${PUBLISH_STREAM}" python "${MIRROR_SCRIPT}" publish \
-            --snapshot-dir "${SNAPSHOT_DIR}" \
-            --bucket "therock-repo-amd-${PUBLISH_STREAM}-core" \
-            --refresh-existing \
-            --summary-file "${GITHUB_STEP_SUMMARY}"
+          for stream in ${PUBLISH_STREAM}; do
+            AWS_PROFILE="mirror-${stream}" python "${MIRROR_SCRIPT}" publish \
+              --snapshot-dir "${SNAPSHOT_DIR}" \
+              --bucket "therock-repo-amd-${stream}-core" \
+              --refresh-existing \
+              --summary-file "${GITHUB_STEP_SUMMARY}"
+          done
