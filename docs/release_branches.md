@@ -93,7 +93,7 @@ https://github.com/ROCm/rockrel/actions/workflows/multi_arch_release.yml?query=b
 
 To branch from the nightly release with ROCm version `10.1.0a20260811`:
 1. Find the workflow run that produced that release: https://github.com/ROCm/rockrel/actions/runs/31444849807
-2. Check the commit manifest or logs to find the associated TheRock commit: https://github.com/ROCm/TheRock/commit/03e3f2eba205f9a8f554a24d5e76925b39efab7a
+1. Check the commit manifest or logs to find the associated TheRock commit: https://github.com/ROCm/TheRock/commit/03e3f2eba205f9a8f554a24d5e76925b39efab7a
     * For example: https://therock-nightly-artifacts.s3.amazonaws.com/31444849807-linux/manifests/therock_manifest.json
 
         ```jsonc
@@ -115,7 +115,7 @@ To branch from the nightly release with ROCm version `10.1.0a20260811`:
           ]
         }
         ```
-3. Checkout sources, without applying patches:
+1. Checkout sources, without applying patches:
 
     ```bash
     cd TheRock
@@ -125,7 +125,7 @@ To branch from the nightly release with ROCm version `10.1.0a20260811`:
     # Note: explicitly include rocgdb on Windows
     python build_tools/fetch_sources.py --no-apply-patches --debug-tools=rocgdb
     ```
-4. (Optional) Check that each submodule is set to the commits you expect from the manifest/logs
+1. (Optional) Check that each submodule is set to the commits you expect from the manifest/logs
 
     ```bash
     # Check all at once:
@@ -148,13 +148,13 @@ To branch from the nightly release with ROCm version `10.1.0a20260811`:
 
     Note how compiler/amd-llvm uses `0240d7087e183944016616b505eba935efe59157`.
 
-5. Choose your new branch name, e.g. `release/bkc/therock-10.1-20260811`
-6. (Optional) Check that you have sufficient permissions for pushing using
+1. Choose your new branch name, e.g. `release/bkc/therock-10.1-20260811`
+1. (Optional) Check that you have sufficient permissions for pushing using
     [`scripts/check_github_permissions.py`](../scripts/check_github_permissions.py):
     ```bash
     python scripts/check_github_permissions.py ${THEROCK_COMMIT_REF}
     ```
-7. Create branches in each repository and push them:
+1. Create branches in each repository and push them:
 
     The basic procedure is:
 
