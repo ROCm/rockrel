@@ -91,6 +91,18 @@ https://github.com/ROCm/rockrel/actions/workflows/multi_arch_release.yml?query=b
 
 ### Creating named release branches
 
+> [!NOTE]
+> Prerequisites for these steps are:
+> 1. You have both https://github.com/ROCm/TheRock and https://github.com/ROCm/rockrel
+>    cloned to sibling directories, e.g.
+>     ```
+>     /dev/projects/rockrel
+>     /dev/projects/TheRock
+>     ```
+> 1. You have permissions necessary to push branches to each ROCm organization
+>    github repository involved in releases (see the note below about running
+>    [`scripts/check_github_permissions.py`](../scripts/check_github_permissions.py))
+
 To branch from the nightly release with ROCm version `10.1.0a20260811`:
 1. Find the workflow run that produced that release: https://github.com/ROCm/rockrel/actions/runs/31444849807
 1. Check the commit manifest or logs to find the associated TheRock commit: https://github.com/ROCm/TheRock/commit/03e3f2eba205f9a8f554a24d5e76925b39efab7a
@@ -152,14 +164,38 @@ To branch from the nightly release with ROCm version `10.1.0a20260811`:
 1. (Optional) Check that you have sufficient permissions for pushing using
     [`scripts/check_github_permissions.py`](../scripts/check_github_permissions.py):
     ```bash
-    python scripts/check_github_permissions.py ${THEROCK_COMMIT_REF}
+    # Run from TheRock/, or adjust as needed to run from rockrel
+    python ../rockrel/scripts/check_github_permissions.py --commitid ${THEROCK_COMMIT_REF}
+
+    # ============================================================
+    #   GitHub Permission Check
+    #   Verifying push/admin access for 12 repo(s)
+    # ============================================================
+    # [OK]  half: push/admin access confirmed
+    # [OK]  hipify: push/admin access confirmed
+    # [OK]  amd-llvm: push/admin access confirmed
+    # [OK]  rocm-cmake: push/admin access confirmed
+    # [OK]  rocm-libraries: push/admin access confirmed
+    # [OK]  rocm-systems: push/admin access confirmed
+    # [OK]  spirv-llvm-translator: push/admin access confirmed
+    # [OK]  mesa-fork: push/admin access confirmed
+    # [OK]  libhipcxx: push/admin access confirmed
+    # [OK]  source: push/admin access confirmed
+    # [OK]  rocm-docs: push/admin access confirmed
+    # [OK]  TheRock: push/admin access confirmed
+    # ============================================================
+    #   Passed : 12 / 12 repo(s)
+    #   Failed : 0 / 12 repo(s)
+    # ============================================================
+    #
+    # All permission checks passed.
     ```
 1. Create branches in each repository and push them:
 
     The basic procedure is:
 
     ```bash
-    # From TheRock
+    # Run from TheRock/
     BRANCH_NAME="release/bkc/therock-10.1-20260811"
     git -C . branch "${BRANCH_NAME}" && git -C . push -u origin "${BRANCH_NAME}:${BRANCH_NAME}"
     git -C rocm-libraries branch "${BRANCH_NAME}" && git -C rocm-libraries push -u origin "${BRANCH_NAME}:${BRANCH_NAME}"
@@ -171,12 +207,26 @@ To branch from the nightly release with ROCm version `10.1.0a20260811`:
     We have a script that can do this for you at [`scripts/create_release_branches.sh`](../scripts/create_release_branches.sh):
 
     ```bash
-    # From TheRock
+    # Notes:
+    #    * This assumes that the release branches do not already exist.
+    #    * Ensure the branches are as expected by confirming the operations above.
+
+    # Run from TheRock/
+    BRANCH_NAME="release/bkc/therock-10.1-20260811"
     bash ../rockrel/scripts/create_release_branches.sh release/bkc/therock-10.1-20260811
     ```
 
     You'll then also need to create the branch in this rockrel repository,
     branched off from `main`.
+
+    ```bash
+    cd ../rockrel
+    git checkout main && git pull
+
+    BRANCH_NAME="release/bkc/therock-10.1-20260811"
+    git checkout -b ${BRANCH_NAME}
+    git push origin ${BRANCH_NAME}
+    ```
 
 ### Initializing release branches
 
@@ -199,6 +249,12 @@ nightly builds are treated as alpha versions of the next release, as on
 }
 ```
 
+Make this edit then send a pull request for review.
+
+> [!NOTE]
+> Once branch creation is more automated we can skip pull requests for these
+> routine setup commits.
+
 #### (BKC only) Set the version base date in TheRock
 
 For BKC releases, set the version base date in `version.json` on the BKC release
@@ -219,6 +275,12 @@ This is used to produce BKC versions like `10.1.0a20260825+bkc.20260831`
 https://github.com/ROCm/TheRock/blob/main/docs/packaging/versioning.md#release-branch-metadata
 for more details.
 
+Make this edit then send a pull request for review.
+
+> [!NOTE]
+> Once branch creation is more automated we can skip pull requests for these
+> routine setup commits.
+
 #### Pin workflow files in rockrel
 
 Set workflow files in rockrel to use the release branch from TheRock,
@@ -234,6 +296,11 @@ This causes release workflows triggered from the release branch to use the
 release branch from TheRock instead of the latest code (used by default for
 nightly releases).
 
+Make this edit then send a pull request for review.
+
+> [!NOTE]
+> Once branch creation is more automated we can skip pull requests for these
+> routine setup commits.
 
 #### Pin workflow files in component repositories
 
@@ -267,3 +334,9 @@ outputs:
 This causes CI workflows triggered for pull requests to the release branches to
 use workflow code and component code (e.g. LLVM, rocm-systems) from the release
 branch.
+
+Make these edits then send pull requests for review.
+
+> [!NOTE]
+> Once branch creation is more automated _and workflows stabilize_, we could
+> skip pull requests for these CI setup commits.
