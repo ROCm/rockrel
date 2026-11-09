@@ -37,6 +37,7 @@ rules:
         ROCm/TheRock/.github/workflows/multi_arch_release_linux_pytorch_wheels.yml: ref-pin
         ROCm/TheRock/.github/workflows/multi_arch_release_windows_pytorch_wheels.yml: ref-pin
         ROCm/TheRock/.github/workflows/test_artifacts.yml: ref-pin
+        ROCm/TheRock/.github/workflows/test_multi_arch_linux_xla.yml: ref-pin
         ROCm/TheRock/.github/workflows/test_native_linux_packages_install.yml: ref-pin
         ROCm/TheRock/.github/workflows/test_native_windows_packages_install.yml: ref-pin
         ROCm/TheRock/.github/workflows/test_pytorch_wheels_full.yml: ref-pin
