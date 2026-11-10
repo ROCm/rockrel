@@ -42,10 +42,6 @@ on:
         description: "Repository holding the XLA checkout the test suite runs from."
         type: string
         default: "ROCm/xla"
-      xla_commit:
-        description: "XLA commit to test. Empty uses xla_ref."
-        type: string
-        default: ""
       test_runs_on:
         description: "Runner label to execute tests on."
         type: string
@@ -96,7 +92,6 @@ jobs:
       ref: ${{ inputs.ref }}
       xla_ref: ${{ inputs.xla_ref }}
       xla_repository: ${{ inputs.xla_repository }}
-      xla_commit: ${{ inputs.xla_commit }}
       test_runs_on: ${{ inputs.test_runs_on }}
       test_timeout_minutes: ${{ inputs.test_timeout_minutes }}
       quartz_tracking_id: ${{ inputs.quartz_tracking_id }}
