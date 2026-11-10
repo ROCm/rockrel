@@ -82,8 +82,7 @@ jobs:
       rocm_package_find_links_url: ${{ inputs.rocm_package_find_links_url }}
       rocm_package_index_url: ${{ inputs.rocm_package_index_url }}
       rocm_package_version: ${{ inputs.rocm_package_version }}
-      repository: ${{ inputs.repository }}
-      therock_ref: ${{ inputs.ref }}
+      therock_ref: ${{ inputs.therock_ref }}
       xla_ref: ${{ inputs.xla_ref }}
       xla_repository: ${{ inputs.xla_repository }}
       test_runs_on: ${{ inputs.test_runs_on }}
