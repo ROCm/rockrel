@@ -1,0 +1,109 @@
+# Copyright Advanced Micro Devices, Inc.
+# SPDX-License-Identifier: MIT
+
+# Thin wrapper that dispatches to TheRock's test_multi_arch_linux_xla.yml.
+# This exists so that release workflows running in rockrel's context
+# can dispatch test runs to this repo (which then calls TheRock).
+
+name: Test Multi-Arch Linux XLA
+
+on:
+  workflow_dispatch:
+    inputs:
+      test_amdgpu_target:
+        description: GPU target to test (e.g. gfx942, gfx950)
+        type: string
+        default: "gfx950"
+      rocm_package_find_links_url:
+        description: "pip --find-links URL for the rocm[libraries,devel] wheel to install."
+        type: string
+        default: ""
+      rocm_package_index_url:
+        description: "pip --index-url URL for the rocm[libraries,devel] wheel to install."
+        type: string
+        default: "https://nightly.repo.amd.com/rocm/whl-next/"
+      rocm_package_version:
+        description: "Version pin for the rocm[libraries,devel] wheel. Empty installs the latest available."
+        type: string
+        default: ""
+      therock_ref:
+        description: "Branch, tag, or SHA to checkout in TheRock."
+        type: string
+        default: ""
+      xla_ref:
+        description: "ROCm/xla ref to check out."
+        type: string
+        default: "rocm-jaxlib-v0.11.2"
+      xla_repository:
+        description: "Repository holding the XLA checkout the test suite runs from."
+        type: string
+        default: "ROCm/xla"
+      test_runs_on:
+        description: "Runner label to execute tests on."
+        type: string
+        default: "linux-gfx950-1gpu-ccs-ossci-rocm"
+      test_timeout_minutes:
+        description: "Budget for the whole test job, in minutes."
+        type: string
+        default: "120"
+      quartz_tracking_id:
+        description: >-
+          Leave empty. Internal Quartz tracking id, set automatically to link
+          this run to its release lineage.
+        type: string
+        default: ""
+
+permissions:
+  contents: read
+
+run-name: Test Multi-Arch Linux XLA (${{ inputs.test_amdgpu_target }}, ${{ inputs.xla_ref }})
+
+jobs:
+  notify_quartz_start:
+    name: "Quartz - started - test XLA (rockrel)"
+    if: ${{ vars.NOTIFY_QUARTZ_ENABLED == 'true' }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    continue-on-error: true
+    steps:
+      - uses: ROCm/Quartz/.github/actions/notify_quartz@2d3d15630651544b1469f71da25da9b73ffa8667 # notify_quartz/v1.1.3
+        with:
+          run_phase: started
+          reporting_workflow: test_multi_arch_linux_xla.yml
+          workflow_inputs: ${{ toJSON(inputs) }}
+          gh_app_client_id: ${{ secrets.GH_APP_HAULY_CID }}
+          gh_app_private_key: ${{ secrets.GH_APP_HAULY_PRIVATE_KEY }}
+
+  test_xla:
+    uses: ROCm/TheRock/.github/workflows/test_multi_arch_linux_xla.yml@main
+    secrets: inherit # zizmor: ignore[secrets-inherit]
+    with:
+      test_amdgpu_target: ${{ inputs.test_amdgpu_target }}
+      rocm_package_find_links_url: ${{ inputs.rocm_package_find_links_url }}
+      rocm_package_index_url: ${{ inputs.rocm_package_index_url }}
+      rocm_package_version: ${{ inputs.rocm_package_version }}
+      therock_ref: ${{ inputs.therock_ref }}
+      xla_ref: ${{ inputs.xla_ref }}
+      xla_repository: ${{ inputs.xla_repository }}
+      test_runs_on: ${{ inputs.test_runs_on }}
+      test_timeout_minutes: ${{ inputs.test_timeout_minutes }}
+      quartz_tracking_id: ${{ inputs.quartz_tracking_id }}
+    permissions:
+      contents: read
+
+  notify_quartz_completed:
+    name: "Quartz - completed - test XLA (rockrel)"
+    if: ${{ always() && vars.NOTIFY_QUARTZ_ENABLED == 'true' }}
+    needs: [test_xla]
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    continue-on-error: true
+    steps:
+      - uses: ROCm/Quartz/.github/actions/notify_quartz@2d3d15630651544b1469f71da25da9b73ffa8667 # notify_quartz/v1.1.3
+        with:
+          run_phase: completed
+          reporting_workflow: test_multi_arch_linux_xla.yml
+          workflow_inputs: ${{ toJSON(inputs) }}
+          workflow_captured_outputs: ${{ toJSON(needs) }}
+          gh_app_client_id: ${{ secrets.GH_APP_HAULY_CID }}
+          gh_app_private_key: ${{ secrets.GH_APP_HAULY_PRIVATE_KEY }}
