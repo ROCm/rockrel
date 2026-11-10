@@ -45,7 +45,7 @@ on:
       test_timeout_minutes:
         description: "Budget for the whole test job, in minutes."
         type: string
-        default: "240"
+        default: "120"
       quartz_tracking_id:
         description: >-
           Leave empty. Internal Quartz tracking id, set automatically to link
