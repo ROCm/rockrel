@@ -1,0 +1,8 @@
+# Copyright Advanced Micro Devices, Inc.
+# SPDX-License-Identifier: MIT
+
+# Zizmor enforces workflow/action pinning, with explicit exceptions for TheRock
+# workflows that intentionally follow the selected ref. See zizmor.yml.
+query-filters:
+  - exclude:
+      id: actions/unpinned-tag
