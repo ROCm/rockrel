@@ -88,6 +88,7 @@ jobs:
       repository: ${{ inputs.repository || 'ROCm/TheRock' }}
       ref: ${{ inputs.ref || '' }}
       python_version: ${{ inputs.python_version }}
+      build_variant: ${{ inputs.build_variant }}
       quartz_tracking_id: ${{ inputs.quartz_tracking_id }}
 
   notify_quartz_completed:
