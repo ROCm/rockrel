@@ -40,6 +40,12 @@ on:
         description: "Single Python version to build (empty for full matrix)"
         type: string
         default: ''
+      build_variant:
+        description: >-
+          Build variant (release, asan, asan-debug, host-asan, host-asan-debug).
+          A variant containing asan builds one untested host-ASAN row.
+        type: string
+        default: "release"
       quartz_tracking_id:
         description: >-
           Leave empty. Internal Quartz tracking id, set automatically to link
@@ -82,6 +88,7 @@ jobs:
       repository: ${{ inputs.repository || 'ROCm/TheRock' }}
       ref: ${{ inputs.ref || '' }}
       python_version: ${{ inputs.python_version }}
+      build_variant: ${{ inputs.build_variant }}
       quartz_tracking_id: ${{ inputs.quartz_tracking_id }}
 
   notify_quartz_completed:
