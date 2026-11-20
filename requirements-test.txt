@@ -1,2 +1,3 @@
 pytest==9.0.3 # This version has subtests built-in.
 pytest-cov==6.0.0
+pyyaml==6.0.3

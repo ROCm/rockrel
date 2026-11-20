@@ -69,7 +69,7 @@ jobs:
       prerelease_version: ${{ inputs.prerelease_version || '' }}
       linux_amdgpu_families: ${{ inputs.linux_amdgpu_families || 'all' }}
       run_full_pytorch_tests: ${{ inputs.run_full_pytorch_tests || github.event_name == 'schedule' }}
-      build_pytorch: ${{ inputs.build_pytorch == '' && true || inputs.build_pytorch }}
+      build_pytorch: ${{ inputs.build_pytorch || github.event_name == 'schedule' }}
       python_version: ${{ inputs.python_version || '' }}
       repository: "ROCm/TheRock"
       ref: ${{ inputs.ref || '' }}
