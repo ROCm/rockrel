@@ -40,8 +40,6 @@ on:
         description: "Single Python version to build (empty for full matrix)"
         type: string
         default: ''
-      # Accepted so release triggers can send it; not forwarded until TheRock's
-      # JAX release workflow takes it.
       build_variant:
         description: >-
           Build variant (release, asan, asan-debug, host-asan, host-asan-debug).
