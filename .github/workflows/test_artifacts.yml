@@ -22,12 +22,25 @@ on:
         default: ""
       test_runs_on:
         type: string
+      test_runs_on_cpu:
+        description: "Runner label for CPU-only tests."
+        type: string
+        default: ""
+      test_scope:
+        description: "Run all tests, per-family tests, or tests of generic artifacts."
+        type: choice
+        options: [all, family, generic]
+        default: all
       sanity_check_only_for_family:
         type: boolean
         default: false
       test_type:
         type: string
       test_labels:
+        type: string
+        default: ""
+      skip_stages:
+        description: "Build stages excluded from the source build (comma-separated)."
         type: string
         default: ""
       release_type:
@@ -56,7 +69,7 @@ on:
 permissions:
   contents: read
 
-run-name: Test Artifacts (${{ inputs.amdgpu_families }}, ${{ inputs.release_type || 'ci' }}, ${{ inputs.test_type }}, ${{ inputs.build_variant }}, ${{ inputs.test_runs_on }})
+run-name: Test Artifacts (${{ inputs.test_scope == 'generic' && 'generic' || inputs.amdgpu_families }}, ${{ inputs.release_type || 'ci' }}, ${{ inputs.test_type }}, ${{ inputs.build_variant }}, ${{ inputs.test_runs_on }})
 
 jobs:
   notify_quartz_start:
@@ -85,9 +98,12 @@ jobs:
       amdgpu_families: ${{ inputs.amdgpu_families }}
       amdgpu_targets: ${{ inputs.amdgpu_targets }}
       test_runs_on: ${{ inputs.test_runs_on }}
+      test_runs_on_cpu: ${{ inputs.test_runs_on_cpu }}
+      test_scope: ${{ inputs.test_scope }}
       sanity_check_only_for_family: ${{ inputs.sanity_check_only_for_family }}
       test_type: ${{ inputs.test_type }}
       test_labels: ${{ inputs.test_labels }}
+      skip_stages: ${{ inputs.skip_stages }}
       release_type: ${{ inputs.release_type }}
       repository: ${{ inputs.repository }}
       ref: ${{ inputs.ref }}
